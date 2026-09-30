@@ -31,6 +31,17 @@ and fetches limits when the quota popup or status screen opens. A limit past
 its reset time always counts as reset (0 %), in the bar, status screen and
 island, even before a fresh record arrives.
 
+## fastfetch logo
+
+`bin/fastfetch-logo.py enable` puts the Amiga rainbow double tick (half-block
+cells, theme colours, rear tick darker) with AMIGA underneath into fastfetch:
+it replaces only the `logo` object of `~/.config/fastfetch/config.jsonc`
+(keeping its padding; the previous object is stored for `restore`), writes
+`~/.config/fastfetch/amiga-logo.ansi` and installs the theme-set hook
+`amiga-fastfetch-logo`, which recolours the logo on theme changes.
+`restore` puts the previous logo back and removes file and hook; `status`
+reports the state. Test: `python3 tests/fastfetch_logo.py`.
+
 ## Menu strip and status screen
 - `IntuitionMenu.qml`: Omarchy · Agents · System · Network · Phone · Tools, opened by right click on the Omarchy logo or **Super+Alt+M**; arrows/Enter/Esc; toggles show ✓ (DND, stay awake, VPN, Tailscale).
 - `StatusScreen.qml`: the "screen behind the Workbench" with agents, nbtiles tests, AI quotas, phone, today & tomorrow, system & network; **Super+M** (Amiga-M) or Esc. `SysState.qml` polls only while one of them is open.

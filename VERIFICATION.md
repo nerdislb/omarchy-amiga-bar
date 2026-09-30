@@ -156,3 +156,11 @@ also caught reconstructBase adding omarchy.agents to layouts that never had
 it (fixed: only when a status/quota module could have folded it). Live: both
 logos captured at 1:1 and 4× on the dark theme, no QML warnings; left on amiga.
 
+## fastfetch Amiga logo (2026-09-30, Claude Opus 5.5)
+
+`bin/fastfetch-logo.py`: fake-HOME test (enable twice, restore) keeps
+padding and other modules and restores the config byte-identically. Live:
+config backed up, enabled, JSON validated; a Ghostty window running plain
+`fastfetch` showed the tick and AMIGA crisp in NerdWorkbench beside the info;
+the theme-set hook ran without error.
+

@@ -1,7 +1,15 @@
 {
-  "NerdWorkbenchIcons.ttf": "0e59ae28bfa9b9f1aafb47d0dd10acacc805bf59ad008f589f8bebad61475a7d",
-  "NerdWorkbenchMono-Bold.ttf": "c86890b7ac66a7a19f91155290fa4fffca508873ae284698e7156d71e0c59f05",
-  "NerdWorkbenchMono-Regular.ttf": "1492f04bfb7a860e69b36da521dc378a7c09c78c4fbd500f12cc6cc39c8d9a71",
-  "NerdWorkbenchUI-Bold.ttf": "b5a63d11bb83c5425bfa8ec0b0066ae1f98c3d21bebf9b1b4fae8d9c2121b004",
-  "NerdWorkbenchUI-Regular.ttf": "5bdbd5e0c9d580f2db6a1a18f776babb2b2fa875674f7c141cb337cb21f1e16a"
+  "fonts": {
+    "NerdWorkbenchIcons.ttf": "40adb07ed5944de891f4e6d223bd5879a0693de4b074808b88317eeb88504615",
+    "NerdWorkbenchMono-Bold.ttf": "e6a33fec37e9e616b50690ac9f2cb835f93ef9569fdde908703623e1825ef5af",
+    "NerdWorkbenchMono-Regular.ttf": "1c151c87ec5648207ab454e7f565d0ba810c5b16b7233435c019e12876045a9c"
+  },
+  "iconSources": {
+    "JetBrainsMonoNerdFont-Regular.ttf": "1c680e8cde9fcf8b88a5605ce8d1fb94dd3fb15841f7ca7bf4c55664855e5611",
+    "omarchy.ttf": "154c1a11c232430d2633be942019d34c08222e518f8f41021fad9080d8fda0f5"
+  },
+  "icons": {
+    "total": 10371,
+    "handDrawn": 91
+  }
 }

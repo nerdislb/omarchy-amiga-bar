@@ -1,3 +1,10 @@
+NerdWorkbench text glyphs are derived from Topaz Unicode by Screwtape
+(https://gitlab.com/Screwtapello/topaz-unicode), which offers the ISC licence
+reproduced below. Copyright notices for this derivative:
+
+Copyright (c) Screwtape (Topaz Unicode)
+Copyright (c) 2026 Nerdibeard (whole-pixel 12x16 grid, packaging)
+
 It is my understanding that bitmap fonts cannot practically be copyrighted,
 so you do not need any kind of licence to use this font. However, if you would
 like to be safe, and to cover the non-font contents of this repository (such

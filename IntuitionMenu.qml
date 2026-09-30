@@ -1,4 +1,5 @@
 import QtQuick
+import "bridge" as Bridge
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
@@ -40,7 +41,6 @@ PanelWindow {
   onOpenChanged: if (open) { current = 0; item = -1; pointerKnown = false }
   onCurrentChanged: { item = -1; menuScroll.contentY = 0 }
 
-  readonly property bool topaz: host && host.options.font === "topaz"
   readonly property color stripBg: Color.bar.text
   readonly property color stripInk: Color.bar.background
   readonly property int barH: Style.bar.sizeHorizontal
@@ -64,13 +64,10 @@ PanelWindow {
     if (typeof entry.action === "function") Qt.callLater(entry.action)
   }
 
-  FontLoader { id: topazFont; source: "file://" + (win.host ? win.host.pluginDir : "") + "/assets/fonts/nerdworkbench/NerdWorkbenchUI-Regular.ttf" }
-
   component Label: Text { textFormat: Text.PlainText;
-    font.family: win.topaz && topazFont.status === FontLoader.Ready ? topazFont.name : Style.font.family
-    font.pixelSize: win.topaz ? 16 : Style.font.body
+    font.family: Bridge.ModuleBus.momentFamily
+    font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body)
     renderType: Text.NativeRendering
-    transform: Scale { xScale: 1 }
     // Scale does not change the layout width; make room for it.
     readonly property real layoutWidth: implicitWidth * (1)
   }
@@ -149,7 +146,7 @@ PanelWindow {
     y: strip.height
     width: Math.min(win.width - Style.space(8), Math.max(Style.space(300), Math.min(Style.space(820),
       menu ? menu.items.reduce(function(w, e) {
-        return Math.max(w, Math.min(48, String(e.label || "").length) * (win.topaz ? 14 : Style.font.body * 0.66)
+        return Math.max(w, Math.min(48, String(e.label || "").length) * (Bridge.ModuleBus.pixelMoments ? 12 : Style.font.body * 0.66)
           + String(e.note || "").length * Style.font.caption * 0.66 + Style.space(80))
       }, 0) : 0)))
     height: Math.min(win.height - y - Style.space(8), list.implicitHeight + Style.space(8))
@@ -197,11 +194,11 @@ PanelWindow {
             anchors.verticalCenter: parent.verticalCenter
             x: Style.space(6)
             spacing: Style.space(6)
-            Text { textFormat: Text.PlainText;
+            Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
               width: Style.space(14)
               anchors.verticalCenter: parent.verticalCenter
               text: row.modelData.checked ? "✓" : ""
-              font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.body
+              font.family: Bridge.ModuleBus.momentFamily; font.bold: true; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body)
               color: row.hot ? Color.bar.background : win.stripInk
             }
             Label {
@@ -220,11 +217,11 @@ PanelWindow {
             anchors.right: parent.right; anchors.rightMargin: Style.space(8)
             anchors.verticalCenter: parent.verticalCenter
             spacing: Style.space(6)
-            Text { textFormat: Text.PlainText;
+            Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
               visible: !!row.modelData.note
               anchors.verticalCenter: parent.verticalCenter
               text: row.modelData.note || ""
-              font.family: Style.font.family; font.pixelSize: Style.font.caption
+              font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption)
               color: row.hot ? Color.bar.background : Util.alpha(win.stripInk, 0.7)
             }
             // Amiga key (= Super) shortcut hint
@@ -233,11 +230,11 @@ PanelWindow {
               anchors.verticalCenter: parent.verticalCenter
               spacing: Style.space(3)
               Rectangle {
-                width: Style.space(14); height: width
+                width: Bridge.ModuleBus.pixelMoments ? 18 : Style.space(14); height: width
                 color: "transparent"; border.width: 1; border.color: row.hot ? Color.bar.background : win.stripInk
-                Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: "A"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption - 1; color: row.hot ? Color.bar.background : win.stripInk }
+                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.centerIn: parent; text: "A"; font.family: Bridge.ModuleBus.momentFamily; font.bold: true; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption - 1); color: row.hot ? Color.bar.background : win.stripInk }
               }
-              Text { textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; text: row.modelData.key || ""; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption; color: row.hot ? Color.bar.background : win.stripInk }
+              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; text: row.modelData.key || ""; font.family: Bridge.ModuleBus.momentFamily; font.bold: true; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption); color: row.hot ? Color.bar.background : win.stripInk }
             }
           }
 

@@ -65,10 +65,14 @@ Item {
 
   function captureBase() {
     var current = currentLayout
-    if (!current || (!current.left && !current.center && !current.right)) return
-    if (Presets.hasOwn(current)) return "restore Today before capturing the baseline"
-    baseLayout = Presets.stripOwn(current)
-    baseFile.setText(JSON.stringify({ version: 1, saved: new Date().toISOString(), layout: baseLayout }, null, 2) + "\n")
+    if (!current || (!current.left && !current.center && !current.right)) return "no bar layout yet"
+    // base.json lost while our modules are live: rebuild the native layout
+    // from them (folded widgets keep their settings) instead of dead-ending.
+    var reconstructed = Presets.hasOwn(current)
+    baseLayout = reconstructed ? Presets.reconstructBase(current) : Presets.stripOwn(current)
+    baseFile.setText(JSON.stringify({ version: 1, saved: new Date().toISOString(), reconstructed: reconstructed, layout: baseLayout }, null, 2) + "\n")
+    if (reconstructed) lastResult = "Baseline rebuilt from the current bar (base.json was missing)"
+    return "ok"
   }
 
   // Named combinations are local data, never filenames or shell arguments.
@@ -106,7 +110,7 @@ Item {
     return "Saved: " + name
   }
   function loadCombination(name) {
-    for (var i = 0; i < savedPresets.length; i++) if (savedPresets[i].name === name) return apply(savedPresets[i].options)
+    for (var i = 0; i < savedPresets.length; i++) if (savedPresets[i].name === name) return apply(Presets.keepDesktopFont(savedPresets[i].options, options))
     return "Unknown combination"
   }
   function deleteCombination(name) {
@@ -128,12 +132,9 @@ Item {
     stderr: StdioCollector { onStreamFinished: if (String(text).trim()) root.lastResult = "error: " + String(text).trim() }
     onExited: function(exitCode) {
       stdinEnabled = true
-      if (root.pendingFontAction !== "") {
-        var action = root.pendingFontAction
-        root.pendingFontAction = ""
-        if (exitCode === 0) { systemFont.action = action; systemFont.running = true }
-        else root.systemFontResult = "Could not save the local font selection"
-      }
+      // The desktop font profile changed: reload apps and the shell only now,
+      // after the option is saved (the restart also restarts this engine).
+      if (root.reloadAfterWrite) { root.reloadAfterWrite = false; root.reloadApps() }
     }
   }
 
@@ -153,40 +154,72 @@ Item {
   }
   function applyPreset(id) {
     var p = Presets.presetById(String(id))
-    return p ? apply(p.options) : "unknown preset: " + id
+    return p ? apply(Presets.keepDesktopFont(p.options, options)) : "unknown preset: " + id
   }
   function setVariant(element, variant) {
     if (!Presets.ELEMENTS[element] || !Presets.ELEMENTS[element].variants.some(function(v) { return v.id === variant })) return "unknown element or variant"
+    if (element === "font") return setFont(String(variant))
     var o = JSON.parse(JSON.stringify(options))
     o[String(element)] = String(variant)
     return apply(o)
   }
 
-  // Independent of bar presets: this changes the user's fontconfig mapping.
-  property bool systemTopaz: false
-  property string pendingFontAction: ""
+  // ---------------------------------------------------------------- pixel font
+  // theme/topaz/bar only change our own text, live. "desktop" also installs
+  // the system profile (bin/system-font.py); the option is saved only after
+  // the script succeeded, then Ghostty and the shell reload.
+  Binding { target: Bridge.ModuleBus; property: "fontLevel"; value: root.options.font }
+  property string systemProfile: "unknown"   // normal · amiga · partial
   property string systemFontResult: ""
+  property string pendingFont: ""
+  property bool reloadAfterWrite: false
   Process {
     id: systemFont
     property string action: "status"
-    command: ["python3", root.pluginDir + "/bin/system-font.py", action]
+    command: ["python3", root.pluginDir + "/bin/system-font.py", action, "--no-reload"]
     stdout: StdioCollector {
       onStreamFinished: {
-        try {
-          var result = JSON.parse(text)
-          if (result.error) root.systemFontResult = result.error
-          else { root.systemTopaz = result.enabled; root.systemFontResult = result.message || "" }
-        } catch (e) { root.systemFontResult = "Could not read system font status" }
+        var result = null
+        try { result = JSON.parse(text) } catch (e) {}
+        if (result && result.profile) root.systemProfile = result.profile
+        if (systemFont.action === "status") {
+          if (!result || result.error) root.systemFontResult = "Could not read the desktop font profile"
+          return
+        }
+        var next = root.pendingFont
+        root.pendingFont = ""
+        if (!result || result.error) {
+          root.systemFontResult = (result && result.error ? result.error + " — " : "") + "nothing was saved"
+          return
+        }
+        root.systemFontResult = result.message || ""
+        var o = JSON.parse(JSON.stringify(root.options))
+        o.font = next
+        root.reloadAfterWrite = true
+        var r = root.apply(o)
+        if (r !== "ok") {
+          root.reloadAfterWrite = false
+          root.systemFontResult = "Profile changed, but the option was not saved: " + r
+          root.reloadApps()
+        }
       }
     }
   }
-  function systemFontAction(action) {
-    if (systemFont.running || pendingFontAction !== "") return
-    if (action === "status") { systemFont.action = action; systemFont.running = true; return }
-    if (writer.running) { systemFontResult = "Please wait for the current layout change"; return }
-    pendingFontAction = action
-    var result = setVariant("font", action === "enable" ? "topaz" : "theme")
-    if (result !== "ok") { pendingFontAction = ""; systemFontResult = result }
+  function reloadApps() { Quickshell.execDetached(["python3", root.pluginDir + "/bin/system-font.py", "reload"]) }
+  function refreshSystemFont() {
+    if (systemFont.running) return
+    systemFont.action = "status"; systemFont.running = true
+  }
+  function setFont(level) {
+    if (systemFont.running || pendingFont !== "" || writer.running) return "busy"
+    var toDesktop = level === "desktop"
+    var needScript = toDesktop || options.font === "desktop" || systemProfile !== "normal"
+    if (!needScript) return apply(Object.assign({}, options, { font: level }))
+    pendingFont = level
+    systemFontResult = toDesktop ? "Installing the desktop font profile …" : "Removing the desktop font profile …"
+    systemFont.action = toDesktop ? "enable" : "restore"
+    systemFont.running = true
+    return "ok"
   }
 
   // ---------------------------------------------------------------- panel contract
@@ -229,7 +262,8 @@ Item {
     })
     ;(Bridge.ModuleBus.instances.quota || []).forEach(function(i) { i.close() })
   }
-  onIsOpenChanged: if (isOpen) { closeModulePopups(); systemFontAction("status") }
+  onIsOpenChanged: if (isOpen) { closeModulePopups(); refreshSystemFont() }
+  Component.onCompleted: refreshSystemFont()
   onMenuOpenChanged: if (menuOpen) { isOpen = false; screenOpen = false; closeModulePopups() }
   onScreenOpenChanged: if (screenOpen) { isOpen = false; menuOpen = false; closeModulePopups() }
   function openScreen() { menuOpen = false; screenOpen = true }
@@ -316,7 +350,12 @@ Item {
 
   IpcHandler {
     target: "amiga-bar"
-    function font(profile: string): void { if (profile === "normal" || profile === "amiga") root.systemFontAction(profile === "normal" ? "restore" : "enable") }
+    // Legacy switch: amiga = whole desktop, normal = keep our text, drop the profile.
+    function font(profile: string): string {
+      if (profile === "amiga") return root.setFont("desktop")
+      if (profile === "normal") return root.setFont(root.options.font === "desktop" ? "bar" : root.options.font)
+      return "use amiga or normal"
+    }
     function menuState(): string { return JSON.stringify({ open: root.menuOpen, tab: intuitionMenu.current, item: intuitionMenu.item }) }
     function options(): void { root.toggle() }
     function save(name: string): string { return root.saveCombination(name) }
@@ -325,10 +364,16 @@ Item {
     function screen(): void { root.menuOpen = false; root.screenOpen = !root.screenOpen }
     function preset(id: string): string { return root.applyPreset(id) }
     function set(element: string, variant: string): string { return root.setVariant(element, variant) }
-    function recaptureBase(): string { if (Presets.hasOwn(root.currentLayout)) return "restore Today before capturing the baseline"; root.captureBase(); return "ok" }
+    // After choosing Today: fresh snapshot of your own layout. Without any
+    // baseline (base.json lost) it rebuilds one from our modules instead.
+    function recaptureBase(): string {
+      if (Presets.hasOwn(root.currentLayout) && root.baseLayout) return "restore Today before capturing the baseline"
+      return root.captureBase()
+    }
     function state(): string {
       return JSON.stringify({ preset: root.presetId, options: root.options, hasBase: root.baseLayout !== null,
-                              open: root.isOpen, menuOpen: root.menuOpen, screenOpen: root.screenOpen, saved: root.savedPresets.map(function(p) { return p.name }), lastResult: root.lastResult, moduleDir: root.moduleDir })
+                              open: root.isOpen, menuOpen: root.menuOpen, screenOpen: root.screenOpen, saved: root.savedPresets.map(function(p) { return p.name }), lastResult: root.lastResult, moduleDir: root.moduleDir,
+                              systemFont: root.systemProfile, fontResult: root.systemFontResult })
     }
   }
 }

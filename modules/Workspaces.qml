@@ -1,4 +1,5 @@
 import QtQuick
+import "../bridge" as Bridge
 import Quickshell.Hyprland
 import qs.Commons
 import qs.Ui
@@ -87,12 +88,12 @@ Item {
     width: root.menuWidth
     height: root.barSize
 
-    Text {
+    Text { renderType: Text.NativeRendering;
       anchors.centerIn: parent
       visible: root.variant !== "logo"
       text: ""
-      font.family: "omarchy"
-      font.pixelSize: Style.font.icon + 2
+      font.family: Bridge.ModuleBus.pixelAll ? Bridge.ModuleBus.pixelFamily : "omarchy"
+      font.pixelSize: Bridge.ModuleBus.px(Style.font.icon + 2)
       color: root.fg
     }
 
@@ -102,11 +103,11 @@ Item {
       visible: root.variant === "logo"
       width: Math.round(root.barSize * 0.68); height: width
       Rectangle { anchors.fill: parent; color: "transparent"; border.width: Math.max(1, Style.space(1.5)); border.color: root.fg; radius: Math.min(Style.cornerRadius, 3) }
-      Text {
+      Text { renderType: Text.NativeRendering;
         anchors.centerIn: parent
         text: root.active === 10 ? "0" : String(root.active)
-        font.family: Style.font.family; font.bold: true
-        font.pixelSize: Style.font.body + 1
+        font.family: Bridge.ModuleBus.family; font.bold: true
+        font.pixelSize: Bridge.ModuleBus.px(Style.font.body + 1)
         color: root.accent
       }
     }
@@ -175,11 +176,11 @@ Item {
             border.color: root.dim
             radius: Math.min(Style.cornerRadius, 2)
           }
-          Text {
+          Text { renderType: Text.NativeRendering;
             anchors.centerIn: parent
             opacity: pips.grow
             text: modelData === 10 ? "0" : String(modelData)
-            font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.bodySmall
+            font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.bodySmall)
             color: parent.occ ? Color.bar.background : root.fg
           }
           MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.focusWorkspace(parent.modelData) }
@@ -194,11 +195,11 @@ Item {
         height: Style.space(8) + Style.space(8) * pips.grow + 2
         color: root.accent
         radius: Math.min(Style.cornerRadius, 2)
-        Text {
+        Text { renderType: Text.NativeRendering;
           anchors.centerIn: parent
           opacity: pips.grow
           text: root.active === 10 ? "0" : String(root.active)
-          font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.bodySmall
+          font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.bodySmall)
           color: Color.bar.background
         }
       }
@@ -238,7 +239,7 @@ Item {
         width: parent.box; height: parent.box
         color: Color.bar.background
         border.width: Math.max(1, Style.space(1.5)); border.color: root.accent
-        Text { anchors.centerIn: parent; text: root.active === 10 ? "0" : String(root.active); font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.body; color: root.fg }
+        Text { renderType: Text.NativeRendering; anchors.centerIn: parent; text: root.active === 10 ? "0" : String(root.active); font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.body); color: root.fg }
       }
       MouseArea {
         anchors.fill: parent
@@ -318,10 +319,10 @@ Item {
     Row {
       spacing: Style.space(2)
       height: root.barSize
-      Text {
+      Text { renderType: Text.NativeRendering;
         anchors.verticalCenter: parent.verticalCenter
         text: (root.active === 10 ? "0" : String(root.active)) + ">"
-        font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.body + 1
+        font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.body + 1)
         color: root.fg
       }
       Rectangle {
@@ -338,12 +339,12 @@ Item {
           PauseAnimation { duration: 400 }
         }
       }
-      Text {
+      Text { renderType: Text.NativeRendering;
         readonly property int others: root.occupiedIds.filter(function(id) { return id !== root.active }).length
         visible: others > 0
         anchors.verticalCenter: parent.verticalCenter
         text: "+" + others
-        font.family: Style.font.family; font.pixelSize: Style.font.caption
+        font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption)
         color: root.dim
       }
     }

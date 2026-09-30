@@ -18,7 +18,7 @@ import qs.Ui
 // and opened as its own window.
 Item {
   id: root
-  Component.onCompleted: Bridge.ModuleBus.register("status", root)
+  Component.onCompleted: { stableMountIds = mountIds; Bridge.ModuleBus.register("status", root) }
   Component.onDestruction: Bridge.ModuleBus.unregister("status", root)
 
   property var bar: null
@@ -27,17 +27,11 @@ Item {
   function setting(key, fallback) { var v = settings ? settings[key] : undefined; return v === undefined || v === null ? fallback : v }
 
   readonly property string variant: String(setting("variant", "groups"))
-  readonly property bool topaz: setting("topaz", false) === true
   readonly property var embeds: setting("embeds", {})
   readonly property int barSize: bar && bar.barSize ? bar.barSize : Style.bar.sizeHorizontal
   readonly property color fg: bar && bar.barForeground ? bar.barForeground : Color.bar.text
   readonly property string home: Quickshell.env("HOME")
   readonly property string omarchyPath: Quickshell.env("OMARCHY_PATH") || (home + "/.local/share/omarchy")
-  readonly property string pluginDir: {
-    var u = String(Qt.resolvedUrl(".."))
-    u = u.indexOf("file://") === 0 ? decodeURIComponent(u.substring(7)) : u
-    return u.replace(/\/$/, "")
-  }
 
   // ---------------------------------------------------------------- catalogue
   readonly property var catalogue: ({
@@ -61,6 +55,11 @@ Item {
   }
   readonly property var embedIds: Object.keys(embeds || {}).filter(function(id) { return !!catalogue[id] })
   readonly property var mountIds: embedIds.filter(function(id) { return !!catalogue[id].file })
+  // The Repeater only sees a new model when the set of ids changes; settings
+  // edits (a folded widget saving its own options) are pushed into the live
+  // widgets instead of rebuilding them, so their open popups stay open.
+  property var stableMountIds: []
+  onMountIdsChanged: if (JSON.stringify(mountIds) !== JSON.stringify(stableMountIds)) stableMountIds = mountIds
 
   readonly property var groups: [
     { id: "net", name: "Network", members: ["omarchy.network", "io.github.iamfitsum.omarchy-proton-vpn", "omarchy.tailscale", "omarchy.bluetooth"] },
@@ -83,19 +82,29 @@ Item {
     width: 0; height: root.barSize
     clip: true
     Repeater {
-      model: root.mountIds
+      model: root.stableMountIds
       Loader {
+        id: mount
         required property string modelData
         width: root.barSize; height: root.barSize
-        property MemberBar memberApi: MemberBar { host: root; memberId: modelData }
+        property MemberBar memberApi: MemberBar { host: root; memberId: mount.modelData }
         Component.onCompleted: setSource(root.filePath(root.catalogue[modelData].file), {
           bar: memberApi, moduleName: modelData, settings: root.embeds[modelData] || ({})
         })
+        Binding {
+          when: mount.item !== null && mount.item.settings !== undefined
+          target: mount.item; property: "settings"
+          value: root.embeds[mount.modelData] || ({})
+          restoreMode: Binding.RestoreNone
+        }
         onLoaded: {
-          var it = item
-          var m = {}
-          for (var k in root.mounted) m[k] = root.mounted[k]
-          m[modelData] = it
+          var m = Object.assign({}, root.mounted)
+          m[modelData] = item
+          root.mounted = m
+        }
+        Component.onDestruction: {
+          var m = Object.assign({}, root.mounted)
+          delete m[modelData]
           root.mounted = m
         }
       }
@@ -316,7 +325,7 @@ Item {
             required property var modelData
             anchors.verticalCenter: parent.verticalCenter
             spacing: Style.space(3)
-            Text { textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; text: modelData[0]; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption - 1; color: Util.alpha(root.fg, 0.6) }
+            Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; text: modelData[0]; font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption - 1); color: Util.alpha(root.fg, 0.6) }
             Column {
               anchors.verticalCenter: parent.verticalCenter
               spacing: 1
@@ -333,23 +342,33 @@ Item {
           }
         }
         Led {
-          label: "POWER"
+          caption: "POWER"
           on: true
           tone: !root.onBattery ? "#3ee05a" : root.batteryLevel <= 0.2 ? Color.urgent : "#ffae2b"
           onClicked: { root.popupAnchor = caseStrip; root.openMember("omarchy.power") }
         }
-        Led { label: "DRIVE"; on: root.driveActive; tone: "#ffb000"; onClicked: root.openGroup("all", caseStrip) }
-        Rectangle {
+        Led { caption: "DRIVE"; on: root.driveActive; tone: "#ffb000"; onClicked: root.openGroup("all", caseStrip) }
+        WidgetButton {
+          id: df0
+          bar: root.bar
+          hasVisualContent: true
+          labelVisible: false
+          useActiveColor: false
+          onPressed: function(button) { root.openMember("flux") }
           anchors.verticalCenter: parent.verticalCenter
-          width: Style.space(128); height: Math.round(root.barSize * 0.56)
-          color: Qt.darker(Color.bar.background, 1.3)
-          border.width: 1; border.color: Util.alpha(root.fg, 0.15)
-          Text { textFormat: Text.PlainText; x: Style.space(6); anchors.verticalCenter: parent.verticalCenter; text: "DF0:"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption; color: Util.alpha(root.fg, 0.6) }
-          Text { textFormat: Text.PlainText;
-            x: Style.space(40); width: parent.width - x - Style.space(4); anchors.verticalCenter: parent.verticalCenter
-            elide: Text.ElideRight
-            text: root.usbPhone || "—"
-            font.family: Style.font.family; font.pixelSize: Style.font.caption; color: root.usbPhone ? root.fg : Util.alpha(root.fg, 0.4)
+          width: Style.space(128); height: root.barSize
+          Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width; height: Math.round(root.barSize * 0.56)
+            color: Qt.darker(Color.bar.background, 1.3)
+            border.width: 1; border.color: Util.alpha(root.fg, 0.15)
+            Text { id: df0Label; renderType: Text.NativeRendering; textFormat: Text.PlainText; x: Style.space(6); anchors.verticalCenter: parent.verticalCenter; text: "DF0:"; font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: Util.alpha(root.fg, 0.6) }
+            Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
+              x: df0Label.x + df0Label.implicitWidth + Style.space(6); width: parent.width - x - Style.space(4); anchors.verticalCenter: parent.verticalCenter
+              elide: Text.ElideRight
+              text: root.usbPhone || "—"
+              font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: root.usbPhone ? root.fg : Util.alpha(root.fg, 0.4)
+            }
           }
           MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openMember("flux") }
         }
@@ -393,26 +412,44 @@ Item {
     }
   }
 
-  component Led: Item {
+  // LEDs and the DF0: slot are registered bar click targets like the cells,
+  // so clicks on the bar edge reach them too.
+  component Led: WidgetButton {
     id: led
-    property string label: ""
+    property string caption: ""
     property bool on: false
     property color tone: "#3ee05a"
     signal clicked()
-    width: Style.space(34); height: root.barSize
-    Text { textFormat: Text.PlainText; anchors.horizontalCenter: parent.horizontalCenter; y: Style.space(4); text: led.label; font.family: Style.font.family; font.bold: true; font.pixelSize: Math.max(7, Style.font.caption - 3); color: Util.alpha(root.fg, 0.6) }
+    readonly property bool pixel: Bridge.ModuleBus.pixelAll
+    bar: root.bar
+    hasVisualContent: true
+    labelVisible: false
+    useActiveColor: false
+    onPressed: function(button) { led.clicked() }
+    // Theme font: caption above the LED. Pixel font: LED beside its caption,
+    // as on the A500 case (a 16 px caption leaves no room above).
+    // Both layouts derive from the caption only (no width <-> x loop).
+    readonly property real themeWidth: Math.max(Style.space(34), ledText.implicitWidth + Style.space(4))
+    readonly property real pixelTextX: Style.space(2) + 12 + 5
+    width: pixel ? pixelTextX + ledText.implicitWidth + Style.space(2) : themeWidth
+    height: root.barSize
+    Text { id: ledText; renderType: Text.NativeRendering; textFormat: Text.PlainText
+      x: led.pixel ? led.pixelTextX : Math.round((led.themeWidth - implicitWidth) / 2)
+      y: led.pixel ? Math.round((root.barSize - 16) / 2) : Style.space(4)
+      text: led.caption; font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Math.max(7, Style.font.caption - 3)); color: Util.alpha(root.fg, 0.6) }
     Rectangle {
-      anchors.horizontalCenter: parent.horizontalCenter
-      y: root.barSize - Style.space(10)
-      width: Style.space(28); height: Math.max(3, Style.space(5))
+      id: ledBar
+      x: led.pixel ? Style.space(2) : Math.round((led.themeWidth - width) / 2)
+      y: led.pixel ? Math.round((root.barSize - height) / 2) : root.barSize - Style.space(10)
+      width: led.pixel ? 12 : Style.space(28); height: led.pixel ? 6 : Math.max(3, Style.space(5))
       color: led.on ? led.tone : Util.alpha(led.tone, 0.18)
     }
     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: led.clicked() }
   }
 
-  component Glyph: Text { textFormat: Text.PlainText;
-    font.family: Style.font.family
-    font.pixelSize: Style.font.icon + 2
+  component Glyph: Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
+    font.family: Bridge.ModuleBus.family
+    font.pixelSize: Bridge.ModuleBus.px(Style.font.icon + 2)
     color: root.fg
   }
 
@@ -438,10 +475,10 @@ Item {
       anchors.centerIn: parent
       spacing: Style.space(3)
       Glyph { text: "\u{f011c}"; color: root.phone && root.phone.online ? root.fg : Util.alpha(root.fg, 0.45) }
-      Text { textFormat: Text.PlainText;
+      Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
         anchors.verticalCenter: parent.verticalCenter
         text: root.phone && root.phone.charge >= 0 ? root.phone.charge + "%" : "–"
-        font.family: Style.font.family; font.pixelSize: Style.font.bodySmall
+        font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.bodySmall)
         color: root.phone && root.phone.charge >= 0 && root.phone.charge <= 20 && !root.phone.charging ? Color.urgent : Util.alpha(root.fg, 0.75)
       }
     }
@@ -494,8 +531,6 @@ Item {
   readonly property string popupTitle: popupGroup === "all" ? "System" : (function() { for (var i = 0; i < groups.length; i++) if (groups[i].id === popupGroup) return groups[i].name; return "" })()
   readonly property bool workbench: popupGroup === "all" && (variant === "drawer" || variant === "hardware")
 
-  FontLoader { id: topazFont; source: "file://" + root.pluginDir + "/assets/fonts/nerdworkbench/NerdWorkbenchUI-Regular.ttf" }
-
   function stateJson() {
     return JSON.stringify({variant: variant, mounted: Object.keys(mounted), wifi: wifiName,
       vpn: vpnUp, tailscale: tailscaleUp, phone: phone, cpu: cpu, mem: mem,
@@ -537,11 +572,10 @@ Item {
             Text { textFormat: Text.PlainText;
               anchors.verticalCenter: parent.verticalCenter
               text: root.popupTitle
-              font.family: root.topaz && topazFont.status === FontLoader.Ready ? topazFont.name : Style.font.family
-              font.pixelSize: root.topaz ? 16 : Style.font.title
-              font.bold: !root.topaz
+              font.family: Bridge.ModuleBus.momentFamily
+              font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.title)
+              font.bold: !Bridge.ModuleBus.pixelMoments
               renderType: Text.NativeRendering
-              transform: Scale { xScale: 1 }
               color: Color.popups.background
             }
           }
@@ -553,10 +587,10 @@ Item {
           }
         }
 
-        Text { textFormat: Text.PlainText;
+        Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
           visible: !root.workbench
           text: root.popupTitle
-          font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.title
+          font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.title)
           color: Color.popups.text
           bottomPadding: Style.space(4)
         }
@@ -574,8 +608,8 @@ Item {
               required property string modelData
               width: (content.width - Style.space(24)) / 4; height: Style.space(64)
               Rectangle { anchors.fill: parent; anchors.margins: 2; color: iconHover.hovered ? Util.alpha(Color.popups.text, 0.08) : "transparent" }
-              Text { textFormat: Text.PlainText; anchors.horizontalCenter: parent.horizontalCenter; y: Style.space(4); text: root.catalogue[modelData].glyph; font.family: Style.font.family; font.pixelSize: Style.space(28); color: root.memberAlert(modelData) ? Color.urgent : Color.popups.text }
-              Text { textFormat: Text.PlainText; anchors.horizontalCenter: parent.horizontalCenter; y: Style.space(40); width: parent.width - 4; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight; text: root.catalogue[modelData].name; font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Color.popups.text }
+              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.horizontalCenter: parent.horizontalCenter; y: Style.space(4); text: root.catalogue[modelData].glyph; font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.space(28)); color: root.memberAlert(modelData) ? Color.urgent : Color.popups.text }
+              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.horizontalCenter: parent.horizontalCenter; y: Style.space(40); width: parent.width - 4; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight; text: root.catalogue[modelData].name; font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: Color.popups.text }
               HoverHandler { id: iconHover }
               MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openMember(parent.modelData) }
             }
@@ -592,24 +626,24 @@ Item {
             Row {
               anchors.fill: parent; anchors.leftMargin: Style.space(8)
               spacing: Style.space(10)
-              Text { textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; width: Style.space(20); text: root.catalogue[modelData].glyph; font.family: Style.font.family; font.pixelSize: Style.font.icon + 2; color: root.memberAlert(modelData) ? Color.urgent : Color.popups.text }
+              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; width: Style.space(20); text: root.catalogue[modelData].glyph; font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.icon + 2); color: root.memberAlert(modelData) ? Color.urgent : Color.popups.text }
               Column {
                 anchors.verticalCenter: parent.verticalCenter
-                Text { textFormat: Text.PlainText; text: root.catalogue[modelData].name; font.family: Style.font.family; font.pixelSize: Style.font.body; color: Color.popups.text }
-                Text { textFormat: Text.PlainText; visible: text !== ""; text: root.memberState(modelData); font.family: Style.font.family; font.pixelSize: Style.font.caption; color: root.memberAlert(modelData) ? Color.urgent : Util.alpha(Color.popups.text, 0.6) }
+                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; text: root.catalogue[modelData].name; font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.body); color: Color.popups.text }
+                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; visible: text !== ""; text: root.memberState(modelData); font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: root.memberAlert(modelData) ? Color.urgent : Util.alpha(Color.popups.text, 0.6) }
               }
             }
-            Text { textFormat: Text.PlainText; anchors.right: parent.right; anchors.rightMargin: Style.space(10); anchors.verticalCenter: parent.verticalCenter; text: "›"; font.family: Style.font.family; font.pixelSize: Style.font.title; color: Util.alpha(Color.popups.text, 0.5) }
+            Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.right: parent.right; anchors.rightMargin: Style.space(10); anchors.verticalCenter: parent.verticalCenter; text: "›"; font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.title); color: Util.alpha(Color.popups.text, 0.5) }
             HoverHandler { id: rowHover }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openMember(parent.modelData) }
           }
         }
 
-        Text { textFormat: Text.PlainText;
+        Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
           visible: root.workbench
           leftPadding: Style.space(12); bottomPadding: Style.space(10)
           text: "Click opens the widget's own Omarchy popup"
-          font.family: Style.font.family; font.pixelSize: Style.font.caption
+          font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption)
           color: Util.alpha(Color.popups.text, 0.5)
         }
       }

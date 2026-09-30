@@ -1,4 +1,5 @@
 import QtQuick
+import "bridge" as Bridge
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
@@ -78,16 +79,16 @@ PanelWindow {
 
         Row {
           width: parent.width
-          Text {
+          Text { renderType: Text.NativeRendering;
             text: "Amiga Bar"
-            font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.title
+            font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.title)
             color: Color.popups.text
           }
-          Text {
+          Text { renderType: Text.NativeRendering;
             anchors.baseline: parent.children[0].baseline
             leftPadding: Style.space(10)
             text: "private build"
-            font.family: Style.font.family; font.pixelSize: Style.font.caption
+            font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption)
             color: Util.alpha(Color.popups.text, 0.55)
           }
         }
@@ -118,7 +119,7 @@ PanelWindow {
             width: parent.width - saveButton.width - parent.spacing
             placeholderText: "Name this combination"
             maximumLength: 48
-            font.family: Style.font.family; font.pixelSize: Style.font.body
+            font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.body)
             color: Color.popups.text
             background: Rectangle { color: Util.alpha(Color.popups.text, 0.06); border.width: 1; border.color: Util.alpha(Color.popups.text, 0.2); radius: Style.cornerRadius }
             onAccepted: win.host.saveResult = win.host.saveCombination(text)
@@ -141,11 +142,11 @@ PanelWindow {
             }
           }
         }
-        Text {
+        Text { renderType: Text.NativeRendering;
           visible: text !== ""
           width: parent.width; wrapMode: Text.WordWrap; textFormat: Text.PlainText
           text: win.host ? win.host.saveResult : ""
-          font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Color.popups.text
+          font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: Color.popups.text
         }
 
         Repeater {
@@ -173,45 +174,36 @@ PanelWindow {
           }
         }
 
-        SectionLabel { text: "DESKTOP FONT PROFILE" }
-        Flow {
-          width: parent.width; spacing: Style.space(6)
-          Choice {
-            label: "Normal"
-            selected: win.host && !win.host.systemTopaz
-            onPicked: win.host.systemFontAction("restore")
-          }
-          Choice {
-            label: "Amiga · NerdWorkbench"
-            selected: win.host && win.host.systemTopaz
-            onPicked: win.host.systemFontAction("enable")
-          }
-        }
-        Text {
+        Text { renderType: Text.NativeRendering;
           width: parent.width; wrapMode: Text.WordWrap; textFormat: Text.PlainText
-          text: "UI + Mono + pixel symbols. Normal restores your font mappings and theme text. Restarts the bar; restart Zen / reopen other apps to apply or undo browser fonts. Sizes stay unchanged."
-          font.family: Style.font.family; font.pixelSize: Style.font.caption
+          text: "Pixel font: \"Whole desktop\" also sets fontconfig, the shell and GTK text (16 px), Ghostty/Kitty and Zen chrome; any other level removes all of it again. Restart Zen / reopen apps to see browser and app changes."
+          font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption)
           color: Util.alpha(Color.popups.text, 0.55)
         }
-        Text {
+        Text { renderType: Text.NativeRendering;
+          readonly property string mismatch: !win.host ? ""
+            : win.host.systemProfile === "partial" ? "The desktop font profile is only partly installed — pick a level again to repair it."
+            : win.host.options.font === "desktop" && win.host.systemProfile === "normal" ? "The desktop font profile is not installed — pick \"Whole desktop\" again."
+            : win.host.options.font !== "desktop" && win.host.systemProfile === "amiga" ? "The desktop font profile is still installed — pick a level to remove it."
+            : ""
           visible: text !== ""; width: parent.width; wrapMode: Text.WordWrap; textFormat: Text.PlainText
-          text: win.host ? win.host.systemFontResult : ""
-          font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Color.popups.text
+          text: win.host ? [win.host.systemFontResult, mismatch].filter(function(s) { return s }).join("  ") : ""
+          font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: Color.popups.text
         }
 
-        Text {
+        Text { renderType: Text.NativeRendering;
           width: parent.width
           wrapMode: Text.WordWrap
           text: "Applies at once (the bar rebuilds briefly). \"Today\" restores your previous layout. Esc or a click outside closes."
-          font.family: Style.font.family; font.pixelSize: Style.font.caption
+          font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption)
           color: Util.alpha(Color.popups.text, 0.55)
         }
       }
     }
   }
 
-  component SectionLabel: Text {
-    font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption
+  component SectionLabel: Text { renderType: Text.NativeRendering;
+    font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption)
     color: Qt.darker(Color.popups.text, 1.4)
     topPadding: Style.space(4)
   }
@@ -235,16 +227,16 @@ PanelWindow {
     Column {
       id: inner
       anchors.centerIn: parent
-      Text {
+      Text { renderType: Text.NativeRendering;
         textFormat: Text.PlainText
         text: choice.label
-        font.family: Style.font.family; font.pixelSize: Style.font.body; font.bold: choice.selected
+        font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.body); font.bold: choice.selected
         color: choice.selected ? Color.popups.background : Color.popups.text
       }
-      Text {
+      Text { renderType: Text.NativeRendering;
         visible: choice.note !== ""
         text: choice.note
-        font.family: Style.font.family; font.pixelSize: Style.font.caption
+        font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption)
         color: choice.selected ? Util.alpha(Color.popups.background, 0.8) : Util.alpha(Color.popups.text, 0.55)
       }
     }

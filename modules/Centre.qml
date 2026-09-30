@@ -1,4 +1,5 @@
 import QtQuick
+import "../bridge" as Bridge
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -22,11 +23,11 @@ Item {
   implicitHeight: barSize
   implicitWidth: label.implicitWidth + Style.space(6)
 
-  Text {
+  Text { renderType: Text.NativeRendering;
     id: label
     anchors.verticalCenter: parent.verticalCenter
     text: root.temperature
-    font.family: Style.font.family; font.pixelSize: Style.font.bodySmall
+    font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.bodySmall)
     color: Util.alpha(root.fg, 0.75)
   }
 

@@ -16,10 +16,11 @@ Presets and compact Amiga-style modules for the **native** Omarchy bar. See `ROA
 | AI quotas (`Quota.qml`) | today, gauge, vu, rings, ondemand, title (Workbench title line) |
 | Right side (`Status.qml`) | today, groups, deviations, drawer (Workbench window), hardware (A500 strip) |
 | Centre (`Centre.qml`) | today, calm (temperature at the weather glyph) |
-| Font | theme, topaz (menus, Workbench window, requester, Guru strip, title line) |
+| Pixel font (NerdWorkbench) | theme · topaz = Amiga moments (menu strip, status screen, Workbench window title, requester, Guru strip, title line) · bar = all Amiga Bar and Island text and icons · desktop = bar + the reversible desktop profile |
 | Events | plain, amiga (Boing ball, copper progress; read by the island) |
 
-Presets: `heute`, `k1` (pips · gauge · groups), `k2` (logo · VU · drawer · Topaz), `k3` (stack · on demand · deviations).
+Presets: `heute`, `k1` (pips · gauge · groups), `k2` (logo · VU · drawer · pixel font for bar & island), `k3` (stack · on demand · deviations).
+Presets and saved combinations never switch the desktop font profile: while it is on they keep `desktop`, otherwise a saved `desktop` loads as `bar`.
 
 ## Menu strip and status screen
 - `IntuitionMenu.qml`: Omarchy · Agents · System · Network · Phone · Tools, opened by right click on the Omarchy logo or **Super+Alt+M**; arrows/Enter/Esc; toggles show ✓ (DND, stay awake, VPN, Tailscale).
@@ -45,13 +46,17 @@ Saving the same name replaces that combination. These are variant selections,
 not snapshots of accounts or the entire desktop configuration. Data stays in
 `~/.local/state/amiga-bar/presets.json` and survives shell restarts.
 IPC: `omarchy-shell amiga-bar save "My focus"` / `... load "My focus"`.
-Topaz and event effects remain optional. Bar presets never change the system font or theme.
+The pixel font and event effects remain optional. Bar presets never change the system font or theme.
 
 Folded widgets receive a presentation-only adapter, not access to another
 plugin's services. Native Wi-Fi QR/speed-test and monitor OSD actions are
 explicitly routed; member settings are stored in their `embeds` entry and
 carried into the restoration baseline before the next preset switch.
-`recaptureBase` refuses active Amiga layouts: restore **Today** first.
+`recaptureBase` refuses active Amiga layouts while a baseline exists: restore
+**Today** first. If `base.json` is lost while Amiga modules are in the bar, the
+baseline is rebuilt from them (each module turns back into the native widgets it
+replaced, folded widgets keep their settings; order inside a group may differ)
+and `state` reports it in `lastResult`.
 
 ## Verification
 
@@ -59,42 +64,52 @@ Run `node tests/regressions.cjs` with the companion island checkout next to this
 repository. See [VERIFICATION.md](VERIFICATION.md) for the live checks and limits.
 Everything remains local; no repository has been published or pushed.
 
-## Reversible desktop font profile
+## Pixel font and desktop profile
 
-Options → **Desktop font profile** → **Amiga · NerdWorkbench** or **Normal**.
-Amiga selects our derived Topaz Unicode text family (UI and Mono, Regular and
-Bold) plus 12 original pixel symbols. Normal removes only our fontconfig and
-browser CSS blocks and selects theme text for local Amiga surfaces. Layout,
-effects, font sizes, accounts and unrelated settings stay unchanged.
-Bar presets do not change the desktop profile.
+NerdWorkbench is Topaz on a whole-pixel 12×16 cell with pixel icons in the same
+brick grid (see [FONTS.md](FONTS.md)). It is crisp at 16 and 32 px, so wherever
+it is used every text size snaps to 16 px (32 px for display text).
 
-Font mappings cover generic families, their current defaults and discovered
-GTK/terminal font families. Missing glyphs retain normal fallback. Applications
-with private or web fonts may override these mappings; this is not a universal
-replacement of every font. Zen chrome and local OpenClaw receive narrowly scoped
-CSS; arbitrary websites do not. **Restart Zen once after changing profiles**;
-other already-running applications may need reopening. The shell restarts
-automatically. Browser CSS support must already be enabled (it is on this host).
+Options → **Pixel font** chooses how far it reaches:
 
-Both directions are available over IPC:
+- **Theme font** — nothing changes.
+- **Amiga moments** — menu strip, status screen, Workbench window title,
+  requester, Guru strip and title line.
+- **Bar, island & menus** — every Amiga Bar and Island text and icon.
+- **Whole desktop** — additionally installs the desktop profile
+  (`bin/system-font.py enable`):
+  - fontconfig routes for the default families, only when they are the
+    *requested first* family, so explicit fonts, icon fonts and emoji stay;
+  - pixel rendering for NerdWorkbench (no antialiasing or hinting);
+  - the Omarchy shell type scale set to 16/32 px (marked block in
+    `~/.config/omarchy/shell.toml`);
+  - GTK interface fonts at the point size that lands on 16 px with the current
+    text-scaling-factor (previous values recorded and restored);
+  - Ghostty and Kitty at 12 pt with 2 px row spacing in Ghostty (marked blocks);
+  - Zen/Firefox chrome and the local OpenClaw UI (marked CSS blocks; websites
+    keep their own fonts).
+
+The option is saved only after the script succeeded; then Ghostty reloads and
+the shell restarts. Choosing any other level removes the profile again: marked
+blocks and the fonts are removed, GTK values restored (unless you changed them
+meanwhile), and files that held only our block are deleted. Restart Zen and
+reopen other apps to see browser/app changes. The options window warns when the
+profile is only partly installed or out of step with the option.
+
+IPC: `omarchy-shell amiga-bar set font theme|topaz|bar|desktop`; legacy
+`… font amiga` (= desktop) and `… font normal` (= bar, profile removed).
+Without a running shell:
 
 ```sh
-omarchy-shell amiga-bar font amiga
-omarchy-shell amiga-bar font normal
-```
-
-If the shell is unavailable, restore system/browser mappings directly:
-
-```sh
+python3 ~/.config/omarchy/plugins/nerdibeard.amiga-bar/bin/system-font.py status
 python3 ~/.config/omarchy/plugins/nerdibeard.amiga-bar/bin/system-font.py restore
 ```
 
-After shell recovery, use `omarchy-shell amiga-bar set font theme` to also reset
-local decorative text. Fonts remain installed but inactive after Normal.
-Per-operation backups live in `~/.local/state/amiga-bar/font-profile-*/`.
-Existing config symlinks are followed; unrelated CSS and fontconfig rules are
-preserved, including edits made after enabling the profile.
+Each run keeps a backup of the touched files in
+`~/.local/state/amiga-bar/font-profile-*/` (newest five). Config symlinks are
+followed; unrelated rules and later edits outside our blocks are preserved.
+Alacritty is not changed (its TOML cannot override a key from a later block).
 
-See [FONTS.md](FONTS.md) for sources, licensing and build instructions.
-Tests: `python3 tests/system_font.py` and `node tests/regressions.cjs`.
+Tests: `python3 tests/system_font.py` (fake HOME, private fontconfig, real
+`fc-match`) and `node tests/regressions.cjs`.
 Never overwrite a live installed TTF in place: use the helper's atomic installer.

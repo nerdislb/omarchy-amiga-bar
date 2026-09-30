@@ -1,4 +1,5 @@
 import QtQuick
+import "bridge" as Bridge
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
@@ -17,7 +18,6 @@ PanelWindow {
   signal closeRequested()
 
   readonly property var sys: host ? host.sys : null
-  readonly property bool topaz: host && host.options.font === "topaz"
 
   screen: {
     var s = Quickshell.screens, f = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
@@ -37,8 +37,6 @@ PanelWindow {
     property real progress: win.open ? 1 : 0
     Behavior on progress { NumberAnimation { duration: Style.duration(260); easing.type: Easing.OutCubic } }
   }
-
-  FontLoader { id: topazFont; source: "file://" + (win.host ? win.host.pluginDir : "") + "/assets/fonts/nerdworkbench/NerdWorkbenchUI-Regular.ttf" }
 
   function timeText(ms) { return Qt.formatDateTime(new Date(ms), "HH:mm") }
   function resetText(iso) {
@@ -74,17 +72,16 @@ PanelWindow {
       Text { textFormat: Text.PlainText;
         x: Style.space(14); anchors.verticalCenter: parent.verticalCenter
         text: "Omarchy status screen  ·  Amiga-M"
-        font.family: win.topaz && topazFont.status === FontLoader.Ready ? topazFont.name : Style.font.family
-        font.pixelSize: win.topaz ? 16 : Style.font.body
-        font.bold: !win.topaz
+        font.family: Bridge.ModuleBus.momentFamily
+        font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body)
+        font.bold: !Bridge.ModuleBus.pixelMoments
         renderType: Text.NativeRendering
-        transform: Scale { xScale: 1 }
         color: Color.bar.background
       }
-      Text { textFormat: Text.PlainText;
+      Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
         anchors.right: gadget.left; anchors.rightMargin: Style.space(14); anchors.verticalCenter: parent.verticalCenter
         text: Qt.formatDateTime(clock.date, "dddd, d. MMMM · HH:mm") + "   ·   Super+M / Esc to go back"
-        font.family: Style.font.family; font.pixelSize: Style.font.caption
+        font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption)
         color: Util.alpha(Color.bar.background, 0.7)
       }
       // Depth gadget: front/back
@@ -120,27 +117,28 @@ PanelWindow {
               var o = { blocked: 0, working: 1, idle: 2 }; return (a.status in o ? o[a.status] : 3) - (b.status in o ? o[b.status] : 3) }).slice(0, 9) : []
             Rectangle {
               required property var modelData
-              width: parent.width; height: Style.space(34)
+              width: parent.width; height: Math.max(Style.space(34), Bridge.ModuleBus.pixelMoments ? 38 : 0)
               color: rowMouse.containsMouse ? Util.alpha(Color.popups.text, 0.08) : "transparent"
               Rectangle { width: Style.space(3); height: parent.height - Style.space(8); anchors.verticalCenter: parent.verticalCenter
                 color: modelData.status === "blocked" ? Color.accent : modelData.status === "working" ? (Color.popups.border || Color.accent) : Util.alpha(Color.popups.text, 0.2) }
               Column {
                 x: Style.space(12); anchors.verticalCenter: parent.verticalCenter
                 width: parent.width - Style.space(90)
-                Text { textFormat: Text.PlainText; width: parent.width; elide: Text.ElideRight; text: modelData.title || modelData.agent; font.family: Style.font.family; font.pixelSize: Style.font.body; color: Color.popups.text }
-                Text { textFormat: Text.PlainText; text: (modelData.agent || "") + (modelData.project ? " · " + modelData.project : ""); font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Util.alpha(Color.popups.text, 0.55) }
+                spacing: Bridge.ModuleBus.pixelMoments ? 2 : 0   // pixel lines carry no leading
+                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; width: parent.width; elide: Text.ElideRight; text: modelData.title || modelData.agent; font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body); color: Color.popups.text }
+                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; text: (modelData.agent || "") + (modelData.project ? " · " + modelData.project : ""); font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption); color: Util.alpha(Color.popups.text, 0.55) }
               }
-              Text { textFormat: Text.PlainText;
+              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
                 anchors.right: parent.right; anchors.rightMargin: Style.space(8); anchors.verticalCenter: parent.verticalCenter
                 text: modelData.status === "blocked" ? "waiting" : modelData.status === "working" ? "working" : "idle"
-                font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: modelData.status === "blocked"
+                font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption); font.bold: modelData.status === "blocked"
                 color: modelData.status === "blocked" ? Color.accent : Util.alpha(Color.popups.text, 0.6)
               }
               MouseArea { id: rowMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: { win.closeRequested(); win.host.focusAgent(parent.modelData) } }
             }
           }
-          Text { textFormat: Text.PlainText; visible: win.sys && win.sys.agents.length === 0; text: "No agents reported (herdr/Flux)"; font.family: Style.font.family; font.pixelSize: Style.font.body; color: Util.alpha(Color.popups.text, 0.55) }
+          Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; visible: win.sys && win.sys.agents.length === 0; text: "No agents reported (herdr/Flux)"; font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body); color: Util.alpha(Color.popups.text, 0.55) }
         }
       }
 
@@ -151,18 +149,18 @@ PanelWindow {
         Column {
           width: parent.width
           spacing: Style.space(8)
-          Text { textFormat: Text.PlainText;
+          Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
             text: !win.sys || !win.sys.tests ? "No run yet" : win.sys.tests.stale ? "interrupted?" : win.sys.tests.running ? "running …" : (win.sys.tests.failed ? "finished · with failures" : "finished · green")
-            font.family: Style.font.family; font.pixelSize: Style.font.title; font.bold: true
+            font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.title); font.bold: true
             color: win.sys && win.sys.tests && !win.sys.tests.running ? (win.sys.tests.failed ? Color.urgent : Color.popups.text) : Color.accent
           }
-          Text { textFormat: Text.PlainText;
+          Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
             width: parent.width; wrapMode: Text.WordWrap
             text: !win.sys || !win.sys.tests ? "" : (win.sys.tests.lastOut ? "last output " + Qt.formatDateTime(new Date(win.sys.tests.lastOut), "HH:mm") + "\n" : "")
                   + String(win.sys.tests.summary).replace(/;/g, "\n")
-            font.family: Style.font.family; font.pixelSize: Style.font.body; color: Util.alpha(Color.popups.text, 0.8)
+            font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body); color: Util.alpha(Color.popups.text, 0.8)
           }
-          Text { textFormat: Text.PlainText; text: "nbtiles-test <worktree> starts a run"; font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Util.alpha(Color.popups.text, 0.45) }
+          Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; text: "nbtiles-test <worktree> starts a run"; font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption); color: Util.alpha(Color.popups.text, 0.45) }
         }
       }
 
@@ -180,10 +178,10 @@ PanelWindow {
               spacing: Style.space(3)
               Row {
                 width: parent.width
-                Text { textFormat: Text.PlainText; width: parent.width * 0.6; elide: Text.ElideRight; text: modelData.name + " · " + modelData.label; font.family: Style.font.family; font.pixelSize: Style.font.body; color: Color.popups.text }
-                Text { textFormat: Text.PlainText; width: parent.width * 0.4; horizontalAlignment: Text.AlignRight
+                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; width: parent.width * 0.6; elide: Text.ElideRight; text: modelData.name + " · " + modelData.label; font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body); color: Color.popups.text }
+                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; width: parent.width * 0.4; horizontalAlignment: Text.AlignRight
                   text: modelData.percent >= 0 ? Math.round(modelData.percent * 100) + " %" + (win.resetText(modelData.resetsAt) ? " · " + win.resetText(modelData.resetsAt) : "") : modelData.value
-                  font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Util.alpha(Color.popups.text, 0.7) }
+                  font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption); color: Util.alpha(Color.popups.text, 0.7) }
               }
               // tracker-style segments
               Row {
@@ -211,13 +209,13 @@ PanelWindow {
         Column {
           width: parent.width
           spacing: Style.space(10)
-          Text { textFormat: Text.PlainText;
+          Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
             text: win.sys && win.sys.phone && win.sys.phone.charge >= 0 ? win.sys.phone.charge + " %" : "–"
-            font.family: Style.font.family; font.pixelSize: Style.font.displayLarge; font.bold: true; color: Color.popups.text
+            font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.displayLarge); font.bold: true; color: Color.popups.text
           }
-          Text { textFormat: Text.PlainText;
+          Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
             text: win.sys && win.sys.phone && win.sys.phone.charging ? "charging" : ""
-            font.family: Style.font.family; font.pixelSize: Style.font.body; color: Color.accent
+            font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body); color: Color.accent
           }
           Row {
             spacing: Style.space(10)
@@ -240,15 +238,15 @@ PanelWindow {
               required property var modelData
               width: parent.width
               spacing: Style.space(10)
-              Text { textFormat: Text.PlainText;
+              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
                 width: Style.space(90)
                 text: modelData.allDay ? "all day" : (new Date(modelData.start).toDateString() === new Date().toDateString() ? "" : Qt.formatDateTime(new Date(modelData.start), "ddd ")) + win.timeText(modelData.start)
-                font.family: Style.font.family; font.pixelSize: Style.font.body; color: Color.accent
+                font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body); color: Color.accent
               }
-              Text { textFormat: Text.PlainText; width: parent.width - Style.space(100); elide: Text.ElideRight; text: modelData.title || "Event"; font.family: Style.font.family; font.pixelSize: Style.font.body; color: Color.popups.text }
+              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; width: parent.width - Style.space(100); elide: Text.ElideRight; text: modelData.title || "Event"; font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body); color: Color.popups.text }
             }
           }
-          Text { textFormat: Text.PlainText; visible: win.sys && win.sys.events.length === 0; text: "Nothing else planned"; font.family: Style.font.family; font.pixelSize: Style.font.body; color: Util.alpha(Color.popups.text, 0.55) }
+          Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; visible: win.sys && win.sys.events.length === 0; text: "Nothing else planned"; font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body); color: Util.alpha(Color.popups.text, 0.55) }
         }
       }
 
@@ -271,8 +269,8 @@ PanelWindow {
             Row {
               required property var modelData
               width: parent.width
-              Text { textFormat: Text.PlainText; width: parent.width * 0.4; text: modelData[0]; font.family: Style.font.family; font.pixelSize: Style.font.body; color: Util.alpha(Color.popups.text, 0.6) }
-              Text { textFormat: Text.PlainText; width: parent.width * 0.6; elide: Text.ElideRight; text: modelData[1]; font.family: Style.font.family; font.pixelSize: Style.font.body; color: modelData[2] ? Color.urgent : Color.popups.text }
+              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; width: parent.width * 0.4; text: modelData[0]; font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body); color: Util.alpha(Color.popups.text, 0.6) }
+              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; width: parent.width * 0.6; elide: Text.ElideRight; text: modelData[1]; font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body); color: modelData[2] ? Color.urgent : Color.popups.text }
             }
           }
         }
@@ -291,15 +289,15 @@ PanelWindow {
     borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
     padding: Style.spacing.popupPadding
     radius: Style.cornerRadius
-    Text { textFormat: Text.PlainText;
+    Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
       x: tile.contentLeftInset; y: tile.contentTopInset
       text: tile.title
-      font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.title; color: Color.popups.text
+      font.family: Bridge.ModuleBus.momentFamily; font.bold: true; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.title); color: Color.popups.text
     }
-    Text { textFormat: Text.PlainText;
+    Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
       anchors.right: parent.right; anchors.rightMargin: tile.contentRightInset; y: tile.contentTopInset + 2
       text: tile.note
-      font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Util.alpha(Color.popups.text, 0.55)
+      font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption); color: Util.alpha(Color.popups.text, 0.55)
     }
     Item {
       id: body
@@ -318,7 +316,7 @@ PanelWindow {
     radius: Style.cornerRadius
     color: tbm.containsMouse ? Style.hoverFillFor(Color.popups.text, Color.accent, Color.urgent) : Util.alpha(Color.popups.text, 0.06)
     border.width: 1; border.color: Util.alpha(Color.popups.text, 0.15)
-    Text { textFormat: Text.PlainText; id: tbl; anchors.centerIn: parent; text: tb.label; font.family: Style.font.family; font.pixelSize: Style.font.body; color: Color.popups.text }
+    Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; id: tbl; anchors.centerIn: parent; text: tb.label; font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body); color: Color.popups.text }
     MouseArea { id: tbm; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { win.closeRequested(); tb.picked() } }
   }
 }

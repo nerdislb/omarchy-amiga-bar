@@ -88,3 +88,48 @@ trigger, not a proven source-level root cause. The installer now uses atomic
 replacement and skips unchanged fonts; an old-reader regression passes. No
 further coredumps were found after 18:29 through final profile testing.
 Evidence: local font-profile backups and font-family-20260930 state directory.
+
+## Pixel font everywhere, one icon system, review fixes (2026-09-30, Claude Opus 5.5)
+
+Review of the NerdWorkbench profile found: fontconfig rules used `qual="any"`
+with strong prepend, so explicit families (Arial, Inter, Symbols Nerd Font,
+Font Awesome, unknown names) also became NerdWorkbench, and Topaz's own
+private-use glyphs masked Font Awesome icons; the ×1.5/×1.75 stretch put
+edges on half pixels (soft, uneven text); only 12 pixel icons existed.
+
+- Fonts rebuilt: one family, NerdWorkbench Mono, on a whole-pixel 12×16 cell;
+  rendering a sample at 16 px with antialiasing yields exactly two grey levels.
+  10,370 icons in the same brick grid (Nerd ranges + Omarchy glyphs, pixelated
+  with an offset search; 91 hand-drawn/generated). Review sheets of the ~230
+  icons used by the bar, island and native widgets were inspected.
+- Desktop profile rewritten (`qual="first"` routes, pixel rendering, shell
+  tokens 16/32 px, GTK at 16 px, Ghostty/Kitty, CSS). 7 Python tests pass:
+  scoped resolution with real `fc-match` (Arial, Helvetica, Inter, DejaVu Sans,
+  Font Awesome, emoji and unknown names untouched; Symbols Nerd Font → Icons;
+  NerdWorkbench not antialiased), marked-block idempotence, atomic font
+  replacement with an old reader, and fake-HOME end-to-end enable → enable →
+  restore (byte-identical files, GTK values restored, fonts removed, only-ours
+  files deleted, user changes kept, backups rotated). Node regressions pass,
+  incl. base reconstruction for every preset and desktop-font protection.
+- Live: legacy partial profile detected as `partial`; `set font desktop`
+  installed all seven parts, then saved the option and restarted the shell.
+  `fc-match`: generics, JetBrainsMono, Inconsolata, Adwaita → NerdWorkbench
+  Mono (aa=False); Symbols Nerd Font, omarchy → Icons; Arial, Inter, emoji
+  unchanged. Live round trip desktop → bar → desktop: fontconfig matched the
+  pre-GPT original, shell.toml/Ghostty/Kitty byte-identical to the backup,
+  GPT-created userContent.css removed, GTK back to Adwaita, fonts removed.
+  Level switches theme/topaz/bar ran without QML warnings (after fixing a
+  transitional binding loop in the LED).
+- Screenshots inspected: bar, options window, menu strip, status screen,
+  island (activity, calendar), attention segment, Guru strip (`guruTest`),
+  native audio panel and Omarchy menu, and a Ghostty window at 12 pt.
+- Also fixed: embedded widgets are no longer rebuilt (popups closed) on
+  settings edits; LEDs and DF0 are registered bar click targets; the Guru strip
+  renders systemd names as plain text; failed-unit scans count only on exit 0;
+  the font option is saved only after the profile script succeeded; lost
+  `base.json` is rebuilt from the modules instead of dead-ending.
+
+Not verified: Zen chrome/userContent (browser not restarted), Kitty (not
+running), GTK apps visually, a real (non-demo) blocked agent and a real failed
+unit through the new exit-code path.
+

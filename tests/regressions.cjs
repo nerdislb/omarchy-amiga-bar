@@ -68,3 +68,22 @@ assert.equal(pointerCtx.pointerMoved(areaAt(40,0), {x:15,y:15}), false);
 assert.equal(pointerCtx.pointerMoved(areaAt(40,0), {x:16,y:15}), true);
 assert.equal(pointerCtx.pointerMoved(areaAt(40,0), {x:16,y:15}), false);
 console.log('PASS: stationary/recreated hover ignored; physical pointer motion accepted');
+
+// Lost base.json: every preset's layout turns back into the same native widgets.
+{
+  const ids = o => ['left', 'center', 'right'].flatMap(s => o[s].map(e => ctx.entryId(e))).sort();
+  const full = {left: ['omarchy.menu', 'omarchy.workspaces', 'nerdibeard.ai-usage', 'omarchy.agents'], center: ['omarchy.weather'],
+                right: [{id: 'omarchy.tailscale', keep: 1}, 'omarchy.network', 'flux', 'omamail', 'omarchy.bluetooth', 'omarchy.audio', 'omarchy.power']};
+  for (const preset of ctx.PRESETS.concat([{options: {workspaces: 'cli', ai: 'ondemand', right: 'hardware', centre: 'calm'}}])) {
+    const rebuilt = ctx.reconstructBase(ctx.build(full, preset.options, '/plugin/modules'));
+    assert.deepEqual(ids(rebuilt), ids(full));
+    assert(!ctx.hasOwn(rebuilt));
+    const ts = ['left', 'center', 'right'].flatMap(s => rebuilt[s]).find(e => ctx.entryId(e) === 'omarchy.tailscale');
+    assert.equal(ts.keep, 1);
+  }
+  // The desktop font profile is never switched by presets or combinations.
+  assert.equal(ctx.keepDesktopFont({font: 'theme'}, {font: 'desktop'}).font, 'desktop');
+  assert.equal(ctx.keepDesktopFont({font: 'desktop'}, {font: 'theme'}).font, 'bar');
+  assert.equal(ctx.matchPreset(Object.assign({}, ctx.presetById('k1').options, {font: 'desktop'})), 'k1');
+  console.log('PASS: base reconstruction, desktop font kept out of presets');
+}

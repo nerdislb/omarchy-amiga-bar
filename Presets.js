@@ -5,7 +5,9 @@
 // first preset) and the chosen options, and gets a full bar.layout back.
 //
 // Options: { workspaces, ai, right, centre, effects, font } — see ELEMENTS.
-// effects/font are read by the Amiga Island too (Guru look, Boing, Copper, Topaz).
+// effects/font are read by the Amiga Island too (Guru look, Boing, Copper,
+// NerdWorkbench). font "desktop" also installs the system font profile; only
+// the font row switches it, presets and saved combinations never do.
 
 var ELEMENTS = {
   workspaces: {
@@ -56,10 +58,12 @@ var ELEMENTS = {
     ]
   },
   font: {
-    label: "Amiga font (NerdWorkbench)",
+    label: "Pixel font (NerdWorkbench)",
     variants: [
       { id: "theme", label: "Theme font" },
-      { id: "topaz", label: "NerdWorkbench for Amiga moments" }
+      { id: "topaz", label: "Amiga moments" },
+      { id: "bar", label: "Bar, island & menus" },
+      { id: "desktop", label: "Whole desktop" }
     ]
   }
 }
@@ -71,7 +75,7 @@ var PRESETS = [
   { id: "k1", label: "K1 · Tidy", note: "Pips · gauge · groups",
     options: { workspaces: "pips", ai: "gauge", right: "groups", centre: "calm", effects: "plain", font: "theme" } },
   { id: "k2", label: "K2 · Workbench", note: "Logo · VU · drawer",
-    options: { workspaces: "logo", ai: "vu", right: "drawer", centre: "calm", effects: "amiga", font: "topaz" } },
+    options: { workspaces: "logo", ai: "vu", right: "drawer", centre: "calm", effects: "amiga", font: "bar" } },
   { id: "k3", label: "K3 · Focus", note: "Stack · on demand · deviations",
     options: { workspaces: "stack", ai: "ondemand", right: "deviations", centre: "calm", effects: "plain", font: "theme" } }
 ]
@@ -170,10 +174,9 @@ function build(base, options, moduleDir) {
     var entry = { id: "amiga.workspaces", source: moduleDir + "/Workspaces.qml", variant: ws, menu: true }
     if (!replaceGroup(layout, ["omarchy.menu", "omarchy.workspaces"], entry)) layout.left.unshift(entry)
   }
-  var topaz = o.font === "topaz"
   // Insert our modules where the widgets they replace sat, then fold.
   if (o.ai && o.ai !== "today") {
-    var q = { id: "amiga.quota", source: moduleDir + "/Quota.qml", variant: String(o.ai), topaz: topaz }
+    var q = { id: "amiga.quota", source: moduleDir + "/Quota.qml", variant: String(o.ai) }
     if (!insertBefore(layout, "nerdibeard.ai-usage", q)) layout.left.push(q)
   }
   if (o.right && o.right !== "today") {
@@ -192,7 +195,7 @@ function build(base, options, moduleDir) {
         embeds[eid] = es
       }
     }
-    var st = { id: "amiga.status", source: moduleDir + "/Status.qml", variant: String(o.right), topaz: topaz, embeds: embeds }
+    var st = { id: "amiga.status", source: moduleDir + "/Status.qml", variant: String(o.right), embeds: embeds }
     if (!insertBefore(layout, "omarchy.audio", st)) layout.right.push(st)
   }
   // Weather and world clocks stay native (their popups position
@@ -202,9 +205,6 @@ function build(base, options, moduleDir) {
     if (!insertAfter(layout, "omarchy.weather", centre)) layout.center.push(centre)
   }
   removeIds(layout, foldedIds(o))
-  // Workspaces carry the font choice too.
-  for (var s = 0; s < layout.left.length; s++)
-    if (entryId(layout.left[s]) === "amiga.workspaces") layout.left[s].topaz = topaz
   return layout
 }
 
@@ -236,11 +236,25 @@ function normalizeOptions(o) {
   return out
 }
 
+// The desktop font profile sits on top of any preset, so it is ignored here.
 function matchPreset(options) {
   var n = normalizeOptions(options)
-  for (var i = 0; i < PRESETS.length; i++)
-    if (JSON.stringify(normalizeOptions(PRESETS[i].options)) === JSON.stringify(n)) return PRESETS[i].id
+  for (var i = 0; i < PRESETS.length; i++) {
+    var p = normalizeOptions(PRESETS[i].options)
+    if (n.font === "desktop") p.font = "desktop"
+    if (JSON.stringify(p) === JSON.stringify(n)) return PRESETS[i].id
+  }
   return ""
+}
+
+// Options for a preset or saved combination: the desktop font profile is a
+// system change and only follows the font row, so keep it as it is.
+function keepDesktopFont(next, current) {
+  var o = normalizeOptions(next)
+  var desktopNow = normalizeOptions(current).font === "desktop"
+  if (desktopNow) o.font = "desktop"
+  else if (o.font === "desktop") o.font = "bar"
+  return o
 }
 
 // Widget settings edited through folded native popups survive preset changes.
@@ -257,6 +271,40 @@ function mergeEmbeddedSettings(base, current) {
       var id = entryId(entry)
       return embeds[id] ? Object.assign({}, copy(embeds[id]), {id: id}) : native[id] ? copy(native[id]) : entry
     })
+  })
+  return out
+}
+
+// Recovery when base.json is lost while our modules are in the layout: turn
+// each module back into the native widgets it replaced. Folded widgets come
+// back with their settings (kept in the status entry); order within a group
+// follows the catalogue, not necessarily the user's original order.
+function reconstructBase(layout) {
+  var out = { left: [], center: [], right: [] }
+  var seen = {}
+  function push(section, entry) {
+    var id = entryId(entry)
+    if (!id || seen[id]) return
+    seen[id] = true
+    out[section].push(copy(entry))
+  }
+  ;["left", "center", "right"].forEach(function(section) {
+    ;(layout && Array.isArray(layout[section]) ? layout[section] : []).forEach(function(entry) {
+      var id = entryId(entry)
+      if (id === "amiga.workspaces") { push(section, "omarchy.menu"); push(section, "omarchy.workspaces") }
+      else if (id === "amiga.quota") AI_IDS.forEach(function(a) { push(section, a) })
+      else if (id === "amiga.status") {
+        var embeds = entry.embeds || {}
+        Object.keys(embeds).forEach(function(k) { push(section, Object.assign({ id: k }, embeds[k])) })
+      }
+      else if (id.indexOf(OWN_PREFIX) !== 0) push(section, entry)
+    })
+  })
+  // omarchy.agents is folded with any right-side variant
+  if (!seen["omarchy.agents"]) out.left.push("omarchy.agents")
+  // plain string entries stay plain
+  ;["left", "center", "right"].forEach(function(section) {
+    out[section] = out[section].map(function(e) { return typeof e === "object" && Object.keys(e).length === 1 ? e.id : e })
   })
   return out
 }

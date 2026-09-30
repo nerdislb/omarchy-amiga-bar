@@ -65,8 +65,16 @@ Item {
 
   // ---------------------------------------------------------------- embedded natives
   property var mounted: ({})    // id -> item
+  // The bar forwards clicks to every registered click target by geometry,
+  // whatever its container's visibility, so the mounts live far above the
+  // bar (no overlap with our cells). Only their x matters: the native popups
+  // anchor horizontally to it (y is always "under the bar"), so it is moved
+  // under the clicked cell before a popup opens.
+  property real mountX: 0
   Item {
     id: mounts
+    x: root.mountX
+    y: -10000
     width: 0; height: root.barSize
     clip: true
     Repeater {
@@ -90,6 +98,8 @@ Item {
   }
 
   function openMember(id) {
+    var a = popupAnchor || root
+    mountX = a === root ? 0 : a.x + a.width / 2 - barSize / 2
     closePopup()
     var c = catalogue[id]
     if (!c) return
@@ -226,7 +236,7 @@ Item {
         required property var modelData
         active: root.popupGroup === modelData.id && root.popupOpen
         onClicked: root.openGroup(modelData.id, groupCell)
-        onRightClicked: root.openMember(modelData.members[0])
+        onRightClicked: { root.popupAnchor = groupCell; root.openMember(modelData.members[0]) }
         width: modelData.id === "system" ? Style.space(58) : modelData.id === "phone" ? Style.space(58) : root.barSize + Style.space(2)
         GroupFace { anchors.fill: parent; group: modelData.id }
       }
@@ -236,8 +246,9 @@ Item {
     Repeater {
       model: root.variant === "deviations" ? root.deviations : []
       Cell {
+        id: devCell
         required property var modelData
-        onClicked: root.openMember(modelData.member)
+        onClicked: { root.popupAnchor = devCell; root.openMember(modelData.member) }
         width: root.barSize
         Glyph { anchors.centerIn: parent; text: modelData.glyph; color: modelData.color }
       }

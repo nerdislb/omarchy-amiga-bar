@@ -4,7 +4,8 @@
 // passes in the saved base layout (the user's own layout from before the
 // first preset) and the chosen options, and gets a full bar.layout back.
 //
-// Options: { workspaces, ai, right, centre, font } — see ELEMENTS.
+// Options: { workspaces, ai, right, centre, effects, font } — see ELEMENTS.
+// effects/font are read by the Amiga Island too (Guru look, Boing, Copper, Topaz).
 
 var ELEMENTS = {
   workspaces: {
@@ -45,6 +46,13 @@ var ELEMENTS = {
       { id: "calm", label: "Temperatur am Wetter" }
     ]
   },
+  effects: {
+    label: "Ereignisse",
+    variants: [
+      { id: "plain", label: "Omarchy-Stil" },
+      { id: "amiga", label: "Amiga-Effekte (Boing, Copper, Guru-Look)" }
+    ]
+  },
   font: {
     label: "Amiga-Schrift (Topaz)",
     variants: [
@@ -57,13 +65,13 @@ var ELEMENTS = {
 // Presets from the concept film.
 var PRESETS = [
   { id: "heute", label: "Heute", note: "Deine Bar wie vorher",
-    options: { workspaces: "today", ai: "today", right: "today", centre: "today", font: "theme" } },
+    options: { workspaces: "today", ai: "today", right: "today", centre: "today", effects: "plain", font: "theme" } },
   { id: "k1", label: "K1 · Aufgeräumt", note: "Pips · Tank · Gruppen",
-    options: { workspaces: "pips", ai: "gauge", right: "groups", centre: "calm", font: "theme" } },
+    options: { workspaces: "pips", ai: "gauge", right: "groups", centre: "calm", effects: "plain", font: "theme" } },
   { id: "k2", label: "K2 · Workbench", note: "Logo · VU · Schublade",
-    options: { workspaces: "logo", ai: "vu", right: "drawer", centre: "calm", font: "topaz" } },
+    options: { workspaces: "logo", ai: "vu", right: "drawer", centre: "calm", effects: "amiga", font: "topaz" } },
   { id: "k3", label: "K3 · Fokus", note: "Stapel · Bedarf · Abweichungen",
-    options: { workspaces: "stack", ai: "ondemand", right: "deviations", centre: "calm", font: "theme" } }
+    options: { workspaces: "stack", ai: "ondemand", right: "deviations", centre: "calm", effects: "plain", font: "theme" } }
 ]
 
 // Native widgets a variant folds into our own modules (removed from the

@@ -14,7 +14,7 @@ Concept source: `~/.openclaw/workspace/output/amiga-bar-2026-09-30/` (gallery, A
 ## Stages
 - **A** ✓ — options, presets, workspace variants (pips, stack, logo, minimap, CLI, boing). Island merge moved to E.
 - **B** ✓ — AI variants, right side (groups, deviations, drawer + Workbench window) with embedded native popups, temperature at the weather, Topaz option; presets K1–K3 complete.
-- **C** — attention: Guru box + requester from real herdr `blocked` state, Guru strip for service failures, DisplayBeep; Copper/Boing event language.
+- **C** ✓ — (in the island) blocked agents → Guru-style orange segment + requester (open/snooze, never auto-approve), Guru strip for failed user/system units and new core dumps, DisplayBeep, Boing/Copper behind the "effects" option. Real herdr `blocked` not yet observed live (tested with a demo agent).
 - **D** — Intuition menu strip (right button on empty bar), status screen overlay (depth gadget / Super+M), title-line variant, hardware strip variant.
 - **E** — docs, screenshots, font licence check (Topaz, GPL-FE), release decision.
 

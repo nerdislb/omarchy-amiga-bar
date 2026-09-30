@@ -173,6 +173,32 @@ PanelWindow {
           }
         }
 
+        SectionLabel { text: "SYSTEM FONT (SEPARATE FROM PRESETS)" }
+        Flow {
+          width: parent.width; spacing: Style.space(6)
+          Choice {
+            label: "Previous system font"
+            selected: win.host && !win.host.systemTopaz
+            onPicked: win.host.systemFontAction("restore")
+          }
+          Choice {
+            label: "Topaz system-wide"
+            selected: win.host && win.host.systemTopaz
+            onPicked: win.host.systemFontAction("enable")
+          }
+        }
+        Text {
+          width: parent.width; wrapMode: Text.WordWrap; textFormat: Text.PlainText
+          text: "Changes the shell and standard application fonts, not font sizes. Restarts the bar; reopen other apps if needed. Apps with their own font settings may differ."
+          font.family: Style.font.family; font.pixelSize: Style.font.caption
+          color: Util.alpha(Color.popups.text, 0.55)
+        }
+        Text {
+          visible: text !== ""; width: parent.width; wrapMode: Text.WordWrap; textFormat: Text.PlainText
+          text: win.host ? win.host.systemFontResult : ""
+          font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Color.popups.text
+        }
+
         Text {
           width: parent.width
           wrapMode: Text.WordWrap

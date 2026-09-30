@@ -154,6 +154,29 @@ Item {
     return apply(o)
   }
 
+  // Independent of bar presets: this changes the user's fontconfig mapping.
+  property bool systemTopaz: false
+  property string systemFontResult: ""
+  Process {
+    id: systemFont
+    property string action: "status"
+    command: ["python3", root.pluginDir + "/bin/system-font.py", action]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        try {
+          var result = JSON.parse(text)
+          if (result.error) root.systemFontResult = result.error
+          else { root.systemTopaz = result.enabled; root.systemFontResult = result.message || "" }
+        } catch (e) { root.systemFontResult = "Could not read system font status" }
+      }
+    }
+  }
+  function systemFontAction(action) {
+    if (systemFont.running) return
+    systemFont.action = action
+    systemFont.running = true
+  }
+
   // ---------------------------------------------------------------- panel contract
   property bool isOpen: false
   readonly property bool opened: isOpen
@@ -194,7 +217,7 @@ Item {
     })
     ;(Bridge.ModuleBus.instances.quota || []).forEach(function(i) { i.close() })
   }
-  onIsOpenChanged: if (isOpen) closeModulePopups()
+  onIsOpenChanged: if (isOpen) { closeModulePopups(); systemFontAction("status") }
   onMenuOpenChanged: if (menuOpen) { isOpen = false; screenOpen = false; closeModulePopups() }
   onScreenOpenChanged: if (screenOpen) { isOpen = false; menuOpen = false; closeModulePopups() }
   function openScreen() { menuOpen = false; screenOpen = true }

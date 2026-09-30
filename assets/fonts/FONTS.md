@@ -10,5 +10,6 @@
 The font files are distributed unmodified under their own licence (not under
 this plugin's MIT licence). The plugin only loads them with a QML FontLoader
 for optional "Amiga moments" (menus, requester, Guru strip, title line); the
-system font is never changed. Check the licence terms again before any public
+system font is unchanged by default. A separate, explicit system-font option
+installs the same unmodified font and applies a reversible fontconfig mapping. Check the licence terms again before any public
 release.

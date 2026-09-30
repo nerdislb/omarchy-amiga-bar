@@ -45,7 +45,7 @@ Saving the same name replaces that combination. These are variant selections,
 not snapshots of accounts or the entire desktop configuration. Data stays in
 `~/.local/state/amiga-bar/presets.json` and survives shell restarts.
 IPC: `omarchy-shell amiga-bar save "My focus"` / `... load "My focus"`.
-Topaz and event effects remain optional; no system font or theme is changed.
+Topaz and event effects remain optional. Bar presets never change the system font or theme.
 
 Folded widgets receive a presentation-only adapter, not access to another
 plugin's services. Native Wi-Fi QR/speed-test and monitor OSD actions are
@@ -58,3 +58,27 @@ carried into the restoration baseline before the next preset switch.
 Run `node tests/regressions.cjs` with the companion island checkout next to this
 repository. See [VERIFICATION.md](VERIFICATION.md) for the live checks and limits.
 Everything remains local; no repository has been published or pushed.
+
+## Optional system-wide Topaz
+
+Options → **System font (separate from presets)** → **Topaz system-wide**.
+**Previous system font** removes only the plugin's managed fontconfig block.
+This is independent of the local Topaz option and saved bar combinations.
+The option starts disabled. It installs the bundled font under
+`~/.local/share/fonts/amiga-bar/` and merges a marked block into
+`~/.config/fontconfig/fonts.conf` (following existing symlinks). Existing rules
+are preserved; the pre-enable file is also saved to
+`~/.local/state/amiga-bar/system-font-before.conf`.
+
+The mapping covers generic monospace/sans-serif/serif and their currently resolved
+families, including applications using that existing family explicitly. Font
+sizes, terminal settings and themes are untouched. The shell restarts after a
+change; other applications may need reopening. Application-specific fonts and
+web fonts can override these defaults. Topaz has limited character coverage;
+missing glyphs use normal font fallback. The installed font remains available
+after restoring the previous mapping.
+
+Recovery without the options window:
+`python3 ~/.config/omarchy/plugins/nerdibeard.amiga-bar/bin/system-font.py restore`
+
+Isolated resolution/restore checks: `python3 tests/system_font.py`.

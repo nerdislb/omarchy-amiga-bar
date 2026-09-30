@@ -41,3 +41,12 @@ no new Claude review, paid fallback or DeepSeek inference was used.
 
 Local evidence and pre-change backups:
 `~/.local/state/amiga-bar/codex-recovery-20260930/`.
+
+
+## Optional system-font follow-up
+
+Added an independent, default-off system Topaz selector with a restore action.
+Two isolated tests pass: preservation/restoration of existing fontconfig rules
+and real fc-match resolution for generic plus prior explicit families. QML
+parses and installed option/status checked. The live desktop font was not
+changed merely to test the option; visual system-wide acceptance remains open.

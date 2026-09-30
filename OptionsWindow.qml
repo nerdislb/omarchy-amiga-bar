@@ -81,7 +81,7 @@ PanelWindow {
           Text {
             anchors.baseline: parent.children[0].baseline
             leftPadding: Style.space(10)
-            text: "privat · Etappe B"
+            text: "private build"
             font.family: Style.font.family; font.pixelSize: Style.font.caption
             color: Util.alpha(Color.popups.text, 0.55)
           }
@@ -132,7 +132,7 @@ PanelWindow {
         Text {
           width: parent.width
           wrapMode: Text.WordWrap
-          text: "Wirkt sofort (die Bar baut sich kurz neu auf). „Heute“ stellt dein bisheriges Layout wieder her. Esc oder Klick daneben schließt."
+          text: "Applies at once (the bar rebuilds briefly). \"Today\" restores your previous layout. Esc or a click outside closes."
           font.family: Style.font.family; font.pixelSize: Style.font.caption
           color: Util.alpha(Color.popups.text, 0.55)
         }

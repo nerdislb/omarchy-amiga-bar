@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Bluetooth
+import Quickshell.Services.UPower
 import qs.Commons
 import qs.Ui
 
@@ -37,17 +38,18 @@ Item {
 
   // ---------------------------------------------------------------- catalogue
   readonly property var catalogue: ({
-    "omarchy.network": { name: "WLAN / Netz", glyph: "\u{f0928}", file: "@/shell/plugins/panels/network/Panel.qml" },
+    "omarchy.network": { name: "Wi-Fi / network", glyph: "\u{f0928}", file: "@/shell/plugins/panels/network/Panel.qml" },
     "io.github.iamfitsum.omarchy-proton-vpn": { name: "Proton VPN", glyph: "\u{f099d}", file: "~/.config/omarchy/plugins/io.github.iamfitsum.omarchy-proton-vpn/Panel.qml" },
     "omarchy.tailscale": { name: "Tailscale", glyph: "\u{f0570}", file: "@/shell/plugins/panels/tailscale/Panel.qml" },
     "omarchy.bluetooth": { name: "Bluetooth", glyph: "\u{f00af}", file: "@/shell/plugins/panels/bluetooth/Panel.qml" },
     "io.github.nerdislb.buds-control": { name: "Buds", glyph: "\u{f02cb}", file: "~/.config/omarchy/plugins/io.github.nerdislb.buds-control/BarWidget.qml" },
-    "bitr0t.system-monitor": { name: "Systemmonitor", glyph: "\u{f061a}", file: "~/.config/omarchy/plugins/bitr0t.system-monitor/BarWidget.qml" },
-    "nerdibeard.monitor": { name: "Monitor & Helligkeit", glyph: "\u{f0379}", file: "~/.config/omarchy/plugins/nerdibeard.monitor/Panel.qml" },
+    "bitr0t.system-monitor": { name: "System monitor", glyph: "\u{f061a}", file: "~/.config/omarchy/plugins/bitr0t.system-monitor/BarWidget.qml" },
+    "nerdibeard.monitor": { name: "Display & brightness", glyph: "\u{f0379}", file: "~/.config/omarchy/plugins/nerdibeard.monitor/Panel.qml" },
     "nerdibeard.googledrive": { name: "Google Drive", glyph: "\u{f02b6}", file: "~/.config/omarchy/plugins/nerdibeard.googledrive/Panel.qml" },
-    "com.omastorm.radar": { name: "Regenradar", glyph: "\u{f0597}", file: "~/.config/omarchy/plugins/com.omastorm.radar/ui/RadarBar.qml" },
+    "com.omastorm.radar": { name: "Rain radar", glyph: "\u{f0597}", file: "~/.config/omarchy/plugins/com.omastorm.radar/ui/RadarBar.qml" },
     "community.plugin-manager": { name: "Plugins", glyph: "\u{f03d7}", file: "~/.config/omarchy/plugins/community.plugin-manager/BarWidget.qml" },
-    "flux": { name: "Flux · Pixel", glyph: "\u{f011c}", command: "omarchy-shell shell toggle flux" }
+    "flux": { name: "Flux · Pixel", glyph: "\u{f011c}", command: "omarchy-shell shell toggle flux" },
+    "omarchy.power": { name: "Battery & power", glyph: "\u{f0079}", file: "@/shell/plugins/panels/power/Panel.qml" }
   })
   function filePath(f) {
     if (f.indexOf("@/") === 0) return "file://" + omarchyPath + f.substring(1)
@@ -58,7 +60,7 @@ Item {
   readonly property var mountIds: embedIds.filter(function(id) { return !!catalogue[id].file })
 
   readonly property var groups: [
-    { id: "net", name: "Netz", members: ["omarchy.network", "io.github.iamfitsum.omarchy-proton-vpn", "omarchy.tailscale", "omarchy.bluetooth"] },
+    { id: "net", name: "Network", members: ["omarchy.network", "io.github.iamfitsum.omarchy-proton-vpn", "omarchy.tailscale", "omarchy.bluetooth"] },
     { id: "phone", name: "Pixel", members: ["flux", "io.github.nerdislb.buds-control"] },
     { id: "system", name: "System", members: ["bitr0t.system-monitor", "nerdibeard.monitor", "nerdibeard.googledrive", "com.omastorm.radar", "community.plugin-manager"] }
   ]
@@ -193,11 +195,11 @@ Item {
   Timer { interval: 20000; running: true; repeat: true; triggeredOnStart: true; onTriggered: { if (!ts.running) ts.running = true; if (!flux.running) flux.running = true } }
 
   function memberState(id) {
-    if (id === "omarchy.network") return wifiUp ? "verbunden · " + wifiName : "getrennt"
-    if (id === "io.github.iamfitsum.omarchy-proton-vpn") return vpnUp ? "aktiv · " + vpnName : "aus"
-    if (id === "omarchy.tailscale") return tailscaleUp ? "online" : "aus"
-    if (id === "omarchy.bluetooth") return !btOn ? "aus" : btConnected.length ? btConnected.map(function(d) { return d.name }).join(", ") : "an · nichts verbunden"
-    if (id === "flux") return phone ? (phone.online ? "online" : "offline") + (phone.charge >= 0 ? " · " + phone.charge + " %" + (phone.charging ? " lädt" : "") : "") : "nicht gekoppelt"
+    if (id === "omarchy.network") return wifiUp ? "connected · " + wifiName : "disconnected"
+    if (id === "io.github.iamfitsum.omarchy-proton-vpn") return vpnUp ? "aktiv · " + vpnName : "off"
+    if (id === "omarchy.tailscale") return tailscaleUp ? "online" : "off"
+    if (id === "omarchy.bluetooth") return !btOn ? "off" : btConnected.length ? btConnected.map(function(d) { return d.name }).join(", ") : "on · nothing connected"
+    if (id === "flux") return phone ? (phone.online ? "online" : "offline") + (phone.charge >= 0 ? " · " + phone.charge + " %" + (phone.charging ? " charging" : "") : "") : "not paired"
     if (id === "bitr0t.system-monitor") return "CPU " + Math.round(cpu * 100) + " % · RAM " + Math.round(mem * 100) + " %"
     return ""
   }
@@ -218,6 +220,40 @@ Item {
     if (cpu > 0.85) out.push({ glyph: "\u{f061a}", color: Color.urgent, member: "bitr0t.system-monitor" })
     return out
   }
+
+  // ---------------------------------------------------------------- A500 hardware strip state
+  readonly property bool hardware: variant === "hardware"
+  readonly property bool onBattery: UPower.onBattery
+  readonly property real batteryLevel: UPower.displayDevice && UPower.displayDevice.isPresent ? Math.max(0, Math.min(1, UPower.displayDevice.percentage)) : 1
+  property bool driveActive: false
+  property var lastSectors: -1
+  FileView {
+    id: diskstats
+    path: "/proc/diskstats"
+    onLoaded: {
+      var total = 0
+      String(text()).split("\n").forEach(function(l) {
+        var f = l.trim().split(/\s+/)
+        if (f.length > 10 && /^(nvme\d+n\d+|sd[a-z]|mmcblk\d+)$/.test(f[2])) total += Number(f[5]) + Number(f[9])
+      })
+      root.driveActive = root.lastSectors >= 0 && total > root.lastSectors
+      root.lastSectors = total
+    }
+  }
+  Timer { interval: 250; running: root.hardware; repeat: true; onTriggered: diskstats.reload() }
+  // DF0: a phone plugged in over USB (product name from sysfs).
+  property string usbPhone: ""
+  Process {
+    id: usb
+    command: ["sh", "-c", "cat /sys/bus/usb/devices/*/product 2>/dev/null"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        var hit = String(text).split("\n").filter(function(l) { return /pixel|galaxy|android|phone/i.test(l) })
+        root.usbPhone = hit.length ? hit[0].trim() : ""
+      }
+    }
+  }
+  Timer { interval: 5000; running: root.hardware; repeat: true; triggeredOnStart: true; onTriggered: if (!usb.running) usb.running = true }
 
   // ---------------------------------------------------------------- bar row
   implicitHeight: barSize
@@ -254,14 +290,77 @@ Item {
       }
     }
 
+    // A500 case strip: VU for CPU/RAM, POWER and DRIVE LEDs, DF0: slot.
+    Item {
+      id: caseStrip
+      visible: root.hardware
+      width: visible ? caseRow.implicitWidth + Style.space(16) : 0
+      height: root.barSize
+      Rectangle {
+        anchors.fill: parent; anchors.topMargin: Style.space(3); anchors.bottomMargin: Style.space(3)
+        color: Qt.lighter(Color.bar.background, 1.35)
+        Rectangle { width: parent.width; height: 1; color: Util.alpha(root.fg, 0.25) }
+        Rectangle { y: parent.height - 1; width: parent.width; height: 1; color: Qt.darker(Color.bar.background, 1.6) }
+      }
+      Row {
+        id: caseRow
+        x: Style.space(8)
+        height: parent.height
+        spacing: Style.space(10)
+        Repeater {
+          model: [["CPU", root.cpu], ["RAM", root.mem]]
+          Row {
+            required property var modelData
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.space(3)
+            Text { anchors.verticalCenter: parent.verticalCenter; text: modelData[0]; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption - 1; color: Util.alpha(root.fg, 0.6) }
+            Column {
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: 1
+              Repeater {
+                model: 8
+                Rectangle {
+                  required property int index
+                  readonly property int seg: 7 - index
+                  width: Style.space(7); height: Math.max(1, Math.round(root.barSize * 0.055))
+                  color: parent.parent.modelData[1] * 8 > seg + 0.01 ? (seg >= 7 ? Color.urgent : seg >= 5 ? Color.accent : (Color.popups.border || root.fg)) : Util.alpha(root.fg, 0.12)
+                }
+              }
+            }
+          }
+        }
+        Led {
+          label: "POWER"
+          on: true
+          tone: !root.onBattery ? "#3ee05a" : root.batteryLevel <= 0.2 ? Color.urgent : "#ffae2b"
+          onClicked: { root.popupAnchor = caseStrip; root.openMember("omarchy.power") }
+        }
+        Led { label: "DRIVE"; on: root.driveActive; tone: "#ffb000"; onClicked: root.openGroup("all", caseStrip) }
+        Rectangle {
+          anchors.verticalCenter: parent.verticalCenter
+          width: Style.space(128); height: Math.round(root.barSize * 0.56)
+          color: Qt.darker(Color.bar.background, 1.3)
+          border.width: 1; border.color: Util.alpha(root.fg, 0.15)
+          Text { x: Style.space(6); anchors.verticalCenter: parent.verticalCenter; text: "DF0:"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption; color: Util.alpha(root.fg, 0.6) }
+          Text {
+            x: Style.space(40); width: parent.width - x - Style.space(4); anchors.verticalCenter: parent.verticalCenter
+            elide: Text.ElideRight
+            text: root.usbPhone || "—"
+            font.family: Style.font.family; font.pixelSize: Style.font.caption; color: root.usbPhone ? root.fg : Util.alpha(root.fg, 0.4)
+          }
+          MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openMember("flux") }
+        }
+      }
+    }
+
     // drawer (also the "more" entry of the deviations mode)
     Cell {
       id: drawerCell
-      visible: root.variant === "drawer" || root.variant === "deviations"
+      visible: root.variant === "drawer" || root.variant === "deviations" || root.hardware
       active: root.popupGroup === "all" && root.popupOpen
       width: root.barSize + Style.space(2)
       onClicked: root.openGroup("all", drawerCell)
-      Drawer { anchors.centerIn: parent; open: parent.active; visible: root.variant === "drawer" }
+      Drawer { anchors.centerIn: parent; open: parent.active; visible: root.variant === "drawer" || root.hardware }
       Glyph { anchors.centerIn: parent; visible: root.variant === "deviations"; text: "\u{f01d8}"; color: Util.alpha(root.fg, 0.7) }
     }
   }
@@ -285,6 +384,23 @@ Item {
       cursorShape: Qt.PointingHandCursor
       onClicked: function(m) { if (m.button === Qt.RightButton) cell.rightClicked(); else cell.clicked() }
     }
+  }
+
+  component Led: Item {
+    id: led
+    property string label: ""
+    property bool on: false
+    property color tone: "#3ee05a"
+    signal clicked()
+    width: Style.space(34); height: root.barSize
+    Text { anchors.horizontalCenter: parent.horizontalCenter; y: Style.space(4); text: led.label; font.family: Style.font.family; font.bold: true; font.pixelSize: Math.max(7, Style.font.caption - 3); color: Util.alpha(root.fg, 0.6) }
+    Rectangle {
+      anchors.horizontalCenter: parent.horizontalCenter
+      y: root.barSize - Style.space(10)
+      width: Style.space(28); height: Math.max(3, Style.space(5))
+      color: led.on ? led.tone : Util.alpha(led.tone, 0.18)
+    }
+    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: led.clicked() }
   }
 
   component Glyph: Text {
@@ -369,7 +485,7 @@ Item {
     return []
   }
   readonly property string popupTitle: popupGroup === "all" ? "System" : (function() { for (var i = 0; i < groups.length; i++) if (groups[i].id === popupGroup) return groups[i].name; return "" })()
-  readonly property bool workbench: popupGroup === "all" && variant === "drawer"
+  readonly property bool workbench: popupGroup === "all" && (variant === "drawer" || variant === "hardware")
 
   FontLoader { id: topazFont; source: "file://" + root.pluginDir + "/assets/fonts/Topaz_a500_v1.0.ttf" }
 
@@ -491,7 +607,7 @@ Item {
         Text {
           visible: root.workbench
           leftPadding: Style.space(12); bottomPadding: Style.space(10)
-          text: "Klick öffnet das jeweilige Omarchy-Popup"
+          text: "Click opens the widget's own Omarchy popup"
           font.family: Style.font.family; font.pixelSize: Style.font.caption
           color: Util.alpha(Color.popups.text, 0.5)
         }

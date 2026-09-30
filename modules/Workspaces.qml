@@ -9,8 +9,8 @@ import qs.Ui
 //     "variant": "pips" | "stack" | "logo" | "minimap" | "cli" | "boing",
 //     "menu": true }
 // Left click on a workspace focuses it, on the logo opens the Omarchy menu
-// (right click: terminal, like the native menu button; middle click: Amiga
-// Bar options). The mouse wheel
+// (right click: the Amiga menu strip — the terminal lives in its Omarchy
+// menu; middle click: Amiga Bar options). The mouse wheel
 // steps through workspaces in every variant.
 Item {
   id: root
@@ -72,7 +72,7 @@ Item {
   function openMenu(button) {
     if (!bar) return
     if (button === Qt.MiddleButton) bar.run("omarchy-shell amiga-bar options")
-    else if (button === Qt.RightButton) bar.run("xdg-terminal-exec")
+    else if (button === Qt.RightButton) bar.run("omarchy-shell amiga-bar menu")
     else bar.run("omarchy-shell shell toggle omarchy.menu '{\"menu\":\"root\"}'")
   }
 

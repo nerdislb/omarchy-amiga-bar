@@ -114,7 +114,7 @@ Item {
 
   function shortLabel(l) {
     if (/session|5.hour/i.test(l)) return "5h"
-    if (/week/i.test(l)) return "Woche"
+    if (/week/i.test(l)) return "week"
     return l
   }
   function resetText(iso) {
@@ -139,7 +139,7 @@ Item {
     x: Style.space(4)
     height: root.barSize
     sourceComponent: root.variant === "vu" ? vuView : root.variant === "rings" ? ringsView
-      : root.variant === "ondemand" ? chipView : gaugeView
+      : root.variant === "ondemand" ? chipView : root.variant === "title" ? titleView : gaugeView
   }
 
   MouseArea {
@@ -149,6 +149,42 @@ Item {
     onClicked: function(m) {
       if (m.button === Qt.MiddleButton) { if (root.bar) root.bar.run("omarchy-agent-usage-update --force"); return }
       root.togglePopup()
+    }
+  }
+
+  // Title line: one calm line like the Workbench screen title
+  // ("Workbench release. 421,520 free memory"), Topaz if chosen.
+  readonly property bool topaz: setting("topaz", false) === true
+  readonly property string pluginDir: {
+    var u = String(Qt.resolvedUrl(".."))
+    u = u.indexOf("file://") === 0 ? decodeURIComponent(u.substring(7)) : u
+    return u.replace(/\/$/, "")
+  }
+  property real freeGiB: 0
+  FileView {
+    id: meminfo
+    path: "/proc/meminfo"
+    onLoaded: { var m = /MemAvailable:\s+(\d+)/.exec(String(text())); if (m) root.freeGiB = Number(m[1]) / 1048576 }
+  }
+  Timer { interval: 10000; running: root.variant === "title"; repeat: true; triggeredOnStart: true; onTriggered: meminfo.reload() }
+  FontLoader { id: topazFont; source: "file://" + root.pluginDir + "/assets/fonts/Topaz_a500_v1.0.ttf" }
+  readonly property string titleText: "Workbench  " + freeGiB.toFixed(1) + "G free" + quotaItems.map(function(q) {
+    return "  " + q.name + " " + Math.round(q.percent * 100) + "%" }).join("")
+  Component {
+    id: titleView
+    Item {
+      height: root.barSize
+      // Hires Topaz (8 px per character) keeps the line clear of the centre.
+      implicitWidth: line.implicitWidth
+      Text {
+        id: line
+        anchors.verticalCenter: parent.verticalCenter
+        text: root.titleText
+        font.family: root.topaz && topazFont.status === FontLoader.Ready ? topazFont.name : Style.font.family
+        font.pixelSize: root.topaz ? 16 : Style.font.body
+        renderType: Text.NativeRendering
+        color: root.tightest && root.tightest.percent >= 0.9 ? root.tone(root.tightest.percent) : Util.alpha(root.fg, 0.8)
+      }
     }
   }
 
@@ -302,7 +338,7 @@ Item {
         id: list
         width: parent.width
         spacing: Style.space(8)
-        Text { text: "AI-Kontingente"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.title; color: Color.popups.text }
+        Text { text: "AI quotas"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.title; color: Color.popups.text }
         Repeater {
           model: root.items
           Row {
@@ -324,7 +360,7 @@ Item {
             Text { text: root.resetText(modelData.resetsAt); font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Util.alpha(Color.popups.text, 0.55) }
           }
         }
-        Text { text: "Mittelklick aktualisiert · Auswahl wie im AI-Usage-Widget"; font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Util.alpha(Color.popups.text, 0.5) }
+        Text { text: "Middle click refreshes · same selection as the AI usage widget"; font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Util.alpha(Color.popups.text, 0.5) }
       }
     }
   }

@@ -9,68 +9,70 @@
 
 var ELEMENTS = {
   workspaces: {
-    label: "Arbeitsbereiche",
+    label: "Workspaces",
     variants: [
-      { id: "today", label: "Wie heute" },
+      { id: "today", label: "As today" },
       { id: "pips", label: "Pips" },
-      { id: "stack", label: "Screen-Stapel" },
-      { id: "logo", label: "Logo trägt die Nummer" },
-      { id: "minimap", label: "Mini-Karte" },
-      { id: "cli", label: "CLI-Prompt 2>" },
-      { id: "boing", label: "Boing-Schiene" }
+      { id: "stack", label: "Screen stack" },
+      { id: "logo", label: "Logo carries the number" },
+      { id: "minimap", label: "Minimap" },
+      { id: "cli", label: "CLI prompt 2>" },
+      { id: "boing", label: "Boing track" }
     ]
   },
   ai: {
-    label: "AI-Kontingente",
+    label: "AI quotas",
     variants: [
-      { id: "today", label: "Wie heute" },
-      { id: "gauge", label: "Tankanzeige" },
-      { id: "vu", label: "Tracker-VU" },
-      { id: "rings", label: "Ringe" },
-      { id: "ondemand", label: "Nur bei Bedarf" }
+      { id: "today", label: "As today" },
+      { id: "gauge", label: "Gauge" },
+      { id: "vu", label: "Tracker VU" },
+      { id: "rings", label: "Rings" },
+      { id: "ondemand", label: "Only when needed" },
+      { id: "title", label: "Title line (Workbench)" }
     ]
   },
   right: {
-    label: "Rechte Seite",
+    label: "Right side",
     variants: [
-      { id: "today", label: "Wie heute" },
-      { id: "groups", label: "Gruppen" },
-      { id: "deviations", label: "Nur Abweichungen" },
-      { id: "drawer", label: "Schublade" }
+      { id: "today", label: "As today" },
+      { id: "groups", label: "Groups" },
+      { id: "deviations", label: "Only deviations" },
+      { id: "drawer", label: "Drawer" },
+      { id: "hardware", label: "A500 hardware strip" }
     ]
   },
   centre: {
-    label: "Mitte",
+    label: "Centre",
     variants: [
-      { id: "today", label: "Wie heute" },
-      { id: "calm", label: "Temperatur am Wetter" }
+      { id: "today", label: "As today" },
+      { id: "calm", label: "Temperature at the weather" }
     ]
   },
   effects: {
-    label: "Ereignisse",
+    label: "Events",
     variants: [
-      { id: "plain", label: "Omarchy-Stil" },
-      { id: "amiga", label: "Amiga-Effekte (Boing, Copper, Guru-Look)" }
+      { id: "plain", label: "Omarchy style" },
+      { id: "amiga", label: "Amiga effects (Boing, Copper, Guru look)" }
     ]
   },
   font: {
-    label: "Amiga-Schrift (Topaz)",
+    label: "Amiga font (Topaz)",
     variants: [
-      { id: "theme", label: "Theme-Schrift" },
-      { id: "topaz", label: "Topaz für Amiga-Momente" }
+      { id: "theme", label: "Theme font" },
+      { id: "topaz", label: "Topaz for Amiga moments" }
     ]
   }
 }
 
 // Presets from the concept film.
 var PRESETS = [
-  { id: "heute", label: "Heute", note: "Deine Bar wie vorher",
+  { id: "heute", label: "Today", note: "Your bar as before",
     options: { workspaces: "today", ai: "today", right: "today", centre: "today", effects: "plain", font: "theme" } },
-  { id: "k1", label: "K1 · Aufgeräumt", note: "Pips · Tank · Gruppen",
+  { id: "k1", label: "K1 · Tidy", note: "Pips · gauge · groups",
     options: { workspaces: "pips", ai: "gauge", right: "groups", centre: "calm", effects: "plain", font: "theme" } },
-  { id: "k2", label: "K2 · Workbench", note: "Logo · VU · Schublade",
+  { id: "k2", label: "K2 · Workbench", note: "Logo · VU · drawer",
     options: { workspaces: "logo", ai: "vu", right: "drawer", centre: "calm", effects: "amiga", font: "topaz" } },
-  { id: "k3", label: "K3 · Fokus", note: "Stapel · Bedarf · Abweichungen",
+  { id: "k3", label: "K3 · Focus", note: "Stack · on demand · deviations",
     options: { workspaces: "stack", ai: "ondemand", right: "deviations", centre: "calm", effects: "plain", font: "theme" } }
 ]
 
@@ -100,6 +102,7 @@ function foldedIds(options) {
   if (o.ai !== "today") out = out.concat(AI_IDS)
   if (o.right === "groups" || o.right === "deviations") out = out.concat(groupedIds())
   else if (o.right === "drawer") out = out.concat(DRAWER)
+  else if (o.right === "hardware") out = out.concat(DRAWER).concat(["omarchy.power"])
   if (o.right !== "today" && out.indexOf("omarchy.agents") === -1) out.push("omarchy.agents")
   return out
 }

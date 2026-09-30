@@ -11,7 +11,7 @@ import "Presets.js" as Presets
 // itself stays the native one, so every widget keeps its own service.
 //
 // The user's layout is saved once (base.json) before the first preset;
-// "Heute" restores it. Options live in this plugin's shell.json entry.
+// "Today" restores it. Options live in this plugin's shell.json entry.
 Item {
   id: root
 
@@ -114,9 +114,99 @@ Item {
     onCloseRequested: root.isOpen = false
   }
 
+  // ---------------------------------------------------------------- menu strip + status screen (stage D)
+  property bool menuOpen: false
+  property bool screenOpen: false
+  SysState { id: sysState; active: root.menuOpen || root.screenOpen }
+  readonly property alias sys: sysState
+
+  function run(cmd) { Quickshell.execDetached(["sh", "-c", cmd]) }
+
+  // Open a widget's own popup, wherever it lives now: folded into the
+  // status module (embedded) or still in the bar.
+  function openWidget(id) {
+    var folded = options.right !== "today" && Presets.foldedIds(options).indexOf(id) !== -1
+    run(folded ? "omarchy-shell amiga-status member " + id : "omarchy-shell shell summon " + id)
+  }
+  function focusAgent(a) {
+    if (!a) return
+    var pane = String(a.pane || "")
+    if (pane.indexOf("oc:") === 0) Quickshell.execDetached(["xdg-open", "http://127.0.0.1:18789/"])
+    else Quickshell.execDetached(["herdr", "agent", "focus", pane])
+  }
+  function openScreen() { menuOpen = false; screenOpen = true }
+
+  // Menus (built on demand from live state). Items: { label, note, checked,
+  // key, disabled, separator, action }.
+  function menuModel() {
+    var s = sysState
+    var sep = { separator: true }
+    var agents = s.agents.map(function(a) {
+      return { label: (a.title || a.agent || "Agent"), note: (a.agent || "") + " · " + (a.status === "blocked" ? "waiting" : a.status === "working" ? "working" : "idle"),
+               action: function() { root.focusAgent(a) } }
+    })
+    if (!agents.length) agents = [{ label: "No agents reported", disabled: true }]
+    return [
+      { title: "Omarchy", items: [
+        { label: "Omarchy menu …", action: function() { root.run("omarchy-menu toggle root") } },
+        { label: "Terminal", key: "↵", action: function() { root.run("xdg-terminal-exec") } },
+        sep,
+        { label: "Do not disturb", checked: s.dnd, action: function() { root.run("omarchy-shell notifications toggleDnd") } },
+        { label: "Stay awake", checked: s.stayAwake, action: function() { root.run("omarchy-toggle-idle") } },
+        sep,
+        { label: "Lock", action: function() { root.run("loginctl lock-session") } }
+      ] },
+      { title: "Agents", items: agents.concat([sep,
+        { label: "Quotas …", action: function() { root.run(root.options.ai !== "today" ? "omarchy-shell amiga-quota toggle" : "omarchy-shell shell summon nerdibeard.ai-usage") } },
+        { label: "Status screen", key: "M", action: function() { root.openScreen() } }]) },
+      { title: "System", items: [
+        { label: "System monitor …", note: "CPU " + Math.round(s.cpu * 100) + " %", action: function() { root.openWidget("bitr0t.system-monitor") } },
+        { label: "Display & brightness …", action: function() { root.openWidget("nerdibeard.monitor") } },
+        { label: "Google Drive …", action: function() { root.openWidget("nerdibeard.googledrive") } },
+        { label: "Rain radar …", action: function() { root.openWidget("com.omastorm.radar") } },
+        { label: "Manage plugins …", action: function() { root.openWidget("community.plugin-manager") } }
+      ] },
+      { title: "Network", items: [
+        { label: "Wi-Fi · " + (s.wifiUp ? s.wifiName : "disconnected"), action: function() { root.openWidget("omarchy.network") } },
+        { label: "Proton VPN", checked: s.vpnUp, note: s.vpnUp ? "disconnect" : "connect",
+          action: function() { root.run(s.vpnUp ? "protonvpn disconnect" : "protonvpn connect") } },
+        { label: "Tailscale", checked: s.tailscaleUp, note: s.tailscaleUp ? "disconnect" : "connect",
+          action: function() { root.run(s.tailscaleUp ? "tailscale down" : "tailscale up") } },
+        { label: "Bluetooth …", action: function() { root.openWidget("omarchy.bluetooth") } }
+      ] },
+      { title: "Phone", items: [
+        { label: "Flux · " + (s.phone ? s.phone.name : "Pixel"), note: s.phone && s.phone.charge >= 0 ? s.phone.charge + " %" : "", action: function() { root.run("omarchy-shell shell toggle flux") } },
+        { label: "Buds …", action: function() { root.openWidget("io.github.nerdislb.buds-control") } },
+        sep,
+        { label: "WhatsApp …", action: function() { root.run("omarchy-shell io.github.moizibnyousaf.omawhatsapp toggleDropdown") } },
+        { label: "Mail …", action: function() { root.run("omarchy-shell shell toggle omamail") } }
+      ] },
+      { title: "Tools", items: [
+        { label: "Status screen", key: "M", action: function() { root.openScreen() } },
+        { label: "Open island", action: function() { root.run("omarchy-shell amiga-island expand") } },
+        { label: "Amiga Bar options …", action: function() { root.isOpen = true } },
+        sep,
+        { label: "Concept gallery", action: function() { Quickshell.execDetached(["xdg-open", Quickshell.env("HOME") + "/.openclaw/workspace/output/amiga-bar-2026-09-30/index.html"]) } }
+      ] }
+    ]
+  }
+
+  IntuitionMenu {
+    host: root
+    open: root.menuOpen
+    onCloseRequested: root.menuOpen = false
+  }
+  StatusScreen {
+    host: root
+    open: root.screenOpen
+    onCloseRequested: root.screenOpen = false
+  }
+
   IpcHandler {
     target: "amiga-bar"
     function options(): void { root.toggle() }
+    function menu(): void { root.screenOpen = false; root.menuOpen = !root.menuOpen }
+    function screen(): void { root.menuOpen = false; root.screenOpen = !root.screenOpen }
     function preset(id: string): string { return root.applyPreset(id) }
     function set(element: string, variant: string): string { return root.setVariant(element, variant) }
     function recaptureBase(): string { root.captureBase(); return "ok" }

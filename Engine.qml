@@ -278,6 +278,7 @@ Item {
   }
 
   IntuitionMenu {
+    id: intuitionMenu
     host: root
     open: root.menuOpen
     onCloseRequested: root.menuOpen = false
@@ -303,6 +304,7 @@ Item {
 
   IpcHandler {
     target: "amiga-bar"
+    function menuState(): string { return JSON.stringify({ open: root.menuOpen, tab: intuitionMenu.current, item: intuitionMenu.item }) }
     function options(): void { root.toggle() }
     function save(name: string): string { return root.saveCombination(name) }
     function load(name: string): string { return root.loadCombination(name) }

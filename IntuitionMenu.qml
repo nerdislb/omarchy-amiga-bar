@@ -20,13 +20,25 @@ PanelWindow {
   property int current: 0
   property int item: -1
   onItemChanged: {
-    var child = list.children[item]
+    var child = itemRepeater.itemAt(item)
     if (!child || item < 0) return
     if (child.y < menuScroll.contentY) menuScroll.contentY = child.y
     else if (child.y + child.height > menuScroll.contentY + menuScroll.height)
       menuScroll.contentY = child.y + child.height - menuScroll.height
   }
-  onOpenChanged: if (open) { current = 0; item = -1 }
+  property bool pointerKnown: false
+  property real pointerX: 0
+  property real pointerY: 0
+  // Delegate creation/relayout may generate hover events without physical
+  // motion. Do not let those steal selection from keyboard navigation.
+  function pointerMoved(area, mouse) {
+    var p = area.mapToItem(win.contentItem, mouse.x, mouse.y)
+    var moved = pointerKnown && (Math.abs(p.x - pointerX) > 0.5 || Math.abs(p.y - pointerY) > 0.5)
+    pointerKnown = true; pointerX = p.x; pointerY = p.y
+    return moved
+  }
+  onOpenChanged: if (open) { current = 0; item = -1; pointerKnown = false }
+  onCurrentChanged: { item = -1; menuScroll.contentY = 0 }
 
   readonly property bool topaz: host && host.options.font === "topaz"
   readonly property color stripBg: Color.bar.text
@@ -63,7 +75,11 @@ PanelWindow {
     readonly property real layoutWidth: implicitWidth * (win.topaz ? 2 : 1)
   }
 
-  MouseArea { anchors.fill: parent; onClicked: win.closeRequested() }
+  MouseArea {
+    anchors.fill: parent; hoverEnabled: true
+    onPositionChanged: function(mouse) { win.pointerMoved(this, mouse) }
+    onClicked: win.closeRequested()
+  }
 
   Item {
     id: keys
@@ -95,18 +111,23 @@ PanelWindow {
       x: Style.space(12)
       height: parent.height
       Repeater {
-        model: win.menus
+        // A numeric model keeps title delegates alive across state refreshes.
+        id: titleRepeater
+        model: win.menus.length
         Rectangle {
           id: title
-          required property var modelData
           required property int index
+          readonly property var modelData: win.menus[index] || ({})
           readonly property bool hot: win.current === index
           width: tl.layoutWidth + Style.space(24)
           height: strip.height
           color: hot ? Color.accent : "transparent"
           Label { id: tl; x: Style.space(12); anchors.verticalCenter: parent.verticalCenter; text: title.modelData.title; color: title.hot ? Color.bar.background : win.stripInk }
-          HoverHandler { onHoveredChanged: if (hovered && win.current !== title.index) { win.current = title.index; win.item = -1 } }
-          MouseArea { anchors.fill: parent; onClicked: { win.current = title.index; win.item = -1 } }
+          MouseArea {
+            anchors.fill: parent; hoverEnabled: true
+            onPositionChanged: function(mouse) { if (win.pointerMoved(this, mouse)) win.current = title.index }
+            onClicked: { win.current = title.index; win.item = -1 }
+          }
         }
       }
     }
@@ -123,7 +144,7 @@ PanelWindow {
   Rectangle {
     id: drop
     readonly property var menu: win.menus[win.current] || null
-    readonly property Item anchorTitle: titles.children[win.current] || null
+    readonly property Item anchorTitle: titleRepeater.itemAt(win.current)
     x: Math.min(anchorTitle ? titles.x + anchorTitle.x : 0, win.width - width - Style.space(4))
     y: strip.height
     width: Math.min(win.width - Style.space(8), Math.max(Style.space(300), Math.min(Style.space(820),
@@ -147,11 +168,12 @@ PanelWindow {
       id: list
       width: menuScroll.width
       Repeater {
-        model: drop.menu ? drop.menu.items : []
+        id: itemRepeater
+        model: drop.menu ? drop.menu.items.length : 0
         Item {
           id: row
-          required property var modelData
           required property int index
+          readonly property var modelData: drop.menu && drop.menu.items[index] ? drop.menu.items[index] : ({})
           readonly property bool hot: win.item === index && !modelData.separator && !modelData.disabled
           width: list.width
           implicitWidth: rowContent.implicitWidth + Style.space(60)
@@ -219,11 +241,12 @@ PanelWindow {
             }
           }
 
-          HoverHandler { onHoveredChanged: if (hovered && !row.modelData.separator) win.item = row.index }
           MouseArea {
             anchors.fill: parent
             enabled: !row.modelData.separator && !row.modelData.disabled
             cursorShape: Qt.PointingHandCursor
+            hoverEnabled: true
+            onPositionChanged: function(mouse) { if (win.pointerMoved(this, mouse)) win.item = row.index }
             onClicked: win.trigger(row.modelData)
           }
         }

@@ -56,3 +56,15 @@ assert.equal(bc.pick('status'),b);
 b.QsWindow.window.visible=false;
 assert.equal(bc.pick('status'),a);
 console.log('PASS: presets, native-widget preservation, embedded settings round-trip, startup alarms, shell quoting, focused-output routing');
+// Layout-induced hover events at a stationary global position must not take
+// selection away from keyboard navigation. Local coordinates may change.
+const menuSource = fs.readFileSync(path.join(root, 'IntuitionMenu.qml'), 'utf8');
+const pointerCtx = {pointerKnown:false, pointerX:0, pointerY:0, win:{contentItem:{}}};
+vm.createContext(pointerCtx);
+vm.runInContext(functionSource(menuSource, 'pointerMoved'), pointerCtx);
+const areaAt = (x,y) => ({mapToItem:(_,mx,my)=>({x:x+mx,y:y+my})});
+assert.equal(pointerCtx.pointerMoved(areaAt(0,0), {x:55,y:15}), false);
+assert.equal(pointerCtx.pointerMoved(areaAt(40,0), {x:15,y:15}), false);
+assert.equal(pointerCtx.pointerMoved(areaAt(40,0), {x:16,y:15}), true);
+assert.equal(pointerCtx.pointerMoved(areaAt(40,0), {x:16,y:15}), false);
+console.log('PASS: stationary/recreated hover ignored; physical pointer motion accepted');

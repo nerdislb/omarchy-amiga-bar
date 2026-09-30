@@ -50,3 +50,17 @@ Two isolated tests pass: preservation/restoration of existing fontconfig rules
 and real fc-match resolution for generic plus prior explicit families. QML
 parses and installed option/status checked. The live desktop font was not
 changed merely to test the option; visual system-wide acceptance remains open.
+
+
+## Menu refresh selection fix
+
+Owner reported Super+Alt+M jumping from the last tab/item back to the first.
+The live menu rebuilt array-backed title/row delegates on its 4-second status
+refresh; hover entry could steal keyboard selection. Stable count-based delegates
+now bind their data separately. Pointer hover selection additionally requires a
+change in window-relative pointer position, ignoring synthetic layout/creation
+hover changes. Repeater.itemAt is used for anchors and keyboard scrolling.
+Regression covers stationary global position with changed local coordinates,
+then real movement. Live Tools → Options selection stayed tab 5/item 2 across
+five refresh intervals (~21 seconds); Enter opened the intended options window.
+QML parsing and journal check passed. No presets or user settings changed.

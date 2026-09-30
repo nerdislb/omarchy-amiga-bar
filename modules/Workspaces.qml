@@ -7,8 +7,9 @@ import qs.Ui
 // Workspaces (and optionally the Omarchy menu logo) in one compact module.
 // Loaded by the Amiga Bar as a custom QML module:
 //   { "id": "amiga.workspaces", "source": ".../modules/Workspaces.qml",
-//     "variant": "pips" | "stack" | "logo" | "minimap" | "cli" | "boing",
-//     "menu": true }
+//     "variant": "pips" | "stack" | "logo" | "minimap" | "cli" | "boing"
+//                | "none" (menu logo only, next to the native workspaces),
+//     "menu": true, "logo": "omarchy" | "amiga" | "boing" }
 // Left click on a workspace focuses it, on the logo opens the Omarchy menu
 // (right click: the Amiga menu strip — the terminal lives in its Omarchy
 // menu; middle click: Amiga Bar options). The mouse wheel
@@ -27,6 +28,7 @@ Item {
 
   readonly property string variant: String(setting("variant", "pips"))
   readonly property bool showMenu: setting("menu", true) !== false
+  readonly property string logo: String(setting("logo", "omarchy"))
   readonly property int barSize: bar && bar.barSize ? bar.barSize : Style.bar.sizeHorizontal
   readonly property color fg: bar && bar.barForeground ? bar.barForeground : Color.bar.text
   readonly property color accent: Color.accent
@@ -90,11 +92,20 @@ Item {
 
     Text { renderType: Text.NativeRendering;
       anchors.centerIn: parent
-      visible: root.variant !== "logo"
+      visible: root.variant !== "logo" && root.logo === "omarchy"
       text: ""
       font.family: Bridge.ModuleBus.pixelAll ? Bridge.ModuleBus.pixelFamily : "omarchy"
       font.pixelSize: Bridge.ModuleBus.px(Style.font.icon + 2)
       color: root.fg
+    }
+
+    // Amiga tick or Boing ball in the pixel brick grid, on whole pixels.
+    PixelLogo {
+      visible: root.variant !== "logo" && root.logo !== "omarchy"
+      kind: root.logo
+      x: Math.round((parent.width - implicitWidth) / 2)
+      y: Math.round((parent.height - implicitHeight) / 2)
+      width: implicitWidth; height: implicitHeight
     }
 
     // "logo": the frame carries the active workspace number.
@@ -132,6 +143,7 @@ Item {
       case "minimap": return minimapView
       case "cli": return cliView
       case "boing": return boingView
+      case "none": return null
       default: return pipsView
       }
     }

@@ -144,3 +144,15 @@ Live after restart: engine `usage.folded=true`, collector ran at once;
 Claude 5 h 56 % (reset 23:39), weekly 10 %, Codex weekly 28 %; the on-demand
 quota hid itself (< 75 %). Regression covers expired vs. future resets.
 
+## Amiga logo (2026-09-30, Claude Opus 5.5)
+
+New option Logo: omarchy · amiga (rainbow double tick after the Commodore
+Amiga logo; front tick in theme red/orange/yellow/green/blue, rear tick darker
+instead of the original's outline) · boing (Boing ball). 13×8 and 10×8 bricks
+of the pixel font grid (1.5 × 2 px, whole-pixel columns), 16 px tall. With
+native workspaces only omarchy.menu is replaced (variant "none"). K2 uses the
+Amiga tick. Regressions pass, incl. a new test for the menu-only module; it
+also caught reconstructBase adding omarchy.agents to layouts that never had
+it (fixed: only when a status/quota module could have folded it). Live: both
+logos captured at 1:1 and 4× on the dark theme, no QML warnings; left on amiga.
+

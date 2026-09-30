@@ -43,6 +43,14 @@ var ELEMENTS = {
       { id: "hardware", label: "A500 hardware strip" }
     ]
   },
+  logo: {
+    label: "Logo",
+    variants: [
+      { id: "omarchy", label: "Omarchy" },
+      { id: "amiga", label: "Amiga tick" },
+      { id: "boing", label: "Boing ball" }
+    ]
+  },
   centre: {
     label: "Centre",
     variants: [
@@ -71,13 +79,13 @@ var ELEMENTS = {
 // Presets from the concept film.
 var PRESETS = [
   { id: "heute", label: "Today", note: "Your bar as before",
-    options: { workspaces: "today", ai: "today", right: "today", centre: "today", effects: "plain", font: "theme" } },
+    options: { workspaces: "today", ai: "today", right: "today", logo: "omarchy", centre: "today", effects: "plain", font: "theme" } },
   { id: "k1", label: "K1 · Tidy", note: "Pips · gauge · groups",
-    options: { workspaces: "pips", ai: "gauge", right: "groups", centre: "calm", effects: "plain", font: "theme" } },
+    options: { workspaces: "pips", ai: "gauge", right: "groups", logo: "omarchy", centre: "calm", effects: "plain", font: "theme" } },
   { id: "k2", label: "K2 · Workbench", note: "Logo · VU · drawer",
-    options: { workspaces: "logo", ai: "vu", right: "drawer", centre: "calm", effects: "amiga", font: "bar" } },
+    options: { workspaces: "logo", ai: "vu", right: "drawer", logo: "amiga", centre: "calm", effects: "amiga", font: "bar" } },
   { id: "k3", label: "K3 · Focus", note: "Stack · on demand · deviations",
-    options: { workspaces: "stack", ai: "ondemand", right: "deviations", centre: "calm", effects: "plain", font: "theme" } }
+    options: { workspaces: "stack", ai: "ondemand", right: "deviations", logo: "omarchy", centre: "calm", effects: "plain", font: "theme" } }
 ]
 
 // Native widgets a variant folds into our own modules (removed from the
@@ -171,8 +179,12 @@ function build(base, options, moduleDir) {
   var o = normalizeOptions(options)
   var ws = String(o.workspaces || "today")
   if (ws !== "today") {
-    var entry = { id: "amiga.workspaces", source: moduleDir + "/Workspaces.qml", variant: ws, menu: true }
+    var entry = { id: "amiga.workspaces", source: moduleDir + "/Workspaces.qml", variant: ws, menu: true, logo: o.logo }
     if (!replaceGroup(layout, ["omarchy.menu", "omarchy.workspaces"], entry)) layout.left.unshift(entry)
+  } else if (o.logo !== "omarchy") {
+    // Native workspaces stay; only the menu logo becomes ours.
+    var menu = { id: "amiga.workspaces", source: moduleDir + "/Workspaces.qml", variant: "none", menu: true, logo: o.logo }
+    if (!replaceGroup(layout, ["omarchy.menu"], menu)) layout.left.unshift(menu)
   }
   // Insert our modules where the widgets they replace sat, then fold.
   if (o.ai && o.ai !== "today") {
@@ -300,8 +312,12 @@ function reconstructBase(layout) {
       else if (id.indexOf(OWN_PREFIX) !== 0) push(section, entry)
     })
   })
-  // omarchy.agents is folded with any right-side variant
-  if (!seen["omarchy.agents"]) out.left.push("omarchy.agents")
+  // omarchy.agents is folded by the AI and right-side modules only
+  var folding = ["left", "center", "right"].some(function(section) {
+    return (layout && Array.isArray(layout[section]) ? layout[section] : []).some(function(e) {
+      var id = entryId(e); return id === "amiga.status" || id === "amiga.quota" })
+  })
+  if (folding && !seen["omarchy.agents"]) out.left.push("omarchy.agents")
   // plain string entries stay plain
   ;["left", "center", "right"].forEach(function(section) {
     out[section] = out[section].map(function(e) { return typeof e === "object" && Object.keys(e).length === 1 ? e.id : e })

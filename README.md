@@ -15,6 +15,7 @@ Presets and compact Amiga-style modules for the **native** Omarchy bar. See `ROA
 | Workspaces (`Workspaces.qml`, incl. Omarchy logo) | today, pips, stack, logo, minimap, cli, boing |
 | AI quotas (`Quota.qml`) | today, gauge, vu, rings, ondemand, title (Workbench title line) |
 | Right side (`Status.qml`) | today, groups, deviations, drawer (Workbench window), hardware (A500 strip) |
+| Logo (`PixelLogo.qml`) | omarchy, amiga (rainbow double tick), boing (Boing ball) — drawn in the pixel font's brick grid with theme colours; with native workspaces only the menu logo is replaced |
 | Centre (`Centre.qml`) | today, calm (temperature at the weather glyph) |
 | Pixel font (NerdWorkbench) | theme · topaz = Amiga moments (menu strip, status screen, Workbench window title, requester, Guru strip, title line) · bar = all Amiga Bar and Island text and icons · desktop = bar + the reversible desktop profile |
 | Events | plain, amiga (Boing ball, copper progress; read by the island) |

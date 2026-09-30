@@ -70,3 +70,6 @@ FreeType can keep an mmap reader, so an in-place truncation can crash consumers
   may need a separate OFL font, CC BY sets need attribution, logos need
   trademark review) or ship only the hand-drawn icons. The former GPL-FE
   "Multi Platform Amiga Fonts" Topaz files are no longer used or shipped.
+- The Amiga tick and Boing ball logos (`modules/PixelLogo.qml`) are pixel
+  renditions of Amiga trademarks: fine for this private build, trademark
+  review needed before a release.

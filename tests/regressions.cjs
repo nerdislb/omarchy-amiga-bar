@@ -103,3 +103,18 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.equal(modelCtx.limitPercent({percent: 1, resetsAt: future}, Date.now() + 2 * 3600e3), 0);
   console.log('PASS: expired usage limits read as reset');
 }
+
+// Logo option: with native workspaces only the menu logo becomes ours.
+{
+  const layoutBase = {left: ['omarchy.menu', 'omarchy.workspaces', 'nerdibeard.ai-usage'], center: [], right: ['omarchy.audio']};
+  const opts = Object.assign({}, ctx.presetById('heute').options, {logo: 'amiga'});
+  const built = ctx.build(layoutBase, opts, '/plugin/modules');
+  assert.deepEqual(plain(built.left.map(ctx.entryId)), ['amiga.workspaces', 'omarchy.workspaces', 'nerdibeard.ai-usage']);
+  assert.equal(built.left[0].variant, 'none');
+  assert.equal(built.left[0].logo, 'amiga');
+  assert.deepEqual(plain(ctx.reconstructBase(built).left), layoutBase.left);
+  const k2 = ctx.build(layoutBase, ctx.presetById('k2').options, '/plugin/modules');
+  assert.equal(k2.left[0].logo, 'amiga');
+  assert.equal(ctx.build(layoutBase, ctx.presetById('heute').options, '/plugin/modules').left[0], 'omarchy.menu');
+  console.log('PASS: logo option (menu-only module with native workspaces)');
+}

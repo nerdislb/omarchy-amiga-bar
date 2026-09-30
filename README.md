@@ -22,6 +22,14 @@ Presets and compact Amiga-style modules for the **native** Omarchy bar. See `ROA
 Presets: `heute`, `k1` (pips · gauge · groups), `k2` (logo · VU · drawer · pixel font for bar & island), `k3` (stack · on demand · deviations).
 Presets and saved combinations never switch the desktop font profile: while it is on they keep `desktop`, otherwise a saved `desktop` loads as `bar`.
 
+AI usage records (`~/.local/state/omarchy/agents/usage`) are refreshed by
+`omarchy.agents` only while it sits in the bar. When a variant folds the AI
+widgets away, the engine runs `omarchy-agent-usage-update` itself with that
+widget's interval and disabled providers (retrying advised limits after 30 s),
+and fetches limits when the quota popup or status screen opens. A limit past
+its reset time always counts as reset (0 %), in the bar, status screen and
+island, even before a fresh record arrives.
+
 ## Menu strip and status screen
 - `IntuitionMenu.qml`: Omarchy · Agents · System · Network · Phone · Tools, opened by right click on the Omarchy logo or **Super+Alt+M**; arrows/Enter/Esc; toggles show ✓ (DND, stay awake, VPN, Tailscale).
 - `StatusScreen.qml`: the "screen behind the Workbench" with agents, nbtiles tests, AI quotas, phone, today & tomorrow, system & network; **Super+M** (Amiga-M) or Esc. `SysState.qml` polls only while one of them is open.

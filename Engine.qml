@@ -222,6 +222,77 @@ Item {
     return "ok"
   }
 
+  // ---------------------------------------------------------------- AI usage refresh
+  // omarchy.agents (and the AI usage widget) keep ~/.local/state/omarchy/
+  // agents/usage current only while they sit in the bar. When a variant folds
+  // them away, the engine runs the same collectors with the Agents widget's
+  // own settings (interval, disabled providers); otherwise limits froze at
+  // their last value (e.g. a 5-hour limit at 100 % long after its reset).
+  readonly property var agentsSettings: {
+    var lists = baseLayout ? [baseLayout.left, baseLayout.center, baseLayout.right] : []
+    for (var s = 0; s < lists.length; s++)
+      for (var i = 0; i < (lists[s] || []).length; i++)
+        if (Presets.entryId(lists[s][i]) === "omarchy.agents") return typeof lists[s][i] === "object" ? lists[s][i] : ({})
+    return ({})
+  }
+  readonly property bool usageFolded: {
+    var folded = Presets.foldedIds(options)
+    var lists = baseLayout ? [baseLayout.left, baseLayout.center, baseLayout.right] : []
+    for (var s = 0; s < lists.length; s++)
+      for (var i = 0; i < (lists[s] || []).length; i++) {
+        var id = Presets.entryId(lists[s][i])
+        if (Presets.AI_IDS.indexOf(id) !== -1 && folded.indexOf(id) !== -1) return true
+      }
+    return false
+  }
+  readonly property int usageIntervalSec: Math.max(30, Number(agentsSettings.refreshIntervalSec || 900))
+  property string pendingUsage: ""
+  property double lastLimitsRun: 0
+  Timer {
+    interval: root.usageIntervalSec * 1000
+    running: root.usageFolded
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: root.refreshUsage("normal")
+  }
+  function usageCommand(kind, ids) {
+    var command = ["omarchy-agent-usage-update"]
+    if (kind === "force") command.push("--force")
+    if (kind === "limits") command.push("--limits-only")
+    var providers = agentsSettings.providers || {}
+    for (var id in providers) if (providers[id] && providers[id].enabled === false) command.push("--except", id)
+    return command.concat(ids || [])
+  }
+  function refreshUsage(kind, ids) {
+    if (!usageFolded) return          // the native widgets refresh themselves
+    if (kind === "limits" && !ids) {  // expired limits / opened popups: at most once a minute
+      if (Date.now() - lastLimitsRun < 60000) return
+      lastLimitsRun = Date.now()
+    }
+    if (usageUpdate.running) { if (kind === "force" || pendingUsage === "") pendingUsage = kind; return }
+    usageUpdate.command = usageCommand(kind, ids)
+    usageUpdate.running = true
+  }
+  Process {
+    id: usageUpdate
+    onExited: {
+      if (root.pendingUsage !== "") { var k = root.pendingUsage; root.pendingUsage = ""; root.refreshUsage(k); return }
+      retryScan.running = true
+    }
+  }
+  // A collector that could not reach its endpoint (e.g. right after login)
+  // sets retryAdvised: retry just those limits after 30 s, as omarchy.agents does.
+  Process {
+    id: retryScan
+    command: ["sh", "-c", "grep -l '\"retryAdvised\": *true' \"${XDG_STATE_HOME:-$HOME/.local/state}\"/omarchy/agents/usage/*.json 2>/dev/null | sed 's#.*/##; s#\\.json$##'"]
+    stdout: StdioCollector { onStreamFinished: { var ids = String(text).split("\n").filter(function(s) { return s }); if (ids.length) { usageRetry.ids = ids; usageRetry.restart() } } }
+  }
+  Timer { id: usageRetry; property var ids: []; interval: 30000; onTriggered: root.refreshUsage("limits", ids) }
+  Connections {
+    target: Bridge.ModuleBus
+    function onUsageRefreshRequested(kind) { root.refreshUsage(kind) }
+  }
+
   // ---------------------------------------------------------------- panel contract
   property bool isOpen: false
   readonly property bool opened: isOpen
@@ -265,7 +336,7 @@ Item {
   onIsOpenChanged: if (isOpen) { closeModulePopups(); refreshSystemFont() }
   Component.onCompleted: refreshSystemFont()
   onMenuOpenChanged: if (menuOpen) { isOpen = false; screenOpen = false; closeModulePopups() }
-  onScreenOpenChanged: if (screenOpen) { isOpen = false; menuOpen = false; closeModulePopups() }
+  onScreenOpenChanged: if (screenOpen) { isOpen = false; menuOpen = false; closeModulePopups(); refreshUsage("limits") }
   function openScreen() { menuOpen = false; screenOpen = true }
 
   // Menus (built on demand from live state). Items: { label, note, checked,
@@ -373,7 +444,8 @@ Item {
     function state(): string {
       return JSON.stringify({ preset: root.presetId, options: root.options, hasBase: root.baseLayout !== null,
                               open: root.isOpen, menuOpen: root.menuOpen, screenOpen: root.screenOpen, saved: root.savedPresets.map(function(p) { return p.name }), lastResult: root.lastResult, moduleDir: root.moduleDir,
-                              systemFont: root.systemProfile, fontResult: root.systemFontResult })
+                              systemFont: root.systemProfile, fontResult: root.systemFontResult,
+                              usage: { folded: root.usageFolded, intervalSec: root.usageIntervalSec, running: usageUpdate.running, command: usageUpdate.command } })
     }
   }
 }

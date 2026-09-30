@@ -150,8 +150,10 @@ Item {
     for (var i = 0; i < order.length; i++) {
       var p = providerData[order[i]]; if (!p) continue
       p.limits.forEach(function(l) {
-        out.push({ name: p.name, label: String(l.title || l.label || ""), percent: l.noQuota ? -1 : Number(l.percent) || 0,
-                   value: String(l.valueText || ""), resetsAt: String(l.resetsAt || "") })
+        // past its reset time a limit is back at 0 %, whatever the record still says
+        var resets = Date.parse(String(l.resetsAt || "")), expired = !l.noQuota && resets > 0 && resets <= Date.now()
+        out.push({ name: p.name, label: String(l.title || l.label || ""), percent: l.noQuota ? -1 : expired ? 0 : Number(l.percent) || 0,
+                   value: String(l.valueText || ""), resetsAt: String(l.resetsAt || ""), expired: expired })
       })
     }
     quotas = out

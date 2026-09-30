@@ -26,6 +26,11 @@ QtObject {
     return candidates.length ? candidates[0] : null
   }
 
+  // ---- AI usage records: modules ask, the engine runs the collectors
+  // ("normal" · "limits" = limits only, cheap · "force").
+  signal usageRefreshRequested(string kind)
+  function requestUsageRefresh(kind) { usageRefreshRequested(String(kind || "normal")) }
+
   // ---- typography (set by the engine from the "font" option)
   // theme: theme font everywhere · topaz: NerdWorkbench for Amiga moments
   // (menu strip, requester, Guru, title line) · bar/desktop: NerdWorkbench

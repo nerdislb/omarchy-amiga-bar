@@ -180,7 +180,7 @@ PanelWindow {
                 width: parent.width
                 Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; width: parent.width * 0.6; elide: Text.ElideRight; text: modelData.name + " · " + modelData.label; font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body); color: Color.popups.text }
                 Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; width: parent.width * 0.4; horizontalAlignment: Text.AlignRight
-                  text: modelData.percent >= 0 ? Math.round(modelData.percent * 100) + " %" + (win.resetText(modelData.resetsAt) ? " · " + win.resetText(modelData.resetsAt) : "") : modelData.value
+                  text: modelData.percent >= 0 ? Math.round(modelData.percent * 100) + " %" + (modelData.expired ? " · reset" : win.resetText(modelData.resetsAt) ? " · " + win.resetText(modelData.resetsAt) : "") : modelData.value
                   font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption); color: Util.alpha(Color.popups.text, 0.7) }
               }
               // tracker-style segments

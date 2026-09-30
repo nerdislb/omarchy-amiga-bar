@@ -133,3 +133,14 @@ Not verified: Zen chrome/userContent (browser not restarted), Kitty (not
 running), GTK apps visually, a real (non-demo) blocked agent and a real failed
 unit through the new exit-code path.
 
+## Stale AI limits (2026-09-30, Claude Opus 5.5)
+
+Owner report: the bar showed "Claude 5h 100%". `claude.json`/`codex.json` were
+last written at 16:26 CEST; the 5-hour window had reset at 18:09. Cause: the
+collectors run from `omarchy.agents` (and the AI usage widget) only while
+they are in the bar, and the `ondemand` variant folds both away. The engine
+now runs the collectors while they are folded, and expired limits read as 0 %.
+Live after restart: engine `usage.folded=true`, collector ran at once;
+Claude 5 h 56 % (reset 23:39), weekly 10 %, Codex weekly 28 %; the on-demand
+quota hid itself (< 75 %). Regression covers expired vs. future resets.
+

@@ -87,3 +87,19 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.equal(ctx.matchPreset(Object.assign({}, ctx.presetById('k1').options, {font: 'desktop'})), 'k1');
   console.log('PASS: base reconstruction, desktop font kept out of presets');
 }
+
+// Stale usage records: a limit past its reset time counts as 0 %, not its last value.
+{
+  const modelCtx = {};
+  vm.createContext(modelCtx);
+  vm.runInContext(fs.readFileSync(path.resolve(root, '../omarchy-amiga-island/IslandModel.js'), 'utf8').replace('.pragma library', ''), modelCtx);
+  const past = new Date(Date.now() - 2 * 3600e3).toISOString(), future = new Date(Date.now() + 3600e3).toISOString();
+  const record = JSON.stringify({id: 'claude', limits: [
+    {label: 'Session (5-hour)', percent: 1.0, resetsAt: past},
+    {label: 'Weekly (7-day)', percent: 0.07, resetsAt: future}]});
+  const limits = modelCtx.usageLimits(record, 'claude');
+  assert.equal(limits[0].percent, 0);
+  assert.equal(limits[1].percent, 0.07);
+  assert.equal(modelCtx.limitPercent({percent: 1, resetsAt: future}, Date.now() + 2 * 3600e3), 0);
+  console.log('PASS: expired usage limits read as reset');
+}

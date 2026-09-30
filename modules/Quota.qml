@@ -90,7 +90,13 @@ Item {
   readonly property var names: ({ claude: "Claude", codex: "Codex", deepseek: "DeepSeek", antigravity: "Gemini" })
   readonly property var letters: ({ claude: "C", codex: "X", deepseek: "D", antigravity: "G" })
 
-  // Tracked limits in order: { key, provider, name, label, percent (-1 = no quota), value, resetsAt }
+  // A limit whose reset time has passed is back at 0 %, whatever the record
+  // still says: records only change when a collector runs. Such a limit is
+  // marked expired and asks the engine for fresh limits.
+  property double now: Date.now()
+  Timer { interval: 30000; running: true; repeat: true; onTriggered: root.now = Date.now() }
+
+  // Tracked limits in order: { key, provider, name, label, percent (-1 = no quota), value, resetsAt, expired }
   readonly property var items: {
     var out = []
     for (var i = 0; i < tracked.length; i++) {
@@ -100,14 +106,18 @@ Item {
       for (var j = 0; j < p.limits.length; j++) {
         var l = p.limits[j]
         if (slug(l.label) !== parts[1]) continue
+        var resets = Date.parse(String(l.resetsAt || ""))
+        var expired = !l.noQuota && resets > 0 && resets <= now
         out.push({ key: tracked[i], provider: parts[0], name: names[parts[0]] || p.name, label: String(l.title || l.label || ""),
-                   percent: l.noQuota ? -1 : Math.max(0, Number(l.percent) || 0), value: String(l.valueText || ""),
-                   resetsAt: String(l.resetsAt || "") })
+                   percent: l.noQuota ? -1 : expired ? 0 : Math.max(0, Number(l.percent) || 0), value: String(l.valueText || ""),
+                   resetsAt: String(l.resetsAt || ""), expired: expired })
       }
     }
     return out
   }
   readonly property var quotaItems: items.filter(function(x) { return x.percent >= 0 })
+  readonly property bool anyExpired: items.some(function(x) { return x.expired })
+  onAnyExpiredChanged: if (anyExpired) Bridge.ModuleBus.requestUsageRefresh("limits")
   readonly property var tightest: {
     var best = null
     for (var i = 0; i < quotaItems.length; i++) if (!best || quotaItems[i].percent > best.percent) best = quotaItems[i]
@@ -305,6 +315,7 @@ Item {
   readonly property bool opened: popupOpen
   property bool popoutSwitchClosing: false
   function open() { popupOpen = true }
+  onPopupOpenChanged: if (popupOpen) Bridge.ModuleBus.requestUsageRefresh("limits")
   function close() { popupOpen = false }
   function togglePopup() { popupOpen = !popupOpen }
   function closeForPopoutSwitch() { popoutSwitchClosing = true; popupOpen = false; Qt.callLater(function() { root.popoutSwitchClosing = false }) }
@@ -348,7 +359,7 @@ Item {
               text: modelData.percent >= 0 ? Math.round(modelData.percent * 100) + "%" : modelData.value
               font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.body); color: Color.popups.text
             }
-            Text { renderType: Text.NativeRendering; text: root.resetText(modelData.resetsAt); font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: Util.alpha(Color.popups.text, 0.55) }
+            Text { renderType: Text.NativeRendering; text: modelData.expired ? "reset · refreshing" : root.resetText(modelData.resetsAt); font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: Util.alpha(Color.popups.text, 0.55) }
           }
         }
         Text { renderType: Text.NativeRendering; text: "Middle click refreshes · same selection as the AI usage widget"; font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: Util.alpha(Color.popups.text, 0.5) }

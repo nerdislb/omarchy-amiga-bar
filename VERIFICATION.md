@@ -64,3 +64,27 @@ Regression covers stationary global position with changed local coordinates,
 then real movement. Live Tools → Options selection stayed tab 5/item 2 across
 five refresh intervals (~21 seconds); Enter opened the intended options window.
 QML parsing and journal check passed. No presets or user settings changed.
+
+## NerdWorkbench profile (2026-09-30)
+
+Supersedes the earlier classic Topaz follow-up. Four Python tests pass: XML
+preservation/restoration, scoped CSS preservation and idempotence, atomic font
+replacement with an existing reader, and isolated real fontconfig resolution.
+Node regressions pass; edited QML parses. Live Amiga → Normal → Amiga succeeded:
+Normal resolved to JetBrainsMono Nerd Font / Liberation Sans, removed owned
+browser blocks and selected theme decoration without changing the other options.
+Amiga resolved to NerdWorkbench UI / Mono, true Bold and Icons. Final options
+window visually inspected; profile left active. Current layout stays CLI /
+on-demand quotas / hardware / calm centre / Amiga effects.
+
+Zen stylesheets are installed, not live-verified: the running browser has not
+been restarted. Arbitrary website typography is intentionally not overridden.
+No universal application or long-running stability claim is made.
+
+During development, quickshell PID 806550 crashed at 18:28:02 CEST. Coredump
+metadata places the fault in FreeType FT_Get_Char_Index / Qt text shaping.
+Timing coincides with an in-place copy of a loaded TTF; that is the likely
+trigger, not a proven source-level root cause. The installer now uses atomic
+replacement and skips unchanged fonts; an old-reader regression passes. No
+further coredumps were found after 18:29 through final profile testing.
+Evidence: local font-profile backups and font-family-20260930 state directory.

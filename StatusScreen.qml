@@ -38,7 +38,7 @@ PanelWindow {
     Behavior on progress { NumberAnimation { duration: Style.duration(260); easing.type: Easing.OutCubic } }
   }
 
-  FontLoader { id: topazFont; source: "file://" + (win.host ? win.host.pluginDir : "") + "/assets/fonts/Topaz_a500_v1.0.ttf" }
+  FontLoader { id: topazFont; source: "file://" + (win.host ? win.host.pluginDir : "") + "/assets/fonts/nerdworkbench/NerdWorkbenchUI-Regular.ttf" }
 
   function timeText(ms) { return Qt.formatDateTime(new Date(ms), "HH:mm") }
   function resetText(iso) {
@@ -78,7 +78,7 @@ PanelWindow {
         font.pixelSize: win.topaz ? 16 : Style.font.body
         font.bold: !win.topaz
         renderType: Text.NativeRendering
-        transform: Scale { xScale: win.topaz ? 2 : 1 }
+        transform: Scale { xScale: 1 }
         color: Color.bar.background
       }
       Text { textFormat: Text.PlainText;

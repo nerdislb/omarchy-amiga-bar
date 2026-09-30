@@ -494,7 +494,7 @@ Item {
   readonly property string popupTitle: popupGroup === "all" ? "System" : (function() { for (var i = 0; i < groups.length; i++) if (groups[i].id === popupGroup) return groups[i].name; return "" })()
   readonly property bool workbench: popupGroup === "all" && (variant === "drawer" || variant === "hardware")
 
-  FontLoader { id: topazFont; source: "file://" + root.pluginDir + "/assets/fonts/Topaz_a500_v1.0.ttf" }
+  FontLoader { id: topazFont; source: "file://" + root.pluginDir + "/assets/fonts/nerdworkbench/NerdWorkbenchUI-Regular.ttf" }
 
   function stateJson() {
     return JSON.stringify({variant: variant, mounted: Object.keys(mounted), wifi: wifiName,
@@ -541,7 +541,7 @@ Item {
               font.pixelSize: root.topaz ? 16 : Style.font.title
               font.bold: !root.topaz
               renderType: Text.NativeRendering
-              transform: Scale { xScale: root.topaz ? 2 : 1 }
+              transform: Scale { xScale: 1 }
               color: Color.popups.background
             }
           }

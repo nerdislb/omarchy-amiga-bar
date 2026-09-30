@@ -56,10 +56,10 @@ var ELEMENTS = {
     ]
   },
   font: {
-    label: "Amiga font (Topaz)",
+    label: "Amiga font (NerdWorkbench)",
     variants: [
       { id: "theme", label: "Theme font" },
-      { id: "topaz", label: "Topaz for Amiga moments" }
+      { id: "topaz", label: "NerdWorkbench for Amiga moments" }
     ]
   }
 }

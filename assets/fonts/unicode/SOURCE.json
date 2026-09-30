@@ -1,0 +1,9 @@
+{
+  "project": "https://gitlab.com/Screwtapello/topaz-unicode",
+  "sourceCommit": "cd250227581720b52233292763ef5d7379196e11",
+  "artifact": "main/build",
+  "binarySHA256": {
+    "topaz_unicode_ks13_bold.ttf": "3168e08f36578d6cf8f00b45da345008d7e9589144a24747fa5b6aaf27b0b565",
+    "topaz_unicode_ks13_regular.ttf": "c343fe1acc4abfc19bcfcc4eb473edae6fa9f02f81c5c57af6121a65058633d9"
+  }
+}

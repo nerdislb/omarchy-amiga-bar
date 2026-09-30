@@ -170,7 +170,7 @@ Item {
     onLoaded: { var m = /MemAvailable:\s+(\d+)/.exec(String(text())); if (m) root.freeGiB = Number(m[1]) / 1048576 }
   }
   Timer { interval: 10000; running: root.variant === "title"; repeat: true; triggeredOnStart: true; onTriggered: meminfo.reload() }
-  FontLoader { id: topazFont; source: "file://" + root.pluginDir + "/assets/fonts/Topaz_a500_v1.0.ttf" }
+  FontLoader { id: topazFont; source: "file://" + root.pluginDir + "/assets/fonts/nerdworkbench/NerdWorkbenchUI-Regular.ttf" }
   readonly property string titleText: "Workbench  " + freeGiB.toFixed(1) + "G free" + quotaItems.map(function(q) {
     return "  " + q.name + " " + Math.round(q.percent * 100) + "%" }).join("")
   Component {

@@ -59,26 +59,42 @@ Run `node tests/regressions.cjs` with the companion island checkout next to this
 repository. See [VERIFICATION.md](VERIFICATION.md) for the live checks and limits.
 Everything remains local; no repository has been published or pushed.
 
-## Optional system-wide Topaz
+## Reversible desktop font profile
 
-Options → **System font (separate from presets)** → **Topaz system-wide**.
-**Previous system font** removes only the plugin's managed fontconfig block.
-This is independent of the local Topaz option and saved bar combinations.
-The option starts disabled. It installs the bundled font under
-`~/.local/share/fonts/amiga-bar/` and merges a marked block into
-`~/.config/fontconfig/fonts.conf` (following existing symlinks). Existing rules
-are preserved; the pre-enable file is also saved to
-`~/.local/state/amiga-bar/system-font-before.conf`.
+Options → **Desktop font profile** → **Amiga · NerdWorkbench** or **Normal**.
+Amiga selects our derived Topaz Unicode text family (UI and Mono, Regular and
+Bold) plus 12 original pixel symbols. Normal removes only our fontconfig and
+browser CSS blocks and selects theme text for local Amiga surfaces. Layout,
+effects, font sizes, accounts and unrelated settings stay unchanged.
+Bar presets do not change the desktop profile.
 
-The mapping covers generic monospace/sans-serif/serif and their currently resolved
-families, including applications using that existing family explicitly. Font
-sizes, terminal settings and themes are untouched. The shell restarts after a
-change; other applications may need reopening. Application-specific fonts and
-web fonts can override these defaults. Topaz has limited character coverage;
-missing glyphs use normal font fallback. The installed font remains available
-after restoring the previous mapping.
+Font mappings cover generic families, their current defaults and discovered
+GTK/terminal font families. Missing glyphs retain normal fallback. Applications
+with private or web fonts may override these mappings; this is not a universal
+replacement of every font. Zen chrome and local OpenClaw receive narrowly scoped
+CSS; arbitrary websites do not. **Restart Zen once after changing profiles**;
+other already-running applications may need reopening. The shell restarts
+automatically. Browser CSS support must already be enabled (it is on this host).
 
-Recovery without the options window:
-`python3 ~/.config/omarchy/plugins/nerdibeard.amiga-bar/bin/system-font.py restore`
+Both directions are available over IPC:
 
-Isolated resolution/restore checks: `python3 tests/system_font.py`.
+```sh
+omarchy-shell amiga-bar font amiga
+omarchy-shell amiga-bar font normal
+```
+
+If the shell is unavailable, restore system/browser mappings directly:
+
+```sh
+python3 ~/.config/omarchy/plugins/nerdibeard.amiga-bar/bin/system-font.py restore
+```
+
+After shell recovery, use `omarchy-shell amiga-bar set font theme` to also reset
+local decorative text. Fonts remain installed but inactive after Normal.
+Per-operation backups live in `~/.local/state/amiga-bar/font-profile-*/`.
+Existing config symlinks are followed; unrelated CSS and fontconfig rules are
+preserved, including edits made after enabling the profile.
+
+See [FONTS.md](FONTS.md) for sources, licensing and build instructions.
+Tests: `python3 tests/system_font.py` and `node tests/regressions.cjs`.
+Never overwrite a live installed TTF in place: use the helper's atomic installer.

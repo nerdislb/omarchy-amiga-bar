@@ -173,23 +173,23 @@ PanelWindow {
           }
         }
 
-        SectionLabel { text: "SYSTEM FONT (SEPARATE FROM PRESETS)" }
+        SectionLabel { text: "DESKTOP FONT PROFILE" }
         Flow {
           width: parent.width; spacing: Style.space(6)
           Choice {
-            label: "Previous system font"
+            label: "Normal"
             selected: win.host && !win.host.systemTopaz
             onPicked: win.host.systemFontAction("restore")
           }
           Choice {
-            label: "Topaz system-wide"
+            label: "Amiga · NerdWorkbench"
             selected: win.host && win.host.systemTopaz
             onPicked: win.host.systemFontAction("enable")
           }
         }
         Text {
           width: parent.width; wrapMode: Text.WordWrap; textFormat: Text.PlainText
-          text: "Changes the shell and standard application fonts, not font sizes. Restarts the bar; reopen other apps if needed. Apps with their own font settings may differ."
+          text: "UI + Mono + pixel symbols. Normal restores your font mappings and theme text. Restarts the bar; restart Zen / reopen other apps to apply or undo browser fonts. Sizes stay unchanged."
           font.family: Style.font.family; font.pixelSize: Style.font.caption
           color: Util.alpha(Color.popups.text, 0.55)
         }

@@ -64,15 +64,15 @@ PanelWindow {
     if (typeof entry.action === "function") Qt.callLater(entry.action)
   }
 
-  FontLoader { id: topazFont; source: "file://" + (win.host ? win.host.pluginDir : "") + "/assets/fonts/Topaz_a500_v1.0.ttf" }
+  FontLoader { id: topazFont; source: "file://" + (win.host ? win.host.pluginDir : "") + "/assets/fonts/nerdworkbench/NerdWorkbenchUI-Regular.ttf" }
 
   component Label: Text { textFormat: Text.PlainText;
     font.family: win.topaz && topazFont.status === FontLoader.Ready ? topazFont.name : Style.font.family
     font.pixelSize: win.topaz ? 16 : Style.font.body
     renderType: Text.NativeRendering
-    transform: Scale { xScale: win.topaz ? 2 : 1 }
+    transform: Scale { xScale: 1 }
     // Scale does not change the layout width; make room for it.
-    readonly property real layoutWidth: implicitWidth * (win.topaz ? 2 : 1)
+    readonly property real layoutWidth: implicitWidth * (1)
   }
 
   MouseArea {
@@ -149,7 +149,7 @@ PanelWindow {
     y: strip.height
     width: Math.min(win.width - Style.space(8), Math.max(Style.space(300), Math.min(Style.space(820),
       menu ? menu.items.reduce(function(w, e) {
-        return Math.max(w, Math.min(48, String(e.label || "").length) * (win.topaz ? 16 : Style.font.body * 0.66)
+        return Math.max(w, Math.min(48, String(e.label || "").length) * (win.topaz ? 14 : Style.font.body * 0.66)
           + String(e.note || "").length * Style.font.caption * 0.66 + Style.space(80))
       }, 0) : 0)))
     height: Math.min(win.height - y - Style.space(8), list.implicitHeight + Style.space(8))
@@ -207,7 +207,7 @@ PanelWindow {
             Label {
               id: rl
               anchors.verticalCenter: parent.verticalCenter
-              width: Math.max(0, (rowContent.width - Style.space(20)) / (win.topaz ? 2 : 1))
+              width: Math.max(0, (rowContent.width - Style.space(20)) / (1))
               elide: Text.ElideRight
               text: row.modelData.label || ""
               color: row.hot ? Color.bar.background : win.stripInk

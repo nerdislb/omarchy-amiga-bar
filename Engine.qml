@@ -126,7 +126,15 @@ Item {
     onStarted: { write(payload); stdinEnabled = false }
     stdout: StdioCollector { onStreamFinished: root.lastResult = String(text).trim() }
     stderr: StdioCollector { onStreamFinished: if (String(text).trim()) root.lastResult = "error: " + String(text).trim() }
-    onExited: stdinEnabled = true
+    onExited: function(exitCode) {
+      stdinEnabled = true
+      if (root.pendingFontAction !== "") {
+        var action = root.pendingFontAction
+        root.pendingFontAction = ""
+        if (exitCode === 0) { systemFont.action = action; systemFont.running = true }
+        else root.systemFontResult = "Could not save the local font selection"
+      }
+    }
   }
 
   function apply(nextOptions) {
@@ -156,6 +164,7 @@ Item {
 
   // Independent of bar presets: this changes the user's fontconfig mapping.
   property bool systemTopaz: false
+  property string pendingFontAction: ""
   property string systemFontResult: ""
   Process {
     id: systemFont
@@ -172,9 +181,12 @@ Item {
     }
   }
   function systemFontAction(action) {
-    if (systemFont.running) return
-    systemFont.action = action
-    systemFont.running = true
+    if (systemFont.running || pendingFontAction !== "") return
+    if (action === "status") { systemFont.action = action; systemFont.running = true; return }
+    if (writer.running) { systemFontResult = "Please wait for the current layout change"; return }
+    pendingFontAction = action
+    var result = setVariant("font", action === "enable" ? "topaz" : "theme")
+    if (result !== "ok") { pendingFontAction = ""; systemFontResult = result }
   }
 
   // ---------------------------------------------------------------- panel contract
@@ -304,6 +316,7 @@ Item {
 
   IpcHandler {
     target: "amiga-bar"
+    function font(profile: string): void { if (profile === "normal" || profile === "amiga") root.systemFontAction(profile === "normal" ? "restore" : "enable") }
     function menuState(): string { return JSON.stringify({ open: root.menuOpen, tab: intuitionMenu.current, item: intuitionMenu.item }) }
     function options(): void { root.toggle() }
     function save(name: string): string { return root.saveCombination(name) }

@@ -15,8 +15,14 @@ Concept source: `~/.openclaw/workspace/output/amiga-bar-2026-09-30/` (gallery, A
 - **A** ✓ — options, presets, workspace variants (pips, stack, logo, minimap, CLI, boing). Island merge moved to E.
 - **B** ✓ — AI variants, right side (groups, deviations, drawer + Workbench window) with embedded native popups, temperature at the weather, Topaz option; presets K1–K3 complete.
 - **C** ✓ — (in the island) blocked agents → Guru-style orange segment + requester (open/snooze, never auto-approve), Guru strip for failed user/system units and new core dumps, DisplayBeep, Boing/Copper behind the "effects" option. Real herdr `blocked` not yet observed live (tested with a demo agent).
-- **D** — Intuition menu strip (right button on empty bar), status screen overlay (depth gadget / Super+M), title-line variant, hardware strip variant.
-- **E** — docs, screenshots, font licence check (Topaz, GPL-FE), release decision.
+- **D** ✓ — Intuition menu strip (right click on the Omarchy logo or Super+Alt+M; Topaz optional), status screen (Super+M, "Amiga-M"), title-line quota variant (hires Topaz), A500 hardware strip (CPU/RAM VU, POWER/DRIVE LEDs, DF0: USB phone). UI strings in English (owner rule: desktop UI English).
+- **E** ✓ (except release) — docs, font licence notice (Topaz: GPL with font exception, design © Amiga Inc.; `assets/fonts/FONTS.md`), independent Codex review, full live test of all presets. Island stays a separate plugin (see README); the release decision is the owner's.
+
+## Not possible / deliberately left out
+- Right *mouse button held on empty bar space*: only bar plugins see those events, and a replacement bar breaks service-backed widgets. The menu opens from the logo or Super+Alt+M instead.
+- Hiding native widgets without removing them: needs a bar plugin; folded widgets are mounted inside our Status module instead.
+- Weather and world clocks stay native: embedded, their popups position themselves through the bar's centre section and land at the left edge.
+- Approving agents from the bar: the requester only opens/snoozes; approval stays in the agent.
 
 ## Presets (from the concept film)
 | Preset | Workspaces | AI | Centre | Right |

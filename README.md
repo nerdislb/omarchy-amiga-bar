@@ -13,12 +13,21 @@ Presets and compact Amiga-style modules for the **native** Omarchy bar. See `ROA
 | Element | Variants |
 |---|---|
 | Workspaces (`Workspaces.qml`, incl. Omarchy logo) | today, pips, stack, logo, minimap, cli, boing |
-| AI quotas (`Quota.qml`) | today, gauge, vu, rings, ondemand |
-| Right side (`Status.qml`) | today, groups, deviations, drawer (Workbench window) |
+| AI quotas (`Quota.qml`) | today, gauge, vu, rings, ondemand, title (Workbench title line) |
+| Right side (`Status.qml`) | today, groups, deviations, drawer (Workbench window), hardware (A500 strip) |
 | Centre (`Centre.qml`) | today, calm (temperature at the weather glyph) |
-| Font | theme, topaz (Workbench window title; more Amiga moments in stage C/D) |
+| Font | theme, topaz (menus, Workbench window, requester, Guru strip, title line) |
+| Events | plain, amiga (Boing ball, copper progress; read by the island) |
 
 Presets: `heute`, `k1` (pips · gauge · groups), `k2` (logo · VU · drawer · Topaz), `k3` (stack · on demand · deviations).
+
+## Menu strip and status screen
+- `IntuitionMenu.qml`: Omarchy · Agents · System · Network · Phone · Tools, opened by right click on the Omarchy logo or **Super+Alt+M**; arrows/Enter/Esc; toggles show ✓ (DND, stay awake, VPN, Tailscale).
+- `StatusScreen.qml`: the "screen behind the Workbench" with agents, nbtiles tests, AI quotas, phone, today & tomorrow, system & network; **Super+M** (Amiga-M) or Esc. `SysState.qml` polls only while one of them is open.
+- Keybindings live in a managed block in `~/.config/hypr/bindings.lua` (`BEGIN/END Amiga Bar (managed)`).
+
+## Companion: Amiga Island
+The clock in the centre is the separate plugin `nerdibeard.amiga-island` (`~/src/omarchy-amiga-island`). It reads this plugin's `effects` and `font` options from shell.json and shows attention (blocked agents → requester), the Guru strip for failed units/crashes, Boing and copper effects. It stays a separate plugin: it has its own panel, IPC and settings entry, and merging would only re-plumb settings without user benefit; for a release both can live in one repository.
 
 ## Use
 - Options: middle click on the Omarchy logo, or `omarchy-shell amiga-bar options`.

@@ -242,3 +242,21 @@ function matchPreset(options) {
     if (JSON.stringify(normalizeOptions(PRESETS[i].options)) === JSON.stringify(n)) return PRESETS[i].id
   return ""
 }
+
+// Widget settings edited through folded native popups survive preset changes.
+function mergeEmbeddedSettings(base, current) {
+  var out = copy(base), embeds = {}, native = {}
+  ;["left", "center", "right"].forEach(function(section) {
+    ;(current && current[section] || []).forEach(function(entry) {
+      if (entryId(entry) === "amiga.status") embeds = entry.embeds || {}
+      else if (entry && typeof entry === "object" && entryId(entry).indexOf(OWN_PREFIX) !== 0) native[entryId(entry)] = entry
+    })
+  })
+  ;["left", "center", "right"].forEach(function(section) {
+    out[section] = (out[section] || []).map(function(entry) {
+      var id = entryId(entry)
+      return embeds[id] ? Object.assign({}, copy(embeds[id]), {id: id}) : native[id] ? copy(native[id]) : entry
+    })
+  })
+  return out
+}

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
@@ -45,8 +46,8 @@ PanelWindow {
   Ui.BorderSurface {
     id: card
     readonly property int pad: Style.spacing.popupPadding
-    width: Style.space(580)
-    height: column.childrenRect.height + pad * 2 + Border.top(borderSpec) + Border.bottom(borderSpec)
+    width: Math.min(win.width - Style.space(20), Style.space(660))
+    height: Math.min(win.height - y - Style.space(12), column.childrenRect.height + pad * 2 + Border.top(borderSpec) + Border.bottom(borderSpec))
     x: Math.round((win.width - width) / 2)
     y: Style.bar.sizeHorizontal + Style.gapsOut
     color: Color.popups.background
@@ -58,17 +59,21 @@ PanelWindow {
 
     MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
 
-    Item {
+    Flickable {
       id: keys
       x: card.contentLeftInset; y: card.contentTopInset
       width: card.width - card.contentLeftInset - card.contentRightInset
-      height: column.childrenRect.height
+      height: card.height - card.contentTopInset - card.contentBottomInset
+      contentHeight: column.childrenRect.height
+      clip: true
+      boundsBehavior: Flickable.StopAtBounds
+      ScrollBar.vertical: ScrollBar {}
       focus: win.open
       Keys.onEscapePressed: function(e) { win.closeRequested(); e.accepted = true }
 
       Column {
         id: column
-        width: parent.width
+        width: keys.width
         spacing: Style.spacing.rowGap
 
         Row {
@@ -102,6 +107,45 @@ PanelWindow {
               onPicked: win.host.applyPreset(modelData.id)
             }
           }
+        }
+
+        SectionLabel { text: "MY COMBINATIONS" }
+        Row {
+          width: parent.width
+          spacing: Style.space(6)
+          TextField {
+            id: combinationName
+            width: parent.width - saveButton.width - parent.spacing
+            placeholderText: "Name this combination"
+            maximumLength: 48
+            font.family: Style.font.family; font.pixelSize: Style.font.body
+            color: Color.popups.text
+            background: Rectangle { color: Util.alpha(Color.popups.text, 0.06); border.width: 1; border.color: Util.alpha(Color.popups.text, 0.2); radius: Style.cornerRadius }
+            onAccepted: win.host.saveResult = win.host.saveCombination(text)
+          }
+          Choice {
+            id: saveButton
+            label: "Save / replace"
+            onPicked: win.host.saveResult = win.host.saveCombination(combinationName.text)
+          }
+        }
+        Flow {
+          width: parent.width; spacing: Style.space(6)
+          Repeater {
+            model: win.host ? win.host.savedPresets : []
+            Row {
+              required property var modelData
+              spacing: Style.space(2)
+              Choice { label: modelData.name; onPicked: { combinationName.text = modelData.name; win.host.loadCombination(modelData.name) } }
+              Choice { label: "×"; onPicked: win.host.deleteCombination(modelData.name) }
+            }
+          }
+        }
+        Text {
+          visible: text !== ""
+          width: parent.width; wrapMode: Text.WordWrap; textFormat: Text.PlainText
+          text: win.host ? win.host.saveResult : ""
+          font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Color.popups.text
         }
 
         Repeater {
@@ -166,6 +210,7 @@ PanelWindow {
       id: inner
       anchors.centerIn: parent
       Text {
+        textFormat: Text.PlainText
         text: choice.label
         font.family: Style.font.family; font.pixelSize: Style.font.body; font.bold: choice.selected
         color: choice.selected ? Color.popups.background : Color.popups.text

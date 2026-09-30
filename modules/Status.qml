@@ -1,4 +1,5 @@
 import QtQuick
+import "../bridge" as Bridge
 import Quickshell
 import Quickshell.Io
 import Quickshell.Bluetooth
@@ -17,6 +18,8 @@ import qs.Ui
 // and opened as its own window.
 Item {
   id: root
+  Component.onCompleted: Bridge.ModuleBus.register("status", root)
+  Component.onDestruction: Bridge.ModuleBus.unregister("status", root)
 
   property var bar: null
   property string moduleName: "amiga.status"
@@ -84,12 +87,12 @@ Item {
       Loader {
         required property string modelData
         width: root.barSize; height: root.barSize
-        source: root.filePath(root.catalogue[modelData].file)
+        property MemberBar memberApi: MemberBar { host: root; memberId: modelData }
+        Component.onCompleted: setSource(root.filePath(root.catalogue[modelData].file), {
+          bar: memberApi, moduleName: modelData, settings: root.embeds[modelData] || ({})
+        })
         onLoaded: {
           var it = item
-          if ("bar" in it) it.bar = root.bar
-          if ("moduleName" in it) it.moduleName = modelData
-          if ("settings" in it) it.settings = root.embeds[modelData] || ({})
           var m = {}
           for (var k in root.mounted) m[k] = root.mounted[k]
           m[modelData] = it
@@ -196,7 +199,7 @@ Item {
 
   function memberState(id) {
     if (id === "omarchy.network") return wifiUp ? "connected · " + wifiName : "disconnected"
-    if (id === "io.github.iamfitsum.omarchy-proton-vpn") return vpnUp ? "aktiv · " + vpnName : "off"
+    if (id === "io.github.iamfitsum.omarchy-proton-vpn") return vpnUp ? "active · " + vpnName : "off"
     if (id === "omarchy.tailscale") return tailscaleUp ? "online" : "off"
     if (id === "omarchy.bluetooth") return !btOn ? "off" : btConnected.length ? btConnected.map(function(d) { return d.name }).join(", ") : "on · nothing connected"
     if (id === "flux") return phone ? (phone.online ? "online" : "offline") + (phone.charge >= 0 ? " · " + phone.charge + " %" + (phone.charging ? " charging" : "") : "") : "not paired"
@@ -313,7 +316,7 @@ Item {
             required property var modelData
             anchors.verticalCenter: parent.verticalCenter
             spacing: Style.space(3)
-            Text { anchors.verticalCenter: parent.verticalCenter; text: modelData[0]; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption - 1; color: Util.alpha(root.fg, 0.6) }
+            Text { textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; text: modelData[0]; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption - 1; color: Util.alpha(root.fg, 0.6) }
             Column {
               anchors.verticalCenter: parent.verticalCenter
               spacing: 1
@@ -341,8 +344,8 @@ Item {
           width: Style.space(128); height: Math.round(root.barSize * 0.56)
           color: Qt.darker(Color.bar.background, 1.3)
           border.width: 1; border.color: Util.alpha(root.fg, 0.15)
-          Text { x: Style.space(6); anchors.verticalCenter: parent.verticalCenter; text: "DF0:"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption; color: Util.alpha(root.fg, 0.6) }
-          Text {
+          Text { textFormat: Text.PlainText; x: Style.space(6); anchors.verticalCenter: parent.verticalCenter; text: "DF0:"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption; color: Util.alpha(root.fg, 0.6) }
+          Text { textFormat: Text.PlainText;
             x: Style.space(40); width: parent.width - x - Style.space(4); anchors.verticalCenter: parent.verticalCenter
             elide: Text.ElideRight
             text: root.usbPhone || "—"
@@ -365,9 +368,13 @@ Item {
     }
   }
 
-  component Cell: Item {
+  component Cell: WidgetButton {
     id: cell
-    property bool active: false
+    bar: root.bar
+    hasVisualContent: true
+    labelVisible: false
+    useActiveColor: false
+    onPressed: function(button) { if (button === Qt.RightButton) rightClicked(); else clicked() }
     signal clicked()
     signal rightClicked()
     height: root.barSize
@@ -393,7 +400,7 @@ Item {
     property color tone: "#3ee05a"
     signal clicked()
     width: Style.space(34); height: root.barSize
-    Text { anchors.horizontalCenter: parent.horizontalCenter; y: Style.space(4); text: led.label; font.family: Style.font.family; font.bold: true; font.pixelSize: Math.max(7, Style.font.caption - 3); color: Util.alpha(root.fg, 0.6) }
+    Text { textFormat: Text.PlainText; anchors.horizontalCenter: parent.horizontalCenter; y: Style.space(4); text: led.label; font.family: Style.font.family; font.bold: true; font.pixelSize: Math.max(7, Style.font.caption - 3); color: Util.alpha(root.fg, 0.6) }
     Rectangle {
       anchors.horizontalCenter: parent.horizontalCenter
       y: root.barSize - Style.space(10)
@@ -403,7 +410,7 @@ Item {
     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: led.clicked() }
   }
 
-  component Glyph: Text {
+  component Glyph: Text { textFormat: Text.PlainText;
     font.family: Style.font.family
     font.pixelSize: Style.font.icon + 2
     color: root.fg
@@ -431,7 +438,7 @@ Item {
       anchors.centerIn: parent
       spacing: Style.space(3)
       Glyph { text: "\u{f011c}"; color: root.phone && root.phone.online ? root.fg : Util.alpha(root.fg, 0.45) }
-      Text {
+      Text { textFormat: Text.PlainText;
         anchors.verticalCenter: parent.verticalCenter
         text: root.phone && root.phone.charge >= 0 ? root.phone.charge + "%" : "–"
         font.family: Style.font.family; font.pixelSize: Style.font.bodySmall
@@ -489,16 +496,10 @@ Item {
 
   FontLoader { id: topazFont; source: "file://" + root.pluginDir + "/assets/fonts/Topaz_a500_v1.0.ttf" }
 
-  IpcHandler {
-    target: "amiga-status"
-    function group(id: string): void { root.openGroup(id, root) }
-    function member(id: string): void { root.openMember(id) }
-    function close(): void { root.closePopup() }
-    function state(): string {
-      return JSON.stringify({ variant: root.variant, mounted: Object.keys(root.mounted), wifi: root.wifiName, vpn: root.vpnUp,
-                              tailscale: root.tailscaleUp, bt: root.btConnected.map(function(d) { return d.name }), cpu: root.cpu,
-                              mem: root.mem, phone: root.phone, deviations: root.deviations.length, open: root.popupOpen })
-    }
+  function stateJson() {
+    return JSON.stringify({variant: variant, mounted: Object.keys(mounted), wifi: wifiName,
+      vpn: vpnUp, tailscale: tailscaleUp, phone: phone, cpu: cpu, mem: mem,
+      open: popupOpen, group: popupGroup, monitor: root.QsWindow.window ? root.QsWindow.window.screen.name : ""})
   }
 
   KeyboardPanel {
@@ -533,7 +534,7 @@ Item {
             spacing: Style.space(8)
             Rectangle { anchors.verticalCenter: parent.verticalCenter; width: Style.space(12); height: width; color: "transparent"; border.width: 1; border.color: Color.popups.background
               Rectangle { anchors.centerIn: parent; width: 4; height: 4; color: Color.popups.background } }
-            Text {
+            Text { textFormat: Text.PlainText;
               anchors.verticalCenter: parent.verticalCenter
               text: root.popupTitle
               font.family: root.topaz && topazFont.status === FontLoader.Ready ? topazFont.name : Style.font.family
@@ -552,7 +553,7 @@ Item {
           }
         }
 
-        Text {
+        Text { textFormat: Text.PlainText;
           visible: !root.workbench
           text: root.popupTitle
           font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.title
@@ -573,8 +574,8 @@ Item {
               required property string modelData
               width: (content.width - Style.space(24)) / 4; height: Style.space(64)
               Rectangle { anchors.fill: parent; anchors.margins: 2; color: iconHover.hovered ? Util.alpha(Color.popups.text, 0.08) : "transparent" }
-              Text { anchors.horizontalCenter: parent.horizontalCenter; y: Style.space(4); text: root.catalogue[modelData].glyph; font.family: Style.font.family; font.pixelSize: Style.space(28); color: root.memberAlert(modelData) ? Color.urgent : Color.popups.text }
-              Text { anchors.horizontalCenter: parent.horizontalCenter; y: Style.space(40); width: parent.width - 4; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight; text: root.catalogue[modelData].name; font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Color.popups.text }
+              Text { textFormat: Text.PlainText; anchors.horizontalCenter: parent.horizontalCenter; y: Style.space(4); text: root.catalogue[modelData].glyph; font.family: Style.font.family; font.pixelSize: Style.space(28); color: root.memberAlert(modelData) ? Color.urgent : Color.popups.text }
+              Text { textFormat: Text.PlainText; anchors.horizontalCenter: parent.horizontalCenter; y: Style.space(40); width: parent.width - 4; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight; text: root.catalogue[modelData].name; font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Color.popups.text }
               HoverHandler { id: iconHover }
               MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openMember(parent.modelData) }
             }
@@ -591,20 +592,20 @@ Item {
             Row {
               anchors.fill: parent; anchors.leftMargin: Style.space(8)
               spacing: Style.space(10)
-              Text { anchors.verticalCenter: parent.verticalCenter; width: Style.space(20); text: root.catalogue[modelData].glyph; font.family: Style.font.family; font.pixelSize: Style.font.icon + 2; color: root.memberAlert(modelData) ? Color.urgent : Color.popups.text }
+              Text { textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; width: Style.space(20); text: root.catalogue[modelData].glyph; font.family: Style.font.family; font.pixelSize: Style.font.icon + 2; color: root.memberAlert(modelData) ? Color.urgent : Color.popups.text }
               Column {
                 anchors.verticalCenter: parent.verticalCenter
-                Text { text: root.catalogue[modelData].name; font.family: Style.font.family; font.pixelSize: Style.font.body; color: Color.popups.text }
-                Text { visible: text !== ""; text: root.memberState(modelData); font.family: Style.font.family; font.pixelSize: Style.font.caption; color: root.memberAlert(modelData) ? Color.urgent : Util.alpha(Color.popups.text, 0.6) }
+                Text { textFormat: Text.PlainText; text: root.catalogue[modelData].name; font.family: Style.font.family; font.pixelSize: Style.font.body; color: Color.popups.text }
+                Text { textFormat: Text.PlainText; visible: text !== ""; text: root.memberState(modelData); font.family: Style.font.family; font.pixelSize: Style.font.caption; color: root.memberAlert(modelData) ? Color.urgent : Util.alpha(Color.popups.text, 0.6) }
               }
             }
-            Text { anchors.right: parent.right; anchors.rightMargin: Style.space(10); anchors.verticalCenter: parent.verticalCenter; text: "›"; font.family: Style.font.family; font.pixelSize: Style.font.title; color: Util.alpha(Color.popups.text, 0.5) }
+            Text { textFormat: Text.PlainText; anchors.right: parent.right; anchors.rightMargin: Style.space(10); anchors.verticalCenter: parent.verticalCenter; text: "›"; font.family: Style.font.family; font.pixelSize: Style.font.title; color: Util.alpha(Color.popups.text, 0.5) }
             HoverHandler { id: rowHover }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openMember(parent.modelData) }
           }
         }
 
-        Text {
+        Text { textFormat: Text.PlainText;
           visible: root.workbench
           leftPadding: Style.space(12); bottomPadding: Style.space(10)
           text: "Click opens the widget's own Omarchy popup"

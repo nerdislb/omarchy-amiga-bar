@@ -36,3 +36,25 @@ The clock in the centre is the separate plugin `nerdibeard.amiga-island` (`~/src
 
 ## Develop
 `OMARCHY_PATH=/path/to/omarchy ./dev-install.sh`. Custom modules and the `.pragma library` Presets.js are cached by the running shell: after code changes run `omarchy restart shell`, then re-apply a preset. Each preset change rebuilds the bar (widgets such as AI usage need 2–3 s).
+
+## Saved combinations
+
+The options window includes **My combinations**. Enter a name and choose
+**Save / replace**; select a saved name to load it, or × to remove it.
+Saving the same name replaces that combination. These are variant selections,
+not snapshots of accounts or the entire desktop configuration. Data stays in
+`~/.local/state/amiga-bar/presets.json` and survives shell restarts.
+IPC: `omarchy-shell amiga-bar save "My focus"` / `... load "My focus"`.
+Topaz and event effects remain optional; no system font or theme is changed.
+
+Folded widgets receive a presentation-only adapter, not access to another
+plugin's services. Native Wi-Fi QR/speed-test and monitor OSD actions are
+explicitly routed; member settings are stored in their `embeds` entry and
+carried into the restoration baseline before the next preset switch.
+`recaptureBase` refuses active Amiga layouts: restore **Today** first.
+
+## Verification
+
+Run `node tests/regressions.cjs` with the companion island checkout next to this
+repository. See [VERIFICATION.md](VERIFICATION.md) for the live checks and limits.
+Everything remains local; no repository has been published or pushed.

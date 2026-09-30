@@ -1,4 +1,5 @@
 import QtQuick
+import "../bridge" as Bridge
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -13,6 +14,8 @@ import qs.Ui
 // Left click: all limits with reset times; middle click: refresh now.
 Item {
   id: root
+  Component.onCompleted: Bridge.ModuleBus.register("quota", root)
+  Component.onDestruction: Bridge.ModuleBus.unregister("quota", root)
 
   property var bar: null
   property string moduleName: "amiga.quota"
@@ -313,11 +316,6 @@ Item {
   function togglePopup() { popupOpen = !popupOpen }
   function closeForPopoutSwitch() { popoutSwitchClosing = true; popupOpen = false; Qt.callLater(function() { root.popoutSwitchClosing = false }) }
 
-  IpcHandler {
-    target: "amiga-quota"
-    function toggle(): void { root.togglePopup() }
-    function state(): string { return JSON.stringify({ variant: root.variant, items: root.items, open: root.popupOpen }) }
-  }
 
   KeyboardPanel {
     id: popup

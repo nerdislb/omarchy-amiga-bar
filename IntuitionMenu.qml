@@ -19,6 +19,13 @@ PanelWindow {
   readonly property var menus: host ? host.menuModel() : []
   property int current: 0
   property int item: -1
+  onItemChanged: {
+    var child = list.children[item]
+    if (!child || item < 0) return
+    if (child.y < menuScroll.contentY) menuScroll.contentY = child.y
+    else if (child.y + child.height > menuScroll.contentY + menuScroll.height)
+      menuScroll.contentY = child.y + child.height - menuScroll.height
+  }
   onOpenChanged: if (open) { current = 0; item = -1 }
 
   readonly property bool topaz: host && host.options.font === "topaz"
@@ -47,7 +54,7 @@ PanelWindow {
 
   FontLoader { id: topazFont; source: "file://" + (win.host ? win.host.pluginDir : "") + "/assets/fonts/Topaz_a500_v1.0.ttf" }
 
-  component Label: Text {
+  component Label: Text { textFormat: Text.PlainText;
     font.family: win.topaz && topazFont.status === FontLoader.Ready ? topazFont.name : Style.font.family
     font.pixelSize: win.topaz ? 16 : Style.font.body
     renderType: Text.NativeRendering
@@ -105,6 +112,7 @@ PanelWindow {
     }
     Label {
       anchors.right: parent.right; anchors.rightMargin: Style.space(12); anchors.verticalCenter: parent.verticalCenter
+      width: layoutWidth
       text: "Amiga Bar"
       color: Util.alpha(win.stripInk, 0.55)
       transformOrigin: Item.Right
@@ -116,20 +124,28 @@ PanelWindow {
     id: drop
     readonly property var menu: win.menus[win.current] || null
     readonly property Item anchorTitle: titles.children[win.current] || null
-    x: anchorTitle ? titles.x + anchorTitle.x : 0
+    x: Math.min(anchorTitle ? titles.x + anchorTitle.x : 0, win.width - width - Style.space(4))
     y: strip.height
-    width: Math.max(Style.space(260), list.implicitWidth + Style.space(8))
-    height: list.implicitHeight + Style.space(8)
+    width: Math.min(win.width - Style.space(8), Math.max(Style.space(300), Math.min(Style.space(820),
+      menu ? menu.items.reduce(function(w, e) {
+        return Math.max(w, Math.min(48, String(e.label || "").length) * (win.topaz ? 16 : Style.font.body * 0.66)
+          + String(e.note || "").length * Style.font.caption * 0.66 + Style.space(80))
+      }, 0) : 0)))
+    height: Math.min(win.height - y - Style.space(8), list.implicitHeight + Style.space(8))
     color: win.stripBg
     border.width: 1
     border.color: win.stripInk
     visible: !!menu
     MouseArea { anchors.fill: parent }
 
+    Flickable {
+      id: menuScroll
+      anchors.fill: parent; anchors.margins: Style.space(4)
+      clip: true; contentHeight: list.implicitHeight
+      boundsBehavior: Flickable.StopAtBounds
     Column {
       id: list
-      x: Style.space(4); y: Style.space(4)
-      width: drop.width - Style.space(8)
+      width: menuScroll.width
       Repeater {
         model: drop.menu ? drop.menu.items : []
         Item {
@@ -154,11 +170,12 @@ PanelWindow {
 
           Row {
             id: rowContent
+            width: row.width - accessories.implicitWidth - Style.space(28)
             visible: !row.modelData.separator
             anchors.verticalCenter: parent.verticalCenter
             x: Style.space(6)
             spacing: Style.space(6)
-            Text {
+            Text { textFormat: Text.PlainText;
               width: Style.space(14)
               anchors.verticalCenter: parent.verticalCenter
               text: row.modelData.checked ? "✓" : ""
@@ -168,18 +185,20 @@ PanelWindow {
             Label {
               id: rl
               anchors.verticalCenter: parent.verticalCenter
-              width: layoutWidth
+              width: Math.max(0, (rowContent.width - Style.space(20)) / (win.topaz ? 2 : 1))
+              elide: Text.ElideRight
               text: row.modelData.label || ""
               color: row.hot ? Color.bar.background : win.stripInk
               opacity: row.modelData.disabled ? 0.45 : 1
             }
           }
           Row {
+            id: accessories
             visible: !row.modelData.separator
             anchors.right: parent.right; anchors.rightMargin: Style.space(8)
             anchors.verticalCenter: parent.verticalCenter
             spacing: Style.space(6)
-            Text {
+            Text { textFormat: Text.PlainText;
               visible: !!row.modelData.note
               anchors.verticalCenter: parent.verticalCenter
               text: row.modelData.note || ""
@@ -194,9 +213,9 @@ PanelWindow {
               Rectangle {
                 width: Style.space(14); height: width
                 color: "transparent"; border.width: 1; border.color: row.hot ? Color.bar.background : win.stripInk
-                Text { anchors.centerIn: parent; text: "A"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption - 1; color: row.hot ? Color.bar.background : win.stripInk }
+                Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: "A"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption - 1; color: row.hot ? Color.bar.background : win.stripInk }
               }
-              Text { anchors.verticalCenter: parent.verticalCenter; text: row.modelData.key || ""; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption; color: row.hot ? Color.bar.background : win.stripInk }
+              Text { textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; text: row.modelData.key || ""; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption; color: row.hot ? Color.bar.background : win.stripInk }
             }
           }
 
@@ -210,5 +229,6 @@ PanelWindow {
         }
       }
     }
-  }
+      }
+}
 }

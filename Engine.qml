@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 import "Presets.js" as Presets
+import "bridge" as Bridge
 
 // Amiga Bar engine (keep-loaded panel next to the native Omarchy bar).
 // It owns the options window and writes presets into bar.layout; the bar
@@ -65,8 +66,54 @@ Item {
   function captureBase() {
     var current = currentLayout
     if (!current || (!current.left && !current.center && !current.right)) return
+    if (Presets.hasOwn(current)) return "restore Today before capturing the baseline"
     baseLayout = Presets.stripOwn(current)
     baseFile.setText(JSON.stringify({ version: 1, saved: new Date().toISOString(), layout: baseLayout }, null, 2) + "\n")
+  }
+
+  // Named combinations are local data, never filenames or shell arguments.
+  property var savedPresets: []
+  property bool savedReady: false
+  property string saveResult: ""
+  FileView {
+    id: savedFile
+    atomicWrites: true
+    path: root.stateDir + "/presets.json"
+    printErrors: false
+    onLoaded: {
+      try {
+        var data = JSON.parse(text())
+        if (!Array.isArray(data)) throw new Error("not a list")
+        root.savedPresets = data.filter(function(p) { return p && typeof p.name === "string" && p.options })
+        root.savedReady = true
+      } catch (e) { root.saveResult = "Cannot read saved combinations; file kept unchanged"; root.savedReady = false }
+    }
+    onLoadFailed: function(error) {
+      // Only a missing file is safe to initialize.
+      root.savedReady = error === FileViewError.FileNotFound
+      if (!root.savedReady) root.saveResult = "Cannot read saved combinations"
+    }
+  }
+  function saveCombination(name) {
+    name = String(name).trim()
+    if (!savedReady) return "Saved combinations are not available"
+    if (!name || name.length > 48) return "Use a name of 1–48 characters"
+    var next = savedPresets.filter(function(p) { return p.name !== name })
+    next.push({ name: name, options: Presets.normalizeOptions(options) })
+    next.sort(function(a, b) { return a.name.localeCompare(b.name) })
+    savedPresets = next
+    savedFile.setText(JSON.stringify(next, null, 2) + "\n")
+    return "Saved: " + name
+  }
+  function loadCombination(name) {
+    for (var i = 0; i < savedPresets.length; i++) if (savedPresets[i].name === name) return apply(savedPresets[i].options)
+    return "Unknown combination"
+  }
+  function deleteCombination(name) {
+    if (!savedReady) return
+    savedPresets = savedPresets.filter(function(p) { return p.name !== name })
+    savedFile.setText(JSON.stringify(savedPresets, null, 2) + "\n")
+    saveResult = "Removed: " + name
   }
 
   // ---------------------------------------------------------------- apply
@@ -87,6 +134,11 @@ Item {
     if (!baseLayout) return "no base layout"
     if (writer.running) return "busy"
     var opts = Presets.normalizeOptions(nextOptions)
+    var merged = Presets.mergeEmbeddedSettings(baseLayout, currentLayout)
+    if (JSON.stringify(merged) !== JSON.stringify(baseLayout)) {
+      baseLayout = merged
+      baseFile.setText(JSON.stringify({ version: 1, layout: merged }, null, 2) + "\n")
+    }
     writer.payload = JSON.stringify({ pluginId: pluginId, options: opts, layout: Presets.build(baseLayout, opts, moduleDir) })
     writer.running = true
     return "ok"
@@ -96,6 +148,7 @@ Item {
     return p ? apply(p.options) : "unknown preset: " + id
   }
   function setVariant(element, variant) {
+    if (!Presets.ELEMENTS[element] || !Presets.ELEMENTS[element].variants.some(function(v) { return v.id === variant })) return "unknown element or variant"
     var o = JSON.parse(JSON.stringify(options))
     o[String(element)] = String(variant)
     return apply(o)
@@ -104,9 +157,9 @@ Item {
   // ---------------------------------------------------------------- panel contract
   property bool isOpen: false
   readonly property bool opened: isOpen
-  function open(payloadJson) { isOpen = true }
+  function open(payloadJson) { menuOpen = false; screenOpen = false; isOpen = true }
   function close() { isOpen = false }
-  function toggle() { isOpen = !isOpen }
+  function toggle() { if (isOpen) close(); else open("") }
 
   OptionsWindow {
     host: root
@@ -134,6 +187,16 @@ Item {
     if (pane.indexOf("oc:") === 0) Quickshell.execDetached(["xdg-open", "http://127.0.0.1:18789/"])
     else Quickshell.execDetached(["herdr", "agent", "focus", pane])
   }
+  function closeModulePopups() {
+    ;(Bridge.ModuleBus.instances.status || []).forEach(function(i) {
+      i.closePopup()
+      Object.keys(i.mounted).forEach(function(id) { var m = i.mounted[id]; if (m && typeof m.close === "function") m.close() })
+    })
+    ;(Bridge.ModuleBus.instances.quota || []).forEach(function(i) { i.close() })
+  }
+  onIsOpenChanged: if (isOpen) closeModulePopups()
+  onMenuOpenChanged: if (menuOpen) { isOpen = false; screenOpen = false; closeModulePopups() }
+  onScreenOpenChanged: if (screenOpen) { isOpen = false; menuOpen = false; closeModulePopups() }
   function openScreen() { menuOpen = false; screenOpen = true }
 
   // Menus (built on demand from live state). Items: { label, note, checked,
@@ -203,16 +266,31 @@ Item {
   }
 
   IpcHandler {
+    target: "amiga-status"
+    function group(id: string): void { var i = Bridge.ModuleBus.pick("status"); if (i) i.openGroup(id, i) }
+    function member(id: string): void { var i = Bridge.ModuleBus.pick("status"); if (i) i.openMember(id) }
+    function close(): void { var all = Bridge.ModuleBus.instances.status || []; all.forEach(function(i) { i.closePopup() }) }
+    function state(): string { var i = Bridge.ModuleBus.pick("status"); return i ? i.stateJson() : "{}" }
+  }
+  IpcHandler {
+    target: "amiga-quota"
+    function toggle(): void { var i = Bridge.ModuleBus.pick("quota"); if (i) i.togglePopup() }
+    function state(): string { var i = Bridge.ModuleBus.pick("quota"); return i ? JSON.stringify({ variant: i.variant, items: i.items, open: i.popupOpen }) : "{}" }
+  }
+
+  IpcHandler {
     target: "amiga-bar"
     function options(): void { root.toggle() }
+    function save(name: string): string { return root.saveCombination(name) }
+    function load(name: string): string { return root.loadCombination(name) }
     function menu(): void { root.screenOpen = false; root.menuOpen = !root.menuOpen }
     function screen(): void { root.menuOpen = false; root.screenOpen = !root.screenOpen }
     function preset(id: string): string { return root.applyPreset(id) }
     function set(element: string, variant: string): string { return root.setVariant(element, variant) }
-    function recaptureBase(): string { root.captureBase(); return "ok" }
+    function recaptureBase(): string { if (Presets.hasOwn(root.currentLayout)) return "restore Today before capturing the baseline"; root.captureBase(); return "ok" }
     function state(): string {
       return JSON.stringify({ preset: root.presetId, options: root.options, hasBase: root.baseLayout !== null,
-                              open: root.isOpen, lastResult: root.lastResult, moduleDir: root.moduleDir })
+                              open: root.isOpen, menuOpen: root.menuOpen, screenOpen: root.screenOpen, saved: root.savedPresets.map(function(p) { return p.name }), lastResult: root.lastResult, moduleDir: root.moduleDir })
     }
   }
 }

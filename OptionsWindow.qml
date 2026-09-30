@@ -1,28 +1,20 @@
 import QtQuick
+import Quickshell
+import Quickshell.Wayland
+import Quickshell.Hyprland
 import qs.Commons
-import qs.Ui
+import qs.Ui as Ui
 import "Presets.js" as Presets
 
-// The Amiga Bar options: presets from the concept film on top, then one row
-// of variants per bar element. Choosing applies at once (bar.layout is
-// rewritten); "Heute" restores the layout saved before the first preset.
-Item {
-  id: panel
+// Options window: presets on top, then one row of variants per element.
+// Looks like Omarchy's own bar popups (popup card, theme frame, gap under
+// the bar); click outside or Esc closes it.
+PanelWindow {
+  id: win
 
-  property var host: null          // the Amiga Bar (apply/applyPreset/setVariant, options, presetId)
-  property var bar: null
-  property var anchorItem: null
-  property bool isOpen: false
-  property bool popoutSwitchClosing: false
+  property var host: null
+  property bool open: false
   signal closeRequested()
-
-  // Popout-owner contract used by KeyboardPanel / Bar.requestPopout.
-  function close() { closeRequested() }
-  function closeForPopoutSwitch() {
-    popoutSwitchClosing = true
-    closeRequested()
-    Qt.callLater(function() { panel.popoutSwitchClosing = false })
-  }
 
   readonly property var elements: {
     var out = []
@@ -30,22 +22,49 @@ Item {
     return out
   }
 
-  KeyboardPanel {
+  screen: {
+    var s = Quickshell.screens
+    var f = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
+    for (var i = 0; i < s.length; i++) if (s[i].name === f) return s[i]
+    return s.length ? s[0] : null
+  }
+  visible: open || card.opacity > 0
+  color: "transparent"
+  anchors { top: true; bottom: true; left: true; right: true }
+  exclusionMode: ExclusionMode.Ignore
+  WlrLayershell.namespace: "amiga-bar-options"
+  WlrLayershell.layer: WlrLayer.Overlay
+  WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+
+  MouseArea {
+    anchors.fill: parent
+    enabled: win.open
+    onClicked: win.closeRequested()
+  }
+
+  Ui.BorderSurface {
     id: card
-    anchorItem: panel.anchorItem
-    owner: panel
-    bar: panel.bar
-    open: panel.isOpen
-    centerOnBar: true
-    focusTarget: keys
-    contentWidth: Style.space(560)
-    contentHeight: card.fittedContentHeight(column.childrenRect.height)
+    readonly property int pad: Style.spacing.popupPadding
+    width: Style.space(580)
+    height: column.childrenRect.height + pad * 2 + Border.top(borderSpec) + Border.bottom(borderSpec)
+    x: Math.round((win.width - width) / 2)
+    y: Style.bar.sizeHorizontal + Style.gapsOut
+    color: Color.popups.background
+    borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
+    padding: pad
+    radius: Style.cornerRadius
+    opacity: win.open ? 1 : 0
+    Behavior on opacity { NumberAnimation { duration: Style.duration(140); easing.type: Easing.OutCubic } }
+
+    MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
 
     Item {
       id: keys
-      anchors.fill: parent
-      focus: true
-      Keys.onEscapePressed: function(e) { panel.closeRequested(); e.accepted = true }
+      x: card.contentLeftInset; y: card.contentTopInset
+      width: card.width - card.contentLeftInset - card.contentRightInset
+      height: column.childrenRect.height
+      focus: win.open
+      Keys.onEscapePressed: function(e) { win.closeRequested(); e.accepted = true }
 
       Column {
         id: column
@@ -62,7 +81,7 @@ Item {
           Text {
             anchors.baseline: parent.children[0].baseline
             leftPadding: Style.space(10)
-            text: "Etappe A · nur lokal"
+            text: "privat · Etappe B"
             font.family: Style.font.family; font.pixelSize: Style.font.caption
             color: Util.alpha(Color.popups.text, 0.55)
           }
@@ -79,14 +98,14 @@ Item {
               required property var modelData
               label: modelData.label
               note: modelData.note
-              selected: panel.host && panel.host.presetId === modelData.id
-              onPicked: panel.host.applyPreset(modelData.id)
+              selected: win.host && win.host.presetId === modelData.id
+              onPicked: win.host.applyPreset(modelData.id)
             }
           }
         }
 
         Repeater {
-          model: panel.elements
+          model: win.elements
           Column {
             required property var modelData
             width: column.width
@@ -102,8 +121,8 @@ Item {
                   required property var modelData
                   readonly property string element: parent.parent.modelData.key
                   label: modelData.label
-                  selected: panel.host && panel.host.options[element] === modelData.id
-                  onPicked: panel.host.setVariant(element, modelData.id)
+                  selected: win.host && win.host.options[element] === modelData.id
+                  onPicked: win.host.setVariant(element, modelData.id)
                 }
               }
             }
@@ -113,7 +132,7 @@ Item {
         Text {
           width: parent.width
           wrapMode: Text.WordWrap
-          text: "Wirkt sofort. „Heute“ stellt dein bisheriges Layout wieder her. Weitere Elemente (AI, rechte Seite, Mitte) folgen in Etappe B."
+          text: "Wirkt sofort (die Bar baut sich kurz neu auf). „Heute“ stellt dein bisheriges Layout wieder her. Esc oder Klick daneben schließt."
           font.family: Style.font.family; font.pixelSize: Style.font.caption
           color: Util.alpha(Color.popups.text, 0.55)
         }

@@ -24,7 +24,9 @@ PanelWindow {
   // On Overlay so it sits above the bar; a fullscreen window must not get
   // a line across its top, so it hides while one covers this monitor.
   readonly property var hyprMonitor: Hyprland.monitorFor(screen)
-  readonly property bool fullscreen: !!(hyprMonitor && hyprMonitor.activeWorkspace && hyprMonitor.activeWorkspace.hasFullscreen)
+  // Unknown yet (Hyprland state still loading): stay hidden rather than
+  // risk a line over a fullscreen app.
+  readonly property bool fullscreen: !hyprMonitor || !hyprMonitor.activeWorkspace || hyprMonitor.activeWorkspace.hasFullscreen
   visible: !remapGuard.remapping && !fullscreen
   color: "transparent"
   surfaceFormat.opaque: false

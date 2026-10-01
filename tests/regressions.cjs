@@ -212,3 +212,151 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
  assert.equal(ctx.normalizeOptions({}).fog, 'off');
  assert.equal(ctx.normalizeOptions({}).form, 'full');
 }
+
+// Control Center model: staging, Save · Use · Cancel plans, search, health.
+{
+  const cc = {Presets: ctx};
+  vm.createContext(cc);
+  vm.runInContext(fs.readFileSync(path.join(root, 'ControlCenter.js'), 'utf8')
+    .replace('.pragma library', '').replace(/^\.import .*$/m, ''), cc);
+  const config = {
+    bar: {layout: {left: [], center: [{id: 'nerdibeard.amiga-island', notifications: true, noteStyle: 'workbench'}], right: []}},
+    plugins: [{id: 'nerdibeard.amiga-bar', options: {}}, {id: 'nerdibeard.card-picker'}, {id: 'nerdibeard.amiga-island', noteStyle: 'bubble'}]
+  };
+  const live = cc.liveState({fog: 'off', form: 'full', font: 'theme'}, config, 'enabled');
+  // The island's bar.layout entry wins over its plugins[] entry; defaults fill the rest.
+  assert.deepEqual(plain(live.island), {notifications: 'true', noteStyle: 'workbench', noteTopaz: 'true'});
+  assert.deepEqual(plain(cc.islandValues(cc.islandEntry({plugins: [{id: 'nerdibeard.amiga-island', noteTopaz: false}]}))),
+    {notifications: 'false', noteStyle: 'workbench', noteTopaz: 'false'});
+  assert.equal(cc.islandEntry({bar: {layout: {center: ['nerdibeard.amiga-island']}}}), null);
+  assert.equal(cc.liveState({}, {}, '').island, null);
+  assert.equal(cc.liveState({}, {}, 'missing').cards, null);
+  assert(cc.listed(config, 'nerdibeard.card-picker'));
+  // Registry follows Presets.ELEMENTS (new rows appear automatically).
+  assert.deepEqual(plain(cc.barIds()), Object.keys(ctx.ELEMENTS).map(k => 'bar.' + k));
+  for (const id of cc.QUICK) assert(cc.setting(id), id);
+  assert(cc.setting('bar.font').immediate);
+  // Staging is an overlay; staging the live value removes the edit.
+  let edits = cc.stage({}, live, 'bar.fog', 'on');
+  edits = cc.stage(edits, live, 'island.noteStyle', 'bubble');
+  edits = cc.stage(edits, live, 'cards.override', 'disabled');
+  assert.deepEqual(plain(edits), {'bar.fog': 'on', 'island.noteStyle': 'bubble', 'cards.override': 'disabled'});
+  assert.deepEqual(plain(cc.stage(edits, live, 'bar.fog', 'off')), {'island.noteStyle': 'bubble', 'cards.override': 'disabled'});
+  assert.deepEqual(plain(cc.stage({}, cc.liveState({}, {}, ''), 'island.noteStyle', 'bubble')), {});
+  assert.equal(cc.pendingState(live, edits).bar.fog, 'on');
+  assert.equal(live.bar.fog, 'off');
+  assert.deepEqual(plain(cc.changes(edits, live).map(c => c.id)), ['bar.fog', 'island.noteStyle', 'cards.override']);
+  // Use/Save plan: island first, card picker next, the bar last as ONE apply.
+  edits = cc.stage(edits, live, 'bar.form', 'a500');
+  const steps = cc.plan(edits, live);
+  assert.deepEqual(plain(steps.map(s => s.domain)), ['island', 'cards', 'bar']);
+  assert.deepEqual(plain(steps[0]), {domain: 'island', key: 'noteStyle', value: 'bubble'});
+  assert.equal(cc.barOptions(steps[2], live.bar).fog, 'on');
+  assert.equal(cc.barOptions(steps[2], live.bar).form, 'a500');
+  assert.deepEqual(plain(steps[2].keys), ['form', 'fog']);
+  // Computed when the step runs: a font change applied in between survives.
+  assert.equal(cc.barOptions(steps[2], Object.assign({}, live.bar, {font: 'topaz'})).font, 'topaz');
+  assert.deepEqual(plain(cc.plan({}, live)), []);
+  // Presets stage all bar keys, keep look options and never touch the desktop profile.
+  const k2 = cc.stageBar({}, live, ctx.keepDesktopFont(ctx.presetById('k2').options, cc.pendingState(live, {'bar.fog': 'on'}).bar));
+  assert.equal(cc.pendingState(live, k2).bar.workspaces, 'logo');
+  assert.equal(cc.pendingState(live, k2).bar.font, 'bar');
+  const desktopLive = cc.liveState({font: 'desktop'}, config, '');
+  assert.equal(cc.stage({}, desktopLive, 'bar.font', 'theme')['bar.font'], undefined);
+  assert.equal(cc.commitBar({font: 'theme'}, {font: 'desktop'}).font, 'desktop');
+  assert.equal(cc.commitBar({font: 'desktop'}, {font: 'topaz'}).font, 'topaz');
+  // Cancel after Use: back to the snapshot, only in the domains Use touched.
+  const snapshot = cc.copy(live);
+  const after = cc.liveState({fog: 'on', form: 'a500', font: 'theme'},
+    {bar: {layout: {center: [{id: 'nerdibeard.amiga-island', notifications: true, noteStyle: 'bubble'}]}}}, 'disabled');
+  assert.deepEqual(plain(cc.revertPlan(snapshot, after, {})), []);
+  const back = cc.revertPlan(snapshot, after, {island: true, cards: true, bar: true});
+  assert.deepEqual(plain(back.map(s => s.domain + ':' + (s.key || ''))), ['island:noteStyle', 'cards:override', 'bar:']);
+  assert.equal(back[0].value, 'workbench');
+  assert.equal(back[1].value, 'enabled');
+  assert.equal(cc.barOptions(back[2], after.bar).fog, 'off');
+  assert.equal(cc.barOptions(back[2], after.bar).form, 'full');
+  // The font row is outside staging: the snapshot follows it, so Cancel keeps it.
+  const fontMoved = cc.withValue(snapshot, 'bar.font', 'topaz');
+  const liveTopaz = cc.liveState(Object.assign({}, after.bar, {font: 'topaz'}), {}, '');
+  assert.equal(cc.barOptions(cc.revertPlan(fontMoved, liveTopaz, {bar: true})[0], liveTopaz.bar).font, 'topaz');
+  assert.equal(cc.revertPlan(cc.withValue(snapshot, 'bar.font', 'theme'), cc.liveState({font: 'desktop'}, {}, ''), {bar: true}).length, 0);
+  // After Use: applied edits drop out.
+  assert.deepEqual(plain(cc.prune(edits, after)), {});
+  // Island IPC state confirms what was set.
+  assert(cc.islandReports({wants: true, style: 'bubble', topaz: true}, 'notifications', 'true'));
+  assert(cc.islandReports({wants: true, style: 'bubble', topaz: true}, 'noteStyle', 'bubble'));
+  assert(!cc.islandReports({wants: true, style: 'bubble', topaz: true}, 'noteTopaz', 'false'));
+  assert(!cc.islandReports(null, 'noteStyle', 'bubble'));
+  // Search: label, value and area matches; every token must match.
+  const index = cc.searchIndex(live, {'bar.form': 'a500'}, [{id: 'bar.presets', area: 'bar', label: 'Presets', values: ['Today', 'K1 · Tidy'], current: ''}]);
+  assert.equal(cc.search(index, 'fog')[0].id, 'bar.fog');
+  const caseHit = cc.search(index, 'case edge')[0];
+  assert.equal(caseHit.id, 'bar.form');
+  assert.equal(caseHit.value, 'A500 case edge');
+  assert(caseHit.matchedValue);
+  assert.equal(cc.search(index, 'form')[0].value, 'A500 case edge');   // current = pending value
+  assert.equal(cc.search(index, 'bubble')[0].id, 'island.noteStyle');
+  {
+    const hits = cc.search(index, 'island');
+    for (const id of ['island.notifications', 'island.noteStyle', 'island.noteTopaz']) assert(hits.some(h => h.id === id), id);
+    assert.equal(hits.find(h => h.id === 'bar.font').value, 'Bar, island & menus');   // value matches count too
+  }
+  assert.equal(cc.search(index, 'tidy')[0].id, 'bar.presets');
+  assert.deepEqual(plain(cc.search(index, 'fog nonsense')), []);
+  assert.deepEqual(plain(cc.search(index, '  ')), []);
+  assert(cc.search(index, 'a', 3).length <= 3);
+  assert(cc.searchIndex(cc.liveState({}, {}, ''), {}, []).every(e => e.area === 'bar'));
+  // Health: only real facts; unknown facts are not counted as issues.
+  const good = {hasBase: true, profile: 'normal', font: 'theme', usageFolded: true, usageIntervalSec: 900, usageAgeSec: 120,
+                islandConfigured: true, islandWants: true, islandState: {serving: true, omarchyDisabled: true}, marker: true,
+                cards: 'enabled', cardsConfigured: true, lastResult: 'ok', savedCount: 2};
+  assert.deepEqual(plain(cc.healthSummary(cc.healthChecks(good))), {issues: 0, unknown: 0, label: 'OK'});
+  const issues = f => cc.healthChecks(Object.assign({}, good, f)).filter(c => c.state === 'issue').map(c => c.id);
+  assert.deepEqual(plain(issues({hasBase: false})), ['base']);
+  assert.deepEqual(plain(issues({profile: 'partial'})), ['font']);
+  assert.deepEqual(plain(issues({font: 'desktop'})), ['font']);
+  assert.deepEqual(plain(issues({profile: 'amiga'})), ['font']);
+  assert.deepEqual(plain(issues({profile: 'amiga', font: 'desktop'})), []);
+  assert.deepEqual(plain(issues({usageAgeSec: 3 * 900})), ['usage']);
+  assert.deepEqual(plain(issues({usageAgeSec: -1})), ['usage']);
+  assert.deepEqual(plain(issues({usageFolded: false, usageAgeSec: -1})), []);
+  assert.deepEqual(plain(issues({marker: false, islandState: {serving: true, omarchyDisabled: false}})), ['notes']);
+  assert.deepEqual(plain(issues({marker: false})), []);   // Omarchy's were already off by hand
+  assert.deepEqual(plain(issues({islandWants: false})), ['notes']);   // marker left behind
+  assert.deepEqual(plain(issues({islandWants: false, marker: false})), []);
+  assert.deepEqual(plain(issues({islandState: {serving: false, omarchyDisabled: true}})), ['notes']);
+  assert.deepEqual(plain(issues({islandState: false})), ['notes']);
+  assert.deepEqual(plain(issues({cards: 'missing'})), ['cards']);
+  assert.deepEqual(plain(issues({cards: 'missing', cardsConfigured: false})), []);
+  assert.deepEqual(plain(issues({lastResult: 'error: boom'})), ['apply']);
+  assert.deepEqual(plain(issues({savedError: 'Cannot read saved combinations'})), ['saved']);
+  assert.equal(cc.healthSummary(cc.healthChecks(Object.assign({}, good, {hasBase: false, lastResult: 'error: x'}))).label, '2 issues');
+  assert.equal(cc.healthSummary(cc.healthChecks(Object.assign({}, good, {marker: null, profile: 'unknown'}))).label, '…');
+  assert(cc.isArea('health') && !cc.isArea('nope'));
+  console.log('PASS: control center staging, Save/Use/Cancel plans, search, health');
+}
+
+// Control Center wiring: replaces the options window, argv-only processes,
+// IPC for areas, fog hook.
+{
+  const engine = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
+  const qml = fs.readFileSync(path.join(root, 'ControlCenter.qml'), 'utf8');
+  assert(engine.includes('ControlCenter {') && !engine.includes('OptionsWindow'));
+  assert(/function cc\(area: string\): string/.test(engine));
+  assert(engine.includes('cc: controlCenter.stateObject()'));
+  assert(engine.includes('label: "Control Center …"'));
+  assert(qml.includes('["omarchy-shell", "amiga-island", "set", step.key, String(step.value)]'));
+  assert(!/"sh",\s*"-c"/.test(qml), 'no shell strings in the Control Center');
+  assert(/property real reveal: win\.open \? 1 : 0/.test(qml) && qml.includes('opacity: reveal'));
+  // All text goes through the Body/Caption/Moment components (native
+  // rendering, plain text); no stray Text items.
+  const rawText = [...qml.matchAll(/^(.*)\bText \{/gm)].filter(m => !/component \w+: $/.test(m[1]));
+  assert.deepEqual(rawText.map(m => m[0]), []);
+  for (const c of ['Body', 'Moment']) {
+    const body = qml.slice(qml.indexOf('component ' + c + ': Text {'));
+    const block = body.slice(0, body.indexOf('\n  }'));
+    assert(block.includes('renderType: Text.NativeRendering') && block.includes('textFormat: Text.PlainText'), c);
+  }
+  console.log('PASS: control center wiring (engine, IPC, argv processes, fog hook)');
+}

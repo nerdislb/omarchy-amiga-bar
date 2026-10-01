@@ -1,0 +1,361 @@
+.pragma library
+.import "Presets.js" as Presets
+
+// Control Center model: the settings registry, staging for Save · Use ·
+// Cancel, the apply/revert plans, search and health checks. Pure functions;
+// ControlCenter.qml runs the plans (bar options through the engine's apply,
+// island settings through its IPC, the card picker through its script).
+//
+// State shape (live, snapshot, pending):
+//   { bar: <normalized Amiga Bar options>,
+//     island: { notifications, noteStyle, noteTopaz } | null (not configured),
+//     cards: { override: "enabled" | "disabled" } | null (not known) }
+// Values are strings, as the island IPC takes them. Staged edits are an
+// overlay { "<domain>.<key>": value } on top of the live state, so a setting
+// nobody touched follows the live value.
+
+var ISLAND_ID = "nerdibeard.amiga-island"
+var CARDS_ID = "nerdibeard.card-picker"
+
+var AREAS = [
+  { id: "quick", label: "Quick", note: "Most-used switches" },
+  { id: "bar", label: "Amiga Bar", note: "Presets, combinations, every bar option" },
+  { id: "island", label: "Amiga Island", note: "Notifications in the bar" },
+  { id: "cards", label: "Card picker", note: "Theme and wallpaper menus" },
+  { id: "health", label: "Health", note: "Checks from live state" }
+]
+
+var ISLAND_SETTINGS = [
+  { key: "notifications", label: "Notifications", fallback: "false",
+    values: [{ id: "true", label: "Island, in the bar" }, { id: "false", label: "Omarchy popups" }] },
+  { key: "noteStyle", label: "Note style", fallback: "workbench",
+    values: [{ id: "workbench", label: "Workbench" }, { id: "bubble", label: "Bubble" }] },
+  { key: "noteTopaz", label: "Note font", fallback: "true",
+    values: [{ id: "true", label: "Topaz (pixel)" }, { id: "false", label: "Theme font" }] }
+]
+
+var CARDS_SETTING = { key: "override", label: "Theme & wallpaper menus",
+  values: [{ id: "enabled", label: "Card picker" }, { id: "disabled", label: "Omarchy pickers" }] }
+
+// Quick area: the most-used switches, in this order.
+var QUICK = ["bar.fog", "bar.form", "bar.edge", "island.notifications", "island.noteStyle", "bar.font"]
+
+function copy(v) { return JSON.parse(JSON.stringify(v)) }
+
+function areaLabel(id) {
+  for (var i = 0; i < AREAS.length; i++) if (AREAS[i].id === id) return AREAS[i].label
+  return ""
+}
+function areaNote(id) {
+  for (var i = 0; i < AREAS.length; i++) if (AREAS[i].id === id) return AREAS[i].note
+  return ""
+}
+function isArea(id) { return areaLabel(String(id)) !== "" }
+
+// Every editable setting. Bar rows come from Presets.ELEMENTS, so new
+// options appear here (and in search) without touching the Control Center.
+function settings() {
+  var out = []
+  for (var key in Presets.ELEMENTS) {
+    var e = Presets.ELEMENTS[key]
+    out.push({ id: "bar." + key, domain: "bar", key: key, area: "bar", label: e.label, values: e.variants,
+               immediate: key === "font", hint: "" })
+  }
+  ISLAND_SETTINGS.forEach(function(s) {
+    out.push({ id: "island." + s.key, domain: "island", key: s.key, area: "island", label: s.label,
+               values: s.values, immediate: false, hint: s.hint || "" })
+  })
+  out.push({ id: "cards.override", domain: "cards", key: "override", area: "cards", label: CARDS_SETTING.label,
+             values: CARDS_SETTING.values, immediate: false, hint: "" })
+  return out
+}
+function setting(id) {
+  var all = settings()
+  for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i]
+  return null
+}
+function barIds() { return Object.keys(Presets.ELEMENTS).map(function(k) { return "bar." + k }) }
+function valueLabel(spec, v) {
+  if (!spec) return String(v === undefined ? "" : v)
+  for (var i = 0; i < spec.values.length; i++) if (spec.values[i].id === v) return spec.values[i].label
+  return String(v === undefined ? "" : v)
+}
+
+// ---------------------------------------------------------------- live state
+// The island's settings sit in its bar.layout entry (that is where the
+// island writes them); a plugins[] entry is the fallback.
+function islandEntry(config) {
+  var layout = config && config.bar && config.bar.layout ? config.bar.layout : {}
+  var sections = ["left", "center", "right"]
+  for (var s = 0; s < sections.length; s++) {
+    var list = Array.isArray(layout[sections[s]]) ? layout[sections[s]] : []
+    for (var i = 0; i < list.length; i++) if (list[i] && typeof list[i] === "object" && list[i].id === ISLAND_ID) return list[i]
+  }
+  var plugins = config && Array.isArray(config.plugins) ? config.plugins : []
+  for (var j = 0; j < plugins.length; j++) if (plugins[j] && plugins[j].id === ISLAND_ID) return plugins[j]
+  return null
+}
+function islandValues(entry) {
+  if (!entry) return null
+  return { notifications: entry.notifications === true ? "true" : "false",
+           noteStyle: entry.noteStyle === "bubble" ? "bubble" : "workbench",
+           noteTopaz: entry.noteTopaz === false ? "false" : "true" }
+}
+function listed(config, id) {
+  var plugins = config && Array.isArray(config.plugins) ? config.plugins : []
+  return plugins.some(function(p) { return p === id || (p && p.id === id) })
+}
+function liveState(options, config, cardsStatus) {
+  return { bar: Presets.normalizeOptions(options || {}),
+           island: islandValues(islandEntry(config)),
+           cards: cardsStatus === "enabled" || cardsStatus === "disabled" ? { override: cardsStatus } : null }
+}
+
+function split(id) { var i = String(id).indexOf("."); return { domain: String(id).slice(0, i), key: String(id).slice(i + 1) } }
+function value(state, id) {
+  var p = split(id)
+  return state && state[p.domain] ? state[p.domain][p.key] : undefined
+}
+function withValue(state, id, v) {
+  var out = copy(state), p = split(id)
+  if (out[p.domain]) out[p.domain][p.key] = v
+  return out
+}
+
+// ---------------------------------------------------------------- staging
+// The desktop font profile is a system change: only the font row (applied
+// at once, outside staging) switches it. Anything else keeps it as it is.
+function guardFont(target, liveFont) {
+  if (liveFont === "desktop") return "desktop"
+  if (target === "desktop") return liveFont
+  return target
+}
+function pendingState(live, edits) {
+  var out = copy(live)
+  for (var id in edits) {
+    var p = split(id)
+    if (out[p.domain] && edits[id] !== undefined) out[p.domain][p.key] = edits[id]
+  }
+  return out
+}
+function stage(edits, live, id, v) {
+  var p = split(id)
+  var out = Object.assign({}, edits)
+  if (!live || !live[p.domain]) return out
+  if (id === "bar.font") v = guardFont(v, live.bar.font)
+  if (live[p.domain][p.key] === v) delete out[id]
+  else out[id] = v
+  return out
+}
+// Presets and saved combinations: stage every bar key at once.
+function stageBar(edits, live, options) {
+  var o = Presets.normalizeOptions(options)
+  var out = edits
+  for (var key in o) out = stage(out, live, "bar." + key, o[key])
+  return out
+}
+// Drop edits that equal the live value (after Use, or after outside changes).
+function prune(edits, live) {
+  var out = {}
+  for (var id in edits) {
+    var p = split(id)
+    if (live && live[p.domain] && live[p.domain][p.key] !== edits[id]) out[id] = edits[id]
+  }
+  return out
+}
+// Staged changes that differ from live, in registry order.
+function changes(edits, live) {
+  var out = []
+  settings().forEach(function(s) {
+    if (!(s.id in edits) || !live || !live[s.domain]) return
+    var from = live[s.domain][s.key], to = edits[s.id]
+    if (from !== to) out.push({ id: s.id, domain: s.domain, key: s.key, area: s.area, from: from, to: to })
+  })
+  return out
+}
+function commitBar(pendingBar, liveBar) {
+  var o = Presets.normalizeOptions(pendingBar)
+  o.font = guardFont(o.font, Presets.normalizeOptions(liveBar).font)
+  return o
+}
+function sameOptions(a, b) {
+  return JSON.stringify(Presets.normalizeOptions(a)) === JSON.stringify(Presets.normalizeOptions(b))
+}
+
+// Steps for Use / Save. Island first (the island writes shell.json from the
+// shell's in-memory copy), then the card picker (its own menu file), the bar
+// last as ONE apply (each bar write rebuilds the bar).
+function plan(edits, live) {
+  var ch = changes(edits, live)
+  var steps = []
+  ch.forEach(function(c) { if (c.domain === "island") steps.push({ domain: "island", key: c.key, value: c.to }) })
+  ch.forEach(function(c) { if (c.domain === "cards") steps.push({ domain: "cards", key: c.key, value: c.to }) })
+  var bar = {}
+  ch.forEach(function(c) { if (c.domain === "bar") bar[c.key] = c.to })
+  if (Object.keys(bar).length) {
+    var step = { domain: "bar", keys: Object.keys(bar), changes: bar }
+    if (!sameOptions(barOptions(step, live.bar), live.bar)) steps.push(step)
+  }
+  return steps
+}
+// A bar step carries only its changed keys; the options are computed when
+// it runs, on top of the live options then (an immediate font change or an
+// outside change in between is kept).
+function barOptions(step, liveBar) {
+  return commitBar(Object.assign({}, Presets.normalizeOptions(liveBar), step.changes), liveBar)
+}
+// Steps for Cancel after Use: back to the snapshot, only in the domains Use
+// touched. The font row is not staged and never reverted (the caller moves
+// the snapshot's font along when the row is used); guardFont keeps the
+// desktop profile as it is.
+function revertPlan(snapshot, live, applied) {
+  var steps = []
+  if (!snapshot || !live) return steps
+  applied = applied || {}
+  if (applied.island && snapshot.island && live.island)
+    ISLAND_SETTINGS.forEach(function(s) {
+      if (live.island[s.key] !== snapshot.island[s.key]) steps.push({ domain: "island", key: s.key, value: snapshot.island[s.key] })
+    })
+  if (applied.cards && snapshot.cards && live.cards && live.cards.override !== snapshot.cards.override)
+    steps.push({ domain: "cards", key: "override", value: snapshot.cards.override })
+  if (applied.bar) {
+    var step = { domain: "bar", keys: Object.keys(snapshot.bar), changes: copy(snapshot.bar) }
+    if (!sameOptions(barOptions(step, live.bar), live.bar)) steps.push(step)
+  }
+  return steps
+}
+
+// Does the island's own state (omarchy-shell amiga-island state →
+// notifications) show this value?
+function islandReports(notes, key, v) {
+  if (!notes) return false
+  if (key === "notifications") return notes.wants === (v === "true")
+  if (key === "noteStyle") return notes.style === v
+  if (key === "noteTopaz") return notes.topaz === (v === "true")
+  return false
+}
+
+// ---------------------------------------------------------------- search
+// Index entries: { id, area, label, values: [labels], current }.
+function searchIndex(live, edits, extra) {
+  var pending = pendingState(live, edits || {})
+  var out = []
+  settings().forEach(function(s) {
+    if (!live || !live[s.domain]) return
+    out.push({ id: s.id, area: s.area, label: s.label,
+               values: s.values.map(function(v) { return v.label }),
+               current: valueLabel(s, pending[s.domain][s.key]) })
+  })
+  return out.concat(extra || [])
+}
+function wordScore(text, token, prefix, inner) {
+  if (text.indexOf(token) === 0 || text.indexOf(" " + token) !== -1 || text.indexOf("(" + token) !== -1) return prefix
+  return text.indexOf(token) !== -1 ? inner : 0
+}
+// Every token must match the label, a value, the area name or the id.
+function search(index, query, limit) {
+  var tokens = String(query || "").toLowerCase().split(/\s+/).filter(function(t) { return t !== "" })
+  if (!tokens.length) return []
+  var hits = []
+  ;(index || []).forEach(function(e, order) {
+    var label = String(e.label || "").toLowerCase()
+    var area = areaLabel(e.area).toLowerCase()
+    var values = (e.values || []).map(function(v) { return String(v).toLowerCase() })
+    var total = 0, matched = ""
+    for (var t = 0; t < tokens.length; t++) {
+      var tok = tokens[t]
+      var ls = wordScore(label, tok, 6, 4)
+      var vs = 0, vl = ""
+      for (var i = 0; i < values.length; i++) {
+        var q = wordScore(values[i], tok, 3, 2)
+        if (q > vs) { vs = q; vl = e.values[i] }
+      }
+      var s = Math.max(ls, vs)
+      if (vs > ls && !matched) matched = vl
+      if (!s && area.indexOf(tok) !== -1) s = 1
+      if (!s && String(e.id).toLowerCase().indexOf(tok) !== -1) s = 1
+      if (!s) return
+      total += s
+    }
+    hits.push({ id: e.id, area: e.area, areaLabel: areaLabel(e.area), label: e.label,
+                value: matched || String(e.current || ""), matchedValue: matched !== "", score: total, order: order })
+  })
+  hits.sort(function(a, b) { return b.score - a.score || a.order - b.order })
+  return hits.slice(0, limit || 8)
+}
+
+// ---------------------------------------------------------------- health
+// Facts come from live state only (engine properties, shell.json, the
+// island's IPC state, the takeover marker, usage record ages, the card
+// picker's script). state: ok | issue | unknown.
+function healthChecks(f) {
+  f = f || {}
+  var out = []
+  function add(id, label, state, detail) { out.push({ id: id, label: label, state: state, detail: detail }) }
+
+  add("base", "Bar base layout", f.hasBase ? "ok" : "issue",
+      f.hasBase ? "Your own layout is saved (base.json); Today restores it"
+                : "No saved base layout: choose Today, then run omarchy-shell amiga-bar recaptureBase")
+
+  var fontLabel = valueLabel(setting("bar.font"), f.font)
+  var desk = f.font === "desktop"
+  if (f.profile === "partial") add("font", "Desktop font profile", "issue", "Only partly installed: pick a pixel font level again to repair it")
+  else if (f.profile === "normal" || f.profile === "amiga") {
+    if (desk && f.profile === "normal") add("font", "Desktop font profile", "issue", "Level is Whole desktop, but the profile is not installed: pick Whole desktop again")
+    else if (!desk && f.profile === "amiga") add("font", "Desktop font profile", "issue", "Still installed although the level is " + fontLabel + ": pick a level to remove it")
+    else add("font", "Desktop font profile", "ok", desk ? "Installed (Whole desktop)" : "Not installed · level " + fontLabel)
+  } else add("font", "Desktop font profile", "unknown", "Reading the profile …")
+
+  var mins = Math.max(1, Math.round(Number(f.usageIntervalSec || 900) / 60))
+  if (!f.usageFolded) add("usage", "AI usage refresh", "ok", "The AI widgets are in the bar and refresh themselves")
+  else if (f.usageAgeSec === null || f.usageAgeSec === undefined) add("usage", "AI usage refresh", "unknown", "Engine refreshes every " + mins + " min · reading record age …")
+  else if (f.usageAgeSec < 0) add("usage", "AI usage refresh", "issue", "Widgets are folded, but there are no usage records yet")
+  else {
+    var age = Math.round(f.usageAgeSec / 60)
+    var stale = f.usageAgeSec > 2 * Number(f.usageIntervalSec || 900) + 300
+    add("usage", "AI usage refresh", stale ? "issue" : "ok",
+        (stale ? "Newest record is " + age + " min old although the engine refreshes every " + mins + " min"
+               : "Engine refreshes every " + mins + " min while folded · newest record " + age + " min old")
+        + (f.usageRunning ? " · running now" : ""))
+  }
+
+  var n = f.islandState, label = "Notifications takeover"
+  if (f.marker === null || f.marker === undefined) add("notes", label, "unknown", "Checking the takeover marker …")
+  else if (!f.islandConfigured) {
+    if (f.marker) add("notes", label, "issue", "Takeover marker left behind, but the island is not configured: Omarchy's notifications may stay off")
+    else add("notes", label, "ok", "Island not configured; Omarchy shows notifications")
+  }
+  else if (n === null || n === undefined) add("notes", label, "unknown", "Asking the island …")
+  else if (n === false) add("notes", label, "issue", "The island does not answer (omarchy-shell amiga-island state)")
+  else if (f.islandWants) {
+    if (!n.serving && !n.omarchyDisabled) add("notes", label, "issue", "Setting is on, but Omarchy's notification service is still running")
+    else if (!n.serving) add("notes", label, "issue", "Setting is on, but the island is not serving notifications yet")
+    else if (!f.marker && !n.omarchyDisabled) add("notes", label, "issue", "Setting is on, but there is no takeover marker")
+    else add("notes", label, "ok", f.marker ? "The island serves notifications (takeover marker present)"
+                                            : "The island serves notifications; Omarchy's were already off (no marker)")
+  }
+  else if (f.marker) add("notes", label, "issue", "Setting is off, but the takeover marker is still there: Omarchy's notifications may stay off")
+  else add("notes", label, "ok", "Omarchy shows notifications (island setting off, no marker)")
+
+  var c = f.cards
+  if (c === "enabled") add("cards", "Card picker menus", "ok", "Style → Theme / Background open the card picker")
+  else if (c === "disabled") add("cards", "Card picker menus", "ok", "Override off: Omarchy's own pickers")
+  else if (c === "missing") add("cards", "Card picker menus", f.cardsConfigured ? "issue" : "ok",
+                                f.cardsConfigured ? "The card picker is configured, but its menu-override script is missing" : "Card picker not installed")
+  else if (c === "error") add("cards", "Card picker menus", "issue", "menu-override.py status failed")
+  else add("cards", "Card picker menus", "unknown", "Checking …")
+
+  var r = String(f.lastResult || "")
+  if (r.indexOf("error") === 0) add("apply", "Last bar write", "issue", r)
+  else add("apply", "Last bar write", "ok", r === "" ? "Nothing written since the shell started" : r === "ok" ? "Succeeded" : r)
+
+  if (f.savedError) add("saved", "Saved combinations", "issue", f.savedError)
+  else add("saved", "Saved combinations", "ok", (f.savedCount || 0) + " saved (presets.json)")
+  return out
+}
+function healthSummary(checks) {
+  var issues = 0, unknown = 0
+  ;(checks || []).forEach(function(c) { if (c.state === "issue") issues++; else if (c.state === "unknown") unknown++ })
+  return { issues: issues, unknown: unknown,
+           label: issues ? (issues === 1 ? "1 issue" : issues + " issues") : unknown ? "…" : "OK" }
+}

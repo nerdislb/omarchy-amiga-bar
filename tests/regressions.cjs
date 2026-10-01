@@ -43,7 +43,7 @@ assert.equal(alarms.length,1);
 assert(alarms[0].command.includes("'foo\\x2dbar.service'"));
 const cp=require('node:child_process');
 for (const value of ["foo\\x2dbar.service", "strange'name.service", '$(echo nope).service']) {
- const out=cp.execFileSync('sh',['-c','printf %s '+failureCtx.quote(value)],{encoding:'utf8'});
+ const out=cp.execFileSync('sh',['-c','printf %s '+failureCtx.quote(value)],{encoding:'utf8',stdio:['ignore','pipe','pipe']});
  assert.equal(out,value);
 }
 // Focus routing uses one shared handler and chooses the visible focused output.
@@ -74,7 +74,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   const ids = o => ['left', 'center', 'right'].flatMap(s => o[s].map(e => ctx.entryId(e))).sort();
   const full = {left: ['omarchy.menu', 'omarchy.workspaces', 'nerdibeard.ai-usage', 'omarchy.agents'], center: ['omarchy.weather'],
                 right: [{id: 'omarchy.tailscale', keep: 1}, 'omarchy.network', 'flux', 'omamail', 'omarchy.bluetooth', 'omarchy.audio', 'omarchy.power']};
-  for (const preset of ctx.PRESETS.concat([{options: {workspaces: 'cli', ai: 'ondemand', right: 'hardware', centre: 'calm'}}])) {
+  for (const preset of ctx.PRESETS.concat(['hardware', 'compact'].map(right => ({options: {workspaces: 'cli', ai: 'ondemand', right, centre: 'calm'}})))) {
     const rebuilt = ctx.reconstructBase(ctx.build(full, preset.options, '/plugin/modules'));
     assert.deepEqual(ids(rebuilt), ids(full));
     assert(!ctx.hasOwn(rebuilt));
@@ -86,6 +86,77 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.equal(ctx.keepDesktopFont({font: 'desktop'}, {font: 'theme'}).font, 'bar');
   assert.equal(ctx.matchPreset(Object.assign({}, ctx.presetById('k1').options, {font: 'desktop'})), 'k1');
   console.log('PASS: base reconstruction, desktop font kept out of presets');
+}
+
+// Compact keeps hardware's members/settings; the edge never consumes a bar slot.
+{
+  assert.equal(ctx.ELEMENTS.right.variants.find(v => v.id === 'compact').label, 'A500 strip, compact');
+  assert.equal(ctx.ELEMENTS.edge.variants.find(v => v.id === 'workbench').label, 'Workbench edge');
+  assert.equal(ctx.normalizeOptions({}).edge, 'none');
+  assert.equal(ctx.normalizeOptions({edge: 'unknown'}).edge, 'none');
+  assert.equal(ctx.normalizeOptions({right: 'compact', edge: 'workbench'}).right, 'compact');
+  assert.equal(ctx.normalizeOptions({right: 'compact', edge: 'workbench'}).edge, 'workbench');
+  assert.equal(ctx.normalizeOptions({right: 'unknown'}).right, 'today');
+  for (const preset of ctx.PRESETS) {
+    assert.equal(ctx.normalizeOptions(preset.options).edge, 'none');
+    assert.equal(ctx.matchPreset(preset.options), preset.id);
+  }
+  for (const ai of ctx.ELEMENTS.ai.variants.map(v => v.id)) {
+    assert.deepEqual(plain(ctx.foldedIds({right: 'compact', ai})), plain(ctx.foldedIds({right: 'hardware', ai})));
+  }
+  const full = {left: ['omarchy.menu', 'omarchy.workspaces', 'omarchy.agents'], center: ['omarchy.weather'],
+    right: plain(ctx.DRAWER).map(id => ({id, keep: id})).concat([{id: 'omarchy.power', keep: 'battery'},
+      'omarchy.network', 'omamail', 'io.github.moizibnyousaf.omawhatsapp', 'omarchy.audio'])};
+  const original = JSON.stringify(full);
+  const compact = ctx.build(full, {right: 'compact', edge: 'workbench'}, '/plugin/modules');
+  const hardware = ctx.build(full, {right: 'hardware'}, '/plugin/modules');
+  const status = compact.right.find(e => e.id === 'amiga.status');
+  assert.equal(status.variant, 'compact');
+  assert.equal(status.source, '/plugin/modules/Status.qml');
+  assert.deepEqual(plain(status.embeds), plain(hardware.right.find(e => e.id === 'amiga.status').embeds));
+  assert.equal(status.embeds['omarchy.power'].keep, 'battery');
+  assert.deepEqual(plain(compact.right.map(ctx.entryId)),
+    ['omarchy.network', 'omamail', 'io.github.moizibnyousaf.omawhatsapp', 'amiga.status', 'omarchy.audio']);
+  assert.equal(JSON.stringify(full), original);
+  assert.deepEqual(plain(ctx.build(full, {edge: 'workbench'}, '/plugin/modules')), full);
+  assert.deepEqual(plain(ctx.build(full, {right: 'compact', edge: 'none'}, '/plugin/modules')), plain(compact));
+  status.embeds['omarchy.power'].keep = 'edited';
+  const restored = ctx.build(ctx.mergeEmbeddedSettings(full, compact), {}, '/plugin/modules');
+  assert.equal(restored.right.find(e => e.id === 'omarchy.power').keep, 'edited');
+  assert.equal(ctx.keepDesktopFont({right: 'compact', edge: 'workbench'}, {}).edge, 'workbench');
+  console.log('PASS: compact normalisation, folding, build/restoration and default-off slot-free edge');
+}
+
+// The thin integer surface encloses two physical pixel rows at fractional scale.
+{
+  const edge = fs.readFileSync(path.join(root, 'WorkbenchEdge.qml'), 'utf8');
+  const edgeCtx = {};
+  vm.createContext(edgeCtx);
+  vm.runInContext(functionSource(edge, 'edgeGeometry'), edgeCtx);
+  for (const scale of [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5]) {
+    for (const height of [25, 26, 27, 32, 39]) {
+      const g = edgeCtx.edgeGeometry(height, scale);
+      assert(Number.isInteger(g.top) && Number.isInteger(g.height));
+      assert(g.highlightY >= 0 && g.highlightY + 2 / scale <= g.height + 1e-9);
+      const firstPixel = Math.round(g.top * scale) + g.highlightY * scale;
+      assert(Math.abs(firstPixel - (Math.round(height * scale) - 2)) < 1e-9);
+      assert(g.height <= Math.ceil(2 / scale) + 1);
+    }
+  }
+  const engine = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
+  const expression = engine.match(/readonly property bool edgeVisible: ([\s\S]*?)\n  Variants/)[1];
+  const edgeVisible = (edge, bar, id) => !!vm.runInNewContext(expression,
+    {options: {edge}, edgeBar: bar, shell: {barConfig: {id}}});
+  const bar = {barSize: 26, position: 'top', barHidden: false};
+  assert(edgeVisible('workbench', bar));
+  assert(edgeVisible('workbench', bar, 'omarchy.bar'));
+  assert(!edgeVisible('none', bar));
+  assert(!edgeVisible('workbench', null));
+  assert(!edgeVisible('workbench', {...bar, barSize: 0}));
+  assert(!edgeVisible('workbench', {...bar, barHidden: true}));
+  assert(!edgeVisible('workbench', bar, 'another.bar'));
+  for (const position of ['bottom', 'left', 'right']) assert(!edgeVisible('workbench', {...bar, position}));
+  console.log('PASS: edge visibility and two device-pixel rows at seven scales');
 }
 
 // Stale usage records: a limit past its reset time counts as 0 %, not its last value.

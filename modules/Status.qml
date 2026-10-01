@@ -9,7 +9,7 @@ import qs.Ui
 
 // The right side, compact. Custom QML module of the Amiga Bar:
 //   { "id": "amiga.status", "source": ".../modules/Status.qml",
-//     "variant": "groups" | "deviations" | "drawer", "embeds": { id: settings } }
+//     "variant": "groups" | "deviations" | "drawer" | "hardware" | "compact", "embeds": { id: settings } }
 //
 // The widgets it replaces are mounted here, invisibly (`embeds`), so their
 // own native popups (Wi-Fi list, Bluetooth devices, VPN map …) still open —
@@ -234,7 +234,7 @@ Item {
   }
 
   // ---------------------------------------------------------------- A500 hardware strip state
-  readonly property bool hardware: variant === "hardware"
+  readonly property bool hardware: variant === "hardware" || variant === "compact"
   readonly property bool onBattery: UPower.onBattery
   readonly property real batteryLevel: UPower.displayDevice && UPower.displayDevice.isPresent ? Math.max(0, Math.min(1, UPower.displayDevice.percentage)) : 1
   property bool driveActive: false
@@ -305,7 +305,7 @@ Item {
     // A500 case strip: VU for CPU/RAM, POWER and DRIVE LEDs, DF0: slot.
     Item {
       id: caseStrip
-      visible: root.hardware
+      visible: root.variant === "hardware"
       width: visible ? caseRow.implicitWidth + Style.space(16) : 0
       height: root.barSize
       Rectangle {
@@ -371,6 +371,70 @@ Item {
             }
           }
           MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openMember("flux") }
+        }
+      }
+    }
+
+    Item {
+      id: compactStrip
+      visible: root.variant === "compact"
+      width: visible ? compactRow.implicitWidth : 0
+      height: root.barSize
+      Rectangle {
+        anchors.fill: parent; anchors.topMargin: 1; anchors.bottomMargin: 1
+        color: Qt.lighter(Color.bar.background, 1.35)
+        Rectangle { width: parent.width; height: 1; color: Util.alpha(root.fg, 0.25) }
+        Rectangle { y: parent.height - 1; width: parent.width; height: 1; color: Qt.darker(Color.bar.background, 1.6) }
+      }
+      Row {
+        id: compactRow
+        height: parent.height
+        spacing: 0
+        Repeater {
+          model: [["CPU", root.cpu], ["RAM", root.mem]]
+          CompactCell {
+            id: meterCell
+            required property var modelData
+            caption: modelData[0]
+            onPressed: function(button) { root.openGroup("all", compactStrip) }
+            Column {
+              anchors.horizontalCenter: parent.horizontalCenter
+              y: meterCell.faceY
+              spacing: 1
+              Repeater {
+                model: 4
+                Rectangle {
+                  required property int index
+                  readonly property int seg: 3 - index
+                  width: Style.space(7); height: 1
+                  color: meterCell.modelData[1] * 4 > seg + 0.01 ? (seg === 3 ? Color.urgent : seg === 2 ? Color.accent : (Color.popups.border || root.fg)) : Util.alpha(root.fg, 0.12)
+                }
+              }
+            }
+          }
+        }
+        CompactCell {
+          id: compactPower
+          caption: "POWER"
+          minimumWidth: Style.space(42)
+          onPressed: function(button) { root.popupAnchor = compactStrip; root.openMember("omarchy.power") }
+          Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: compactPower.faceY + 1
+            width: Style.space(24); height: 4
+            color: !root.onBattery ? "#3ee05a" : root.batteryLevel <= 0.2 ? Color.urgent : "#ffae2b"
+          }
+        }
+        CompactCell {
+          id: compactDrive
+          caption: "DF0"
+          onPressed: function(button) { root.popupAnchor = compactStrip; root.openMember("flux") }
+          Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: compactDrive.faceY + 1
+            width: Style.space(20); height: 4
+            color: root.driveActive || root.usbPhone !== "" ? "#ffb000" : Util.alpha("#ffb000", 0.18)
+          }
         }
       }
     }
@@ -445,6 +509,29 @@ Item {
       color: led.on ? led.tone : Util.alpha(led.tone, 0.18)
     }
     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: led.clicked() }
+  }
+
+  component CompactCell: WidgetButton {
+    id: compactCell
+    property string caption: ""
+    property real minimumWidth: Style.space(30)
+    readonly property real faceY: legend.y + legend.implicitHeight + 1
+    bar: root.bar
+    hasVisualContent: true
+    labelVisible: false
+    useActiveColor: false
+    width: Math.max(minimumWidth, legend.implicitWidth)
+    height: root.barSize
+    Text {
+      id: legend
+      renderType: Text.NativeRendering; textFormat: Text.PlainText
+      anchors.horizontalCenter: parent.horizontalCenter
+      y: Math.max(0, Math.floor((root.barSize - implicitHeight - 8) / 2))
+      text: compactCell.caption
+      font.family: Bridge.ModuleBus.family; font.bold: true
+      font.pixelSize: Bridge.ModuleBus.px(Math.max(7, Style.font.caption - 3))
+      color: Util.alpha(root.fg, 0.6)
+    }
   }
 
   component Glyph: Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
@@ -529,7 +616,7 @@ Item {
     return []
   }
   readonly property string popupTitle: popupGroup === "all" ? "System" : (function() { for (var i = 0; i < groups.length; i++) if (groups[i].id === popupGroup) return groups[i].name; return "" })()
-  readonly property bool workbench: popupGroup === "all" && (variant === "drawer" || variant === "hardware")
+  readonly property bool workbench: popupGroup === "all" && (variant === "drawer" || hardware)
 
   function stateJson() {
     return JSON.stringify({variant: variant, mounted: Object.keys(mounted), wifi: wifiName,

@@ -45,6 +45,21 @@ Item {
   readonly property string presetId: Presets.matchPreset(options)
   readonly property var currentLayout: config && config.bar ? config.bar.layout : null
 
+  readonly property var edgeBar: shell ? shell.bar : null
+  readonly property bool edgeVisible: options.edge === "workbench" && edgeBar
+    && edgeBar.barSize > 0 && edgeBar.position === "top" && !edgeBar.barHidden
+    && (!shell.barConfig || !shell.barConfig.id || shell.barConfig.id === "omarchy.bar")
+  Variants {
+    model: root.edgeVisible ? Quickshell.screens : []
+    delegate: Component {
+      WorkbenchEdge {
+        required property var modelData
+        screen: modelData
+        barHeight: root.edgeBar ? root.edgeBar.barSize : Style.bar.sizeHorizontal
+      }
+    }
+  }
+
   // ---------------------------------------------------------------- base layout
   property var baseLayout: null
   property bool baseChecked: false

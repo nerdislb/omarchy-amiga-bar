@@ -14,7 +14,8 @@ Presets and compact Amiga-style modules for the **native** Omarchy bar. See `ROA
 |---|---|
 | Workspaces (`Workspaces.qml`, incl. Omarchy logo) | today, pips, stack, logo, minimap, cli, boing |
 | AI quotas (`Quota.qml`) | today, gauge, vu, rings, ondemand, title (Workbench title line) |
-| Right side (`Status.qml`) | today, groups, deviations, drawer (Workbench window), hardware (A500 strip) |
+| Right side (`Status.qml`) | today, groups, deviations, drawer (Workbench window), hardware (A500 strip), compact (A500 strip, compact) |
+| Bar edge | none (default), workbench (Workbench edge) |
 | Logo (`PixelLogo.qml`) | omarchy, amiga (rainbow double tick), boing (Boing ball) — drawn in the pixel font's brick grid with theme colours; with native workspaces only the menu logo is replaced |
 | Centre (`Centre.qml`) | today, calm (temperature at the weather glyph) |
 | Pixel font (NerdWorkbench) | theme · topaz = Amiga moments (menu strip, status screen, Workbench window title, requester, Guru strip, title line) · bar = all Amiga Bar and Island text and icons · desktop = bar + the reversible desktop profile |
@@ -22,6 +23,21 @@ Presets and compact Amiga-style modules for the **native** Omarchy bar. See `ROA
 
 Presets: `heute`, `k1` (pips · gauge · groups), `k2` (logo · VU · drawer · pixel font for bar & island), `k3` (stack · on demand · deviations).
 Presets and saved combinations never switch the desktop font profile: while it is on they keep `desktop`, otherwise a saved `desktop` loads as `bar`.
+
+**A500 strip, compact** (`right: compact`) keeps labelled CPU/RAM VU columns,
+POWER and DF0 LEDs in about 132–168 px at 1×, followed by the drawer cell.
+Click either meter/body cell or the drawer for the full Workbench popup;
+POWER opens battery/power and DF0 opens Flux. DF0 lights amber during disk
+activity and stays lit while a USB phone is detected. It folds the same widgets
+as `hardware`, without the separate phone-name slot.
+
+**Workbench edge** (`edge: workbench`) adds a highlight and shadow, each one
+device pixel, over the bottom of the native top bar on every monitor. It follows
+the live bar size, visibility and theme, accepts no input and reserves no space.
+It hides for bottom/side bars, and is removed when set to `none` or when the
+plugin unloads. Existing presets and older saved combinations default to `none`.
+Both options are available in Options and through `amiga-bar set right compact`
+or `amiga-bar set edge workbench` with the usual `omarchy-shell` prefix.
 
 AI usage records (`~/.local/state/omarchy/agents/usage`) are refreshed by
 `omarchy.agents` only while it sits in the bar. When a variant folds the AI

@@ -4,7 +4,7 @@
 // passes in the saved base layout (the user's own layout from before the
 // first preset) and the chosen options, and gets a full bar.layout back.
 //
-// Options: { workspaces, ai, right, centre, effects, font } — see ELEMENTS.
+// Options: { workspaces, ai, right, edge, logo, centre, effects, font } — see ELEMENTS.
 // effects/font are read by the Amiga Island too (Guru look, Boing, Copper,
 // NerdWorkbench). font "desktop" also installs the system font profile; only
 // the font row switches it, presets and saved combinations never do.
@@ -40,7 +40,15 @@ var ELEMENTS = {
       { id: "groups", label: "Groups" },
       { id: "deviations", label: "Only deviations" },
       { id: "drawer", label: "Drawer" },
-      { id: "hardware", label: "A500 hardware strip" }
+      { id: "hardware", label: "A500 hardware strip" },
+      { id: "compact", label: "A500 strip, compact" }
+    ]
+  },
+  edge: {
+    label: "Bar edge",
+    variants: [
+      { id: "none", label: "None" },
+      { id: "workbench", label: "Workbench edge" }
     ]
   },
   logo: {
@@ -114,7 +122,7 @@ function foldedIds(options) {
   if (o.ai !== "today") out = out.concat(AI_IDS)
   if (o.right === "groups" || o.right === "deviations") out = out.concat(groupedIds())
   else if (o.right === "drawer") out = out.concat(DRAWER)
-  else if (o.right === "hardware") out = out.concat(DRAWER).concat(["omarchy.power"])
+  else if (o.right === "hardware" || o.right === "compact") out = out.concat(DRAWER).concat(["omarchy.power"])
   if (o.right !== "today" && out.indexOf("omarchy.agents") === -1) out.push("omarchy.agents")
   return out
 }

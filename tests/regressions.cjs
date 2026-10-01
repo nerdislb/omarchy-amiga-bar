@@ -144,9 +144,22 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     }
   }
   const engine = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
-  const expression = engine.match(/readonly property bool edgeVisible: ([\s\S]*?)\n  Variants/)[1];
-  const edgeVisible = (edge, bar, id) => !!vm.runInNewContext(expression,
-    {options: {edge}, edgeBar: bar, shell: {barConfig: {id}}});
+  const readyExpr = engine.match(/readonly property bool barReady: ([\s\S]*?)\n  \/\//)[1];
+  const fogExpr = engine.match(/readonly property bool fogVisible: ([^\n]*)/)[1];
+  const expression = engine.match(/readonly property bool edgeVisible: ([^\n]*)/)[1];
+  const evalEdge = (expr, edge, bar, id, fog) => {
+    const c = {options: {edge, fog}, edgeBar: bar, shell: {barConfig: {id}}};
+    c.barReady = !!vm.runInNewContext(readyExpr, c);
+    c.fogOn = fog === 'on';
+    return !!vm.runInNewContext(expr, c);
+  };
+  const edgeVisible = (edge, bar, id) => evalEdge(expression, edge, bar, id, 'off');
+  // fog on: fog edge instead of the Workbench edge; never over a transparent bar
+  assert(!evalEdge(expression, 'workbench', {barSize: 26, position: 'top', barHidden: false}, undefined, 'on'));
+  assert(evalEdge(fogExpr, 'workbench', {barSize: 26, position: 'top', barHidden: false}, undefined, 'on'));
+  assert(!evalEdge(fogExpr, 'none', {barSize: 26, position: 'top', barHidden: false, transparent: true}, undefined, 'on'));
+  assert(!evalEdge(fogExpr, 'none', {barSize: 26, position: 'bottom', barHidden: false}, undefined, 'on'));
+  assert(!evalEdge(fogExpr, 'none', {barSize: 26, position: 'top', barHidden: false}, undefined, 'off'));
   const bar = {barSize: 26, position: 'top', barHidden: false};
   assert(edgeVisible('workbench', bar));
   assert(edgeVisible('workbench', bar, 'omarchy.bar'));

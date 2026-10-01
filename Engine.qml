@@ -46,9 +46,24 @@ Item {
   readonly property var currentLayout: config && config.bar ? config.bar.layout : null
 
   readonly property var edgeBar: shell ? shell.bar : null
-  readonly property bool edgeVisible: options.edge === "workbench" && edgeBar
+  // Edges hang under the native bar only: on top, shown, not replaced.
+  readonly property bool barReady: !!edgeBar
     && edgeBar.barSize > 0 && edgeBar.position === "top" && !edgeBar.barHidden
     && (!shell.barConfig || !shell.barConfig.id || shell.barConfig.id === "omarchy.bar")
+  // The fog look (test) replaces the Workbench edge while it is on.
+  readonly property bool fogOn: options.fog === "on"
+  readonly property bool fogVisible: fogOn && barReady && !edgeBar.transparent
+  readonly property bool edgeVisible: options.edge === "workbench" && !fogOn && barReady
+  Variants {
+    model: root.fogVisible ? Quickshell.screens : []
+    delegate: Component {
+      FogEdge {
+        required property var modelData
+        screen: modelData
+        barHeight: root.edgeBar ? root.edgeBar.barSize : Style.bar.sizeHorizontal
+      }
+    }
+  }
   Variants {
     model: root.edgeVisible ? Quickshell.screens : []
     delegate: Component {

@@ -5,10 +5,11 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 import "Presets.js" as Presets
+import "ControlCenter.js" as CCModel
 import "bridge" as Bridge
 
 // Amiga Bar engine (keep-loaded panel next to the native Omarchy bar).
-// It owns the options window and writes presets into bar.layout; the bar
+// It owns the Control Center and writes presets into bar.layout; the bar
 // itself stays the native one, so every widget keeps its own service.
 //
 // The user's layout is saved once (base.json) before the first preset;
@@ -113,12 +114,14 @@ Item {
       if (!root.savedReady) root.saveResult = "Cannot read saved combinations"
     }
   }
-  function saveCombination(name) {
+  // opts: the options to save (the Control Center passes its staged ones);
+  // default: the live options.
+  function saveCombination(name, opts) {
     name = String(name).trim()
     if (!savedReady) return "Saved combinations are not available"
     if (!name || name.length > 48) return "Use a name of 1–48 characters"
     var next = savedPresets.filter(function(p) { return p.name !== name })
-    next.push({ name: name, options: Presets.normalizeOptions(options) })
+    next.push({ name: name, options: Presets.normalizeOptions(opts || options) })
     next.sort(function(a, b) { return a.name.localeCompare(b.name) })
     savedPresets = next
     savedFile.setText(JSON.stringify(next, null, 2) + "\n")
@@ -137,6 +140,8 @@ Item {
 
   // ---------------------------------------------------------------- apply
   property string lastResult: ""
+  readonly property bool writing: writer.running
+  property var lastWritten: null    // options of the last write (the Control Center waits for them)
   Process {
     id: writer
     property string payload: ""
@@ -163,6 +168,7 @@ Item {
       baseLayout = merged
       baseFile.setText(JSON.stringify({ version: 1, layout: merged }, null, 2) + "\n")
     }
+    lastWritten = opts
     writer.payload = JSON.stringify({ pluginId: pluginId, options: opts, layout: Presets.build(baseLayout, opts, moduleDir) })
     writer.running = true
     return "ok"
@@ -188,6 +194,7 @@ Item {
   property string systemFontResult: ""
   property string pendingFont: ""
   property bool reloadAfterWrite: false
+  readonly property bool fontBusy: systemFont.running || pendingFont !== ""
   Process {
     id: systemFont
     property string action: "status"
@@ -261,6 +268,7 @@ Item {
     return false
   }
   readonly property int usageIntervalSec: Math.max(30, Number(agentsSettings.refreshIntervalSec || 900))
+  readonly property bool usageRunning: usageUpdate.running
   property string pendingUsage: ""
   property double lastLimitsRun: 0
   Timer {
@@ -309,13 +317,23 @@ Item {
   }
 
   // ---------------------------------------------------------------- panel contract
+  // The panel is the Control Center. Closing it is Cancel: whatever Use
+  // applied goes back (see ControlCenter.qml). payloadJson may name an
+  // area: {"area": "quick|bar|island|cards|health"}.
   property bool isOpen: false
   readonly property bool opened: isOpen
-  function open(payloadJson) { menuOpen = false; screenOpen = false; isOpen = true }
-  function close() { isOpen = false }
+  function open(payloadJson) {
+    var area = ""
+    try { var p = JSON.parse(payloadJson || "{}"); area = p && p.area ? String(p.area) : "" } catch (e) {}
+    if (isOpen) { if (area) controlCenter.showArea(area); return }
+    controlCenter.requestedArea = area
+    menuOpen = false; screenOpen = false; isOpen = true
+  }
+  function close() { if (isOpen) controlCenter.cancel() }
   function toggle() { if (isOpen) close(); else open("") }
 
-  OptionsWindow {
+  ControlCenter {
+    id: controlCenter
     host: root
     open: root.isOpen
     onCloseRequested: root.isOpen = false
@@ -402,7 +420,7 @@ Item {
       { title: "Tools", items: [
         { label: "Status screen", key: "M", action: function() { root.openScreen() } },
         { label: "Open island", action: function() { root.run("omarchy-shell amiga-island expand") } },
-        { label: "Amiga Bar options …", action: function() { root.isOpen = true } },
+        { label: "Control Center …", action: function() { root.open("") } },
         sep,
         { label: "Concept gallery", action: function() { Quickshell.execDetached(["xdg-open", Quickshell.env("HOME") + "/.openclaw/workspace/output/amiga-bar-2026-09-30/index.html"]) } }
       ] }
@@ -444,6 +462,13 @@ Item {
     }
     function menuState(): string { return JSON.stringify({ open: root.menuOpen, tab: intuitionMenu.current, item: intuitionMenu.item }) }
     function options(): void { root.toggle() }
+    // Open the Control Center at an area (or switch to it when open).
+    function cc(area: string): string {
+      var a = String(area || "quick")
+      if (!CCModel.isArea(a)) return "areas: " + CCModel.AREAS.map(function(x) { return x.id }).join(" ")
+      root.open(JSON.stringify({ area: a }))
+      return "ok"
+    }
     function save(name: string): string { return root.saveCombination(name) }
     function load(name: string): string { return root.loadCombination(name) }
     function menu(): void { root.screenOpen = false; root.menuOpen = !root.menuOpen }
@@ -460,7 +485,8 @@ Item {
       return JSON.stringify({ preset: root.presetId, options: root.options, hasBase: root.baseLayout !== null,
                               open: root.isOpen, menuOpen: root.menuOpen, screenOpen: root.screenOpen, saved: root.savedPresets.map(function(p) { return p.name }), lastResult: root.lastResult, moduleDir: root.moduleDir,
                               systemFont: root.systemProfile, fontResult: root.systemFontResult,
-                              usage: { folded: root.usageFolded, intervalSec: root.usageIntervalSec, running: usageUpdate.running, command: usageUpdate.command } })
+                              usage: { folded: root.usageFolded, intervalSec: root.usageIntervalSec, running: usageUpdate.running, command: usageUpdate.command },
+                              cc: controlCenter.stateObject() })
     }
   }
 }

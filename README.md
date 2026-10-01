@@ -3,7 +3,7 @@
 Presets and compact Amiga-style modules for the **native** Omarchy bar. See `ROADMAP.md` for stages A–E.
 
 ## Architecture
-- `Engine.qml` — keep-loaded panel plugin (`nerdibeard.amiga-bar`): options window, presets, IPC. It writes `bar.layout` through `bin/apply-layout.py` (atomic, keeps shell.json's 0600 mode). The bar itself stays `omarchy.bar`.
+- `Engine.qml` — keep-loaded panel plugin (`nerdibeard.amiga-bar`): Control Center, presets, IPC. It writes `bar.layout` through `bin/apply-layout.py` (atomic, keeps shell.json's 0600 mode). The bar itself stays `omarchy.bar`.
 - Why not a replacement bar: under a plugin bar, Omarchy hands third-party widgets a service-less shell facade (security boundary), so OmaMail, WhatsApp and Flux lose their own services. Tried in stage A, reverted.
 - Own parts are custom QML modules in the layout (`{ "id": "amiga.x", "source": "<plugin>/modules/X.qml", ... }`); one plugin can register only one bar widget.
 - `modules/Status.qml` mounts the widgets it folds away invisibly (`embeds`: id → original settings), so their native popups (Wi-Fi, Bluetooth, VPN, Tailscale, monitor, drive, radar, plugins, buds, system monitor) still open from our groups/drawer. Flux, OmaMail and WhatsApp are not embedded (they need their own services); Flux is read via `flux-cli` and opened as its window. Weather and world clocks stay native (their popups position via the centre section).
@@ -66,8 +66,31 @@ reports the state. Test: `python3 tests/fastfetch_logo.py`.
 ## Companion: Amiga Island
 The clock in the centre is the separate plugin `nerdibeard.amiga-island` (`~/src/omarchy-amiga-island`). It reads this plugin's `effects` and `font` options from shell.json and shows attention (blocked agents → requester), the Guru strip for failed units/crashes, Boing and copper effects. It stays a separate plugin: it has its own panel, IPC and settings entry, and merging would only re-plumb settings without user benefit; for a release both can live in one repository.
 
+## Control Center
+`ControlCenter.qml` (pure model in `ControlCenter.js`) replaces the old options
+window: Quick · Configure, areas on the left (Quick, Amiga Bar, Amiga Island,
+Card picker, Health), editor on the right, Ctrl+K search over settings and
+their values, a Health chip. Edits are staged and confirmed the Amiga way:
+
+- **Use** applies the staged changes live; the window stays open.
+- **Save** applies what is still staged and closes.
+- **Cancel** (button, close gadget, Esc once the search is closed, click
+  outside, or any other close) restores the state from opening if Use applied
+  something, then closes.
+
+Bar options go out as one write (each write rebuilds the bar), island settings
+through `omarchy-shell amiga-island set …`, the card picker through its
+`menu-override.py`; one step at a time, each confirmed before the next. The
+pixel font row is not staged: it may install the desktop profile and restart
+the shell, so it applies at once and Cancel leaves it. Health only reports
+live checks (base layout, font profile, AI usage refresh, notification
+takeover marker, card picker override, last write, saved combinations). Hold
+the depth gadget to look behind the window.
+
 ## Use
-- Options: middle click on the Omarchy logo, or `omarchy-shell amiga-bar options`.
+- Control Center: middle click on the Omarchy logo, Tools → Control Center, or
+  `omarchy-shell amiga-bar options` (toggle) / `… cc quick|bar|island|cards|health`.
+  `… state` includes `cc` (open, area, staged, used, health issues).
 - `omarchy-shell amiga-bar preset heute|k1|k2|k3`, `… set <element> <variant>`, `… state`.
 - Module IPC (tests/keybinds): `amiga-quota toggle|state`, `amiga-status group net|phone|system|all`, `amiga-status member <widget-id>`, `amiga-centre state`.
 
@@ -76,8 +99,9 @@ The clock in the centre is the separate plugin `nerdibeard.amiga-island` (`~/src
 
 ## Saved combinations
 
-The options window includes **My combinations**. Enter a name and choose
-**Save / replace**; select a saved name to load it, or × to remove it.
+The Control Center's Amiga Bar area includes **My combinations**. Enter a name
+and choose **Save / replace** (saves the options as shown, staged ones
+included); select a saved name to stage it like a preset, or × to remove it.
 Saving the same name replaces that combination. These are variant selections,
 not snapshots of accounts or the entire desktop configuration. Data stays in
 `~/.local/state/amiga-bar/presets.json` and survives shell restarts.
@@ -106,7 +130,7 @@ NerdWorkbench is Topaz on a whole-pixel 12×16 cell with pixel icons in the same
 brick grid (see [FONTS.md](FONTS.md)). It is crisp at 16 and 32 px, so wherever
 it is used every text size snaps to 16 px (32 px for display text).
 
-Options → **Pixel font** chooses how far it reaches:
+Control Center → **Pixel font** chooses how far it reaches:
 
 - **Theme font** — nothing changes.
 - **Amiga moments** — menu strip, status screen, Workbench window title,
@@ -129,7 +153,7 @@ The option is saved only after the script succeeded; then Ghostty reloads and
 the shell restarts. Choosing any other level removes the profile again: marked
 blocks and the fonts are removed, GTK values restored (unless you changed them
 meanwhile), and files that held only our block are deleted. Restart Zen and
-reopen other apps to see browser/app changes. The options window warns when the
+reopen other apps to see browser/app changes. The Control Center warns when the
 profile is only partly installed or out of step with the option.
 
 IPC: `omarchy-shell amiga-bar set font theme|topaz|bar|desktop`; legacy

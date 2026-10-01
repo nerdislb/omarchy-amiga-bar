@@ -324,3 +324,26 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   console.log('PASS: control center staging, Save/Use/Cancel plans, search, health');
 }
 
+// Control Center wiring: replaces the options window, argv-only processes,
+// IPC for areas, fog hook.
+{
+  const engine = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
+  const qml = fs.readFileSync(path.join(root, 'ControlCenter.qml'), 'utf8');
+  assert(engine.includes('ControlCenter {') && !engine.includes('OptionsWindow'));
+  assert(/function cc\(area: string\): string/.test(engine));
+  assert(engine.includes('cc: controlCenter.stateObject()'));
+  assert(engine.includes('label: "Control Center …"'));
+  assert(qml.includes('["omarchy-shell", "amiga-island", "set", step.key, String(step.value)]'));
+  assert(!/"sh",\s*"-c"/.test(qml), 'no shell strings in the Control Center');
+  assert(/property real reveal: win\.open \? 1 : 0/.test(qml) && qml.includes('opacity: reveal'));
+  // All text goes through the Body/Caption/Moment components (native
+  // rendering, plain text); no stray Text items.
+  const rawText = [...qml.matchAll(/^(.*)\bText \{/gm)].filter(m => !/component \w+: $/.test(m[1]));
+  assert.deepEqual(rawText.map(m => m[0]), []);
+  for (const c of ['Body', 'Moment']) {
+    const body = qml.slice(qml.indexOf('component ' + c + ': Text {'));
+    const block = body.slice(0, body.indexOf('\n  }'));
+    assert(block.includes('renderType: Text.NativeRendering') && block.includes('textFormat: Text.PlainText'), c);
+  }
+  console.log('PASS: control center wiring (engine, IPC, argv processes, fog hook)');
+}

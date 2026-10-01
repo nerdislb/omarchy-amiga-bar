@@ -31,7 +31,8 @@ PanelWindow {
   anchors { top: true; left: true; right: true }
   margins.top: geometry.top
   implicitHeight: geometry.height
-  exclusiveZone: 0
+  // Ignore alone: setting exclusiveZone as well forces Normal, which would
+  // push the surface below the bar's zone instead of over its bottom edge.
   exclusionMode: ExclusionMode.Ignore
   WlrLayershell.namespace: "amiga-bar-edge"
   WlrLayershell.layer: WlrLayer.Overlay

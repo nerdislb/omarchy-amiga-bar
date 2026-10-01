@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -28,6 +29,9 @@ PanelWindow {
 
   property var host: null
   property bool open: false
+  // Fog look (test): the window grows out of the bar as fog.
+  property bool fog: false
+  property color fogColor: "black"
   signal closeRequested()
 
   // ---------------------------------------------------------------- state
@@ -121,7 +125,7 @@ PanelWindow {
   }
 
   // ---------------------------------------------------------------- open / close
-  onOpenChanged: if (open) begin(); else end()
+  onOpenChanged: { if (open) begin(); else end(); followFog() }
 
   function begin() {
     if (working) { beginAfterWork = true; return }
@@ -488,7 +492,7 @@ PanelWindow {
     for (var i = 0; i < s.length; i++) if (s[i].name === f) return s[i]
     return s.length ? s[0] : null
   }
-  visible: open || stage.reveal > 0.001
+  visible: open || stage.reveal > 0.001 || grow > 0.001 || ghost.opacity > 0
   color: "transparent"
   anchors { top: true; bottom: true; left: true; right: true }
   exclusionMode: ExclusionMode.Ignore
@@ -503,14 +507,95 @@ PanelWindow {
     onClicked: win.cancel()
   }
 
+  // ------------------------------------------------------------ fog look
+  // reveal 0 → 1 shows the card. Plain: a short fade. Fog: a drop falls out
+  // of the bar under its centre, swells to the card's size, then the card
+  // fades in on it; closing reverses and leaves a faint fog for a moment.
+  property real grow: 0
+  readonly property bool fogShown: fog && !Style.reduceMotion
+  readonly property real fogMargin: 32
+  readonly property real barBottom: card.y - Style.gapsOut
+  readonly property var blob: {
+    var d = Math.min(1, grow / 0.3)
+    var e = Math.max(0, Math.min(1, (grow - 0.3) / 0.7))
+    e = 1 - Math.pow(1 - e, 3)
+    var dropW = 52, dropH = 28
+    var fullH = card.y + card.height - barBottom
+    var dx = card.x + card.width / 2 - dropW / 2
+    return { x: dx + (card.x - dx) * e, y: barBottom, w: dropW + (card.width - dropW) * e, h: d * dropH + (fullH - dropH) * e }
+  }
+  NumberAnimation { id: revealAnim; target: stage; property: "reveal"; duration: Style.duration(140); easing.type: Easing.OutCubic }
+  SequentialAnimation {
+    id: fogOpening
+    NumberAnimation { target: win; property: "grow"; to: 1; duration: 480; easing.type: Easing.Linear }
+    NumberAnimation { target: stage; property: "reveal"; to: 1; duration: 140; easing.type: Easing.Linear }
+  }
+  SequentialAnimation {
+    id: fogClosing
+    NumberAnimation { target: stage; property: "reveal"; to: 0; duration: 110; easing.type: Easing.Linear }
+    ScriptAction {
+      script: {
+        ghost.x = win.blob.x - fogStage.x; ghost.y = win.blob.y - fogStage.y
+        ghost.width = win.blob.w; ghost.height = win.blob.h
+        ghost.opacity = 0.16
+        ghostFade.restart()
+      }
+    }
+    NumberAnimation { target: win; property: "grow"; to: 0; duration: 380; easing.type: Easing.Linear }
+  }
+  NumberAnimation { id: ghostFade; target: ghost; property: "opacity"; to: 0; duration: 760; easing.type: Easing.InQuad }
+  function followFog() {
+    revealAnim.stop(); fogOpening.stop(); fogClosing.stop()
+    if (!fogShown) {
+      grow = 0
+      revealAnim.to = open ? 1 : 0
+      revealAnim.start()
+      return
+    }
+    if (open) {
+      if (grow >= 1) { revealAnim.to = 1; revealAnim.start() }
+      else { stage.reveal = 0; fogOpening.start() }
+    } else if (grow > 0) fogClosing.start()
+    else { revealAnim.to = 0; revealAnim.start() }
+  }
+  onFogShownChanged: if (!fogShown) { grow = 0; ghost.opacity = 0; followFog() }
+
+  // The fog, under the card; clipped at the bar's lower edge (the shapes
+  // reach up into the bar for the blur, nothing is painted over the bar).
+  Item {
+    id: fogStage
+    visible: win.fog && (win.grow > 0 || ghost.opacity > 0)
+    x: card.x - win.fogMargin
+    y: win.barBottom
+    width: card.width + win.fogMargin * 2
+    height: card.y + card.height + win.fogMargin - win.barBottom
+    clip: true
+
+    Item {
+      anchors.fill: parent
+      // enabled only while shown: a MultiEffect created hidden never draws
+      layer.enabled: fogStage.visible
+      layer.effect: MultiEffect { blurEnabled: true; blur: 1; blurMax: 48; autoPaddingEnabled: false }
+      Rectangle { id: ghost; opacity: 0; radius: 12; color: win.fogColor }
+    }
+    FogLayer {
+      y: -win.fogMargin
+      width: fogStage.width
+      height: fogStage.height + win.fogMargin
+      color: win.fogColor
+      blurMax: 24
+      threshold: 0.4
+      softness: 0.5
+      // the flare where the blob leaves the bar; shapes only change size
+      Rectangle { x: win.blob.x - fogStage.x - 14; width: win.grow > 0 ? win.blob.w + 28 : 0; height: win.fogMargin + 1; color: "white" }
+      Rectangle { x: win.blob.x - fogStage.x; y: win.fogMargin; width: win.blob.w; height: win.blob.h; radius: 10; color: "white" }
+    }
+  }
+
   Item {
     id: stage
     anchors.fill: parent
-    // Hook for the fog look: reveal 0 → 1 shows the card. Today it only
-    // drives opacity; a fog grow-in can replace this without touching the
-    // card.
-    property real reveal: win.open ? 1 : 0
-    Behavior on reveal { NumberAnimation { duration: Style.duration(140); easing.type: Easing.OutCubic } }
+    property real reveal: 0
     opacity: reveal
 
     Ui.BorderSurface {
@@ -520,8 +605,10 @@ PanelWindow {
       height: Math.min(win.height - y - Style.space(12), Style.space(640))
       x: Math.round((win.width - width) / 2)
       y: Style.bar.sizeHorizontal + Style.gapsOut
-      color: Color.popups.background
-      borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
+      // Fog look: the fog is the card's surface.
+      color: win.fog ? "transparent" : Color.popups.background
+      borderSpec: win.fog ? Border.flat("transparent", Math.max(1, Style.space(2)))
+        : Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
       radius: Style.cornerRadius
       // Depth gadget held: look behind the window.
       opacity: win.peek ? 0.12 : 1

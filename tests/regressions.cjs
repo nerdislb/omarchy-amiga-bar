@@ -348,7 +348,9 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert(engine.includes('label: "Control Center …"'));
   assert(qml.includes('["omarchy-shell", "amiga-island", "set", step.key, String(step.value)]'));
   assert(!/"sh",\s*"-c"/.test(qml), 'no shell strings in the Control Center');
-  assert(/property real reveal: win\.open \? 1 : 0/.test(qml) && qml.includes('opacity: reveal'));
+  // reveal shows the card: a plain fade, or after the fog has grown (fog look)
+  assert(qml.includes('id: fogOpening') && qml.includes('opacity: reveal'));
+  assert(fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8').includes('fog: root.fogOn'));
   // All text goes through the Body/Caption/Moment components (native
   // rendering, plain text); no stray Text items.
   const rawText = [...qml.matchAll(/^(.*)\bText \{/gm)].filter(m => !/component \w+: $/.test(m[1]));

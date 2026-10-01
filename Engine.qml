@@ -451,6 +451,8 @@ Item {
     id: controlCenter
     host: root
     open: root.isOpen
+    fog: root.fogOn
+    fogColor: root.fogColor
     onCloseRequested: root.isOpen = false
   }
 

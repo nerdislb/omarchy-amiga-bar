@@ -8,6 +8,9 @@ QtObject {
   property var instances: ({})
   // Fog look (test), set by the engine from the `fog` option.
   property bool fog: false
+  property color fogColor: "black"
+  // A500 form: a note is coming out of the drive slot (DF0 lights).
+  property bool noteActive: false
   function register(kind, item) {
     var next = Object.assign({}, instances)
     next[kind] = (next[kind] || []).filter(function(i) { return i !== item }).concat([item])

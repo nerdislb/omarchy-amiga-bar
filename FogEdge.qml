@@ -13,6 +13,8 @@ import qs.Ui
 PanelWindow {
   id: win
   property int barHeight: Style.bar.sizeHorizontal
+  // The colour the bar ends in (opaque).
+  property color fogColor: Qt.rgba(Color.bar.background.r, Color.bar.background.g, Color.bar.background.b, 1)
   readonly property real depth: Math.max(10, Math.round(barHeight * 0.55))
   readonly property real margin: 32
 
@@ -40,7 +42,7 @@ PanelWindow {
     y: -win.margin
     width: win.width + win.margin * 2
     height: win.depth + win.margin
-    color: Color.bar.background
+    color: win.fogColor
     blurMax: 24
     threshold: 0.4
     softness: 0.5

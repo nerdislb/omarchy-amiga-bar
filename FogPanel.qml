@@ -15,6 +15,8 @@ Item {
 
   property var panel: null
   property bool fog: false
+  // The colour the bar ends in (opaque).
+  property color color: Qt.rgba(Color.bar.background.r, Color.bar.background.g, Color.bar.background.b, 1)
 
   // Inside the panel we sit in its content holder; its parent is the card,
   // and the card's parent the panel window's root item.
@@ -123,14 +125,14 @@ Item {
         anchors.fill: parent
         layer.enabled: stageItem.visible
         layer.effect: MultiEffect { blurEnabled: true; blur: 1; blurMax: 48; autoPaddingEnabled: false }
-        Rectangle { id: ghost; opacity: 0; radius: 12; color: Color.bar.background }
+        Rectangle { id: ghost; opacity: 0; radius: 12; color: fp.color }
       }
 
       FogLayer {
         y: -fp.margin
         width: stageItem.width
         height: stageItem.height + fp.margin
-        color: Color.bar.background
+        color: fp.color
         blurMax: 24
         threshold: 0.4
         softness: 0.5

@@ -434,7 +434,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             y: compactDrive.faceY + 1
             width: Style.space(20); height: 4
-            color: root.driveActive || root.usbPhone !== "" ? "#ffb000" : Util.alpha("#ffb000", 0.18)
+            color: root.driveActive || root.usbPhone !== "" || Bridge.ModuleBus.noteActive ? "#ffb000" : Util.alpha("#ffb000", 0.18)
           }
         }
       }
@@ -619,6 +619,14 @@ Item {
   readonly property string popupTitle: popupGroup === "all" ? "System" : (function() { for (var i = 0; i < groups.length; i++) if (groups[i].id === popupGroup) return groups[i].name; return "" })()
   readonly property bool workbench: popupGroup === "all" && (variant === "drawer" || hardware)
 
+  // The compact strip's span in its bar, for the A500 case's LED window.
+  function caseLedSpan() {
+    if (variant !== "compact" || !compactStrip.visible) return null
+    var win = root.QsWindow.window
+    var p = compactStrip.mapToItem(null, 0, 0)
+    return win && win.screen && p ? { screen: win.screen.name, x: Math.round(p.x), w: Math.round(compactStrip.width) } : null
+  }
+
   function stateJson() {
     return JSON.stringify({variant: variant, mounted: Object.keys(mounted), wifi: wifiName,
       vpn: vpnUp, tailscale: tailscaleUp, phone: phone, cpu: cpu, mem: mem,
@@ -637,7 +645,7 @@ Item {
     contentHeight: popup.fittedContentHeight(content.implicitHeight)
 
     // Fog look (test): the popup grows out of the bar as fog.
-    Root.FogPanel { panel: popup; fog: Bridge.ModuleBus.fog }
+    Root.FogPanel { panel: popup; fog: Bridge.ModuleBus.fog; color: Bridge.ModuleBus.fogColor }
 
     Item {
       id: popupKeys

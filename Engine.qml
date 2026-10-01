@@ -34,8 +34,9 @@ Item {
     path: Quickshell.env("HOME") + "/.config/omarchy/shell.json"
     watchChanges: true
     onFileChanged: reload()
-    onLoaded: { try { root.config = JSON.parse(text()) } catch (e) {} }
+    onLoaded: { try { root.config = JSON.parse(text()); root.configLoaded = true } catch (e) {} }
   }
+  property bool configLoaded: false
   readonly property var entry: {
     var list = config && Array.isArray(config.plugins) ? config.plugins : []
     for (var i = 0; i < list.length; i++) if (list[i] && list[i].id === pluginId) return list[i]
@@ -53,13 +54,21 @@ Item {
   // The fog look (test) replaces the Workbench edge while it is on.
   readonly property bool fogOn: options.fog === "on"
   readonly property bool fogVisible: fogOn && barReady && !edgeBar.transparent
-  readonly property bool edgeVisible: options.edge === "workbench" && !fogOn && barReady
+  readonly property bool edgeVisible: options.edge === "workbench" && !fogOn && options.form !== "a500" && barReady
+  // The colour the bar ends in (opaque; the A500 form makes the native
+  // bar's fill transparent): the bar's own, or the case's darker front.
+  readonly property color fogColor: {
+    var c = Color.bar.background
+    var opaque = Qt.rgba(c.r, c.g, c.b, 1)
+    return options.form === "a500" ? Qt.darker(opaque, 1.35) : opaque
+  }
   Variants {
     model: root.fogVisible ? Quickshell.screens : []
     delegate: Component {
       FogEdge {
         required property var modelData
         screen: modelData
+        fogColor: root.fogColor
         barHeight: root.edgeBar ? root.edgeBar.barSize : Style.bar.sizeHorizontal
       }
     }
@@ -200,6 +209,78 @@ Item {
   // the script succeeded, then Ghostty and the shell reload.
   Binding { target: Bridge.ModuleBus; property: "fontLevel"; value: root.options.font }
   Binding { target: Bridge.ModuleBus; property: "fog"; value: root.fogOn }
+  Binding { target: Bridge.ModuleBus; property: "fogColor"; value: root.fogColor }
+  Binding { target: Bridge.ModuleBus; property: "noteActive"; value: root.caseVisible && !!root.islandSpan.note }
+
+  // ---------------------------------------------------------------- bar form
+  // "a500": the native bar's own fill goes transparent (bin/bar-form.py, a
+  // managed block in ~/.config/omarchy/shell.toml) and A500Case draws the
+  // case on the layer under it; "full" removes the block again. Synced only
+  // once the options are read, so a restart never flashes the other form.
+  readonly property string formOption: options.form
+  readonly property bool caseVisible: formOption === "a500" && barReady
+  property string formResult: ""
+  property bool formPending: false
+  onFormOptionChanged: if (configLoaded) syncForm()
+  onConfigLoadedChanged: if (configLoaded) syncForm()
+  function syncForm() {
+    if (formWriter.running) { formPending = true; return }
+    formWriter.action = formOption === "a500" ? "enable" : "disable"
+    formWriter.running = true
+  }
+  Process {
+    id: formWriter
+    property string action: "status"
+    command: ["python3", root.pluginDir + "/bin/bar-form.py", action]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        var r = null
+        try { r = JSON.parse(text) } catch (e) {}
+        root.formResult = r && r.error ? r.error : ""
+      }
+    }
+    onExited: if (root.formPending) { root.formPending = false; root.syncForm() }
+  }
+
+  // Where the island sits in each bar and whether a note is coming out
+  // (written by the Amiga Island while this form is on).
+  property var islandSpan: ({})
+  FileView {
+    path: Quickshell.env("HOME") + "/.local/state/omarchy/amiga-island/bar-span.json"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: { try { root.islandSpan = JSON.parse(text()) } catch (e) {} }
+  }
+  // The compact strip's span per screen (for the case's LED window).
+  property var ledSpans: ({})
+  Timer {
+    interval: 1500
+    running: root.caseVisible
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: {
+      var out = {}
+      ;(Bridge.ModuleBus.instances.status || []).forEach(function(i) {
+        var r = i && typeof i.caseLedSpan === "function" ? i.caseLedSpan() : null
+        if (r && r.screen) out[r.screen] = { x: r.x, w: r.w }
+      })
+      if (JSON.stringify(out) !== JSON.stringify(root.ledSpans)) root.ledSpans = out
+    }
+  }
+  Variants {
+    model: root.caseVisible ? Quickshell.screens : []
+    delegate: Component {
+      A500Case {
+        required property var modelData
+        screen: modelData
+        barHeight: root.edgeBar ? root.edgeBar.barSize : Style.bar.sizeHorizontal
+        slot: root.islandSpan.screens && root.islandSpan.screens[modelData.name] ? root.islandSpan.screens[modelData.name] : null
+        led: root.ledSpans[modelData.name] || null
+        noteOpen: !!root.islandSpan.note
+      }
+    }
+  }
   property string systemProfile: "unknown"   // normal · amiga · partial
   property string systemFontResult: ""
   property string pendingFont: ""
@@ -476,6 +557,7 @@ Item {
       return JSON.stringify({ preset: root.presetId, options: root.options, hasBase: root.baseLayout !== null,
                               open: root.isOpen, menuOpen: root.menuOpen, screenOpen: root.screenOpen, saved: root.savedPresets.map(function(p) { return p.name }), lastResult: root.lastResult, moduleDir: root.moduleDir,
                               systemFont: root.systemProfile, fontResult: root.systemFontResult,
+                              form: { option: root.formOption, caseVisible: root.caseVisible, result: root.formResult, island: root.islandSpan, led: root.ledSpans },
                               usage: { folded: root.usageFolded, intervalSec: root.usageIntervalSec, running: usageUpdate.running, command: usageUpdate.command } })
     }
   }

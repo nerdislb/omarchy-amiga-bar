@@ -4,10 +4,11 @@
 // passes in the saved base layout (the user's own layout from before the
 // first preset) and the chosen options, and gets a full bar.layout back.
 //
-// Options: { workspaces, ai, right, edge, logo, centre, effects, font } — see ELEMENTS.
-// effects/font are read by the Amiga Island too (Guru look, Boing, Copper,
-// NerdWorkbench). font "desktop" also installs the system font profile; only
-// the font row switches it, presets and saved combinations never do.
+// Options: { workspaces, ai, right, edge, logo, centre, effects, font, form,
+// fog } — see ELEMENTS. effects/font/fog are read by the Amiga Island too
+// (Guru look, Boing, Copper, NerdWorkbench, fog cards). font "desktop" also
+// installs the system font profile; only the font row switches it, presets
+// and saved combinations never do.
 
 var ELEMENTS = {
   workspaces: {
@@ -81,8 +82,26 @@ var ELEMENTS = {
       { id: "bar", label: "Bar, island & menus" },
       { id: "desktop", label: "Whole desktop" }
     ]
+  },
+  form: {
+    label: "Bar form",
+    variants: [
+      { id: "full", label: "Full bar" },
+      { id: "a500", label: "A500 case edge" }
+    ]
+  },
+  fog: {
+    label: "Fog look (test)",
+    variants: [
+      { id: "off", label: "Off" },
+      { id: "on", label: "On" }
+    ]
   }
 }
+
+// Look options that sit on top of any preset: presets keep the current
+// value, and preset matching ignores them.
+var LOOK = ["form", "fog"]
 
 // Presets from the concept film.
 var PRESETS = [
@@ -262,6 +281,7 @@ function matchPreset(options) {
   for (var i = 0; i < PRESETS.length; i++) {
     var p = normalizeOptions(PRESETS[i].options)
     if (n.font === "desktop") p.font = "desktop"
+    LOOK.forEach(function(k) { p[k] = n[k] })
     if (JSON.stringify(p) === JSON.stringify(n)) return PRESETS[i].id
   }
   return ""
@@ -271,7 +291,11 @@ function matchPreset(options) {
 // system change and only follows the font row, so keep it as it is.
 function keepDesktopFont(next, current) {
   var o = normalizeOptions(next)
-  var desktopNow = normalizeOptions(current).font === "desktop"
+  var now = normalizeOptions(current)
+  // A preset or an older saved combination without a look option keeps
+  // the current one.
+  LOOK.forEach(function(k) { if (!next || next[k] === undefined) o[k] = now[k] })
+  var desktopNow = now.font === "desktop"
   if (desktopNow) o.font = "desktop"
   else if (o.font === "desktop") o.font = "bar"
   return o

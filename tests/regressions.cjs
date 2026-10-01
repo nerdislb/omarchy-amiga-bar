@@ -189,3 +189,13 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.equal(ctx.build(layoutBase, ctx.presetById('heute').options, '/plugin/modules').left[0], 'omarchy.menu');
   console.log('PASS: logo option (menu-only module with native workspaces)');
 }
+// Look options (form, fog) sit on top of presets.
+{
+ const now = ctx.normalizeOptions({ fog: 'on', form: 'a500', font: 'bar' });
+ assert.equal(ctx.keepDesktopFont(ctx.presetById('k1').options, now).fog, 'on');
+ assert.equal(ctx.keepDesktopFont(ctx.presetById('k1').options, now).form, 'a500');
+ assert.equal(ctx.keepDesktopFont({ fog: 'off' }, now).fog, 'off');
+ assert.equal(ctx.matchPreset(Object.assign({}, ctx.normalizeOptions(ctx.presetById('k1').options), { fog: 'on', form: 'a500' })), 'k1');
+ assert.equal(ctx.normalizeOptions({}).fog, 'off');
+ assert.equal(ctx.normalizeOptions({}).form, 'full');
+}

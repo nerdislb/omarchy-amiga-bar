@@ -93,7 +93,13 @@ Item {
       else { ink = 0; opening.start() }
     } else {
       opening.stop()
-      if (reduced || grow <= 0) { grow = 0; ink = 0; return }
+      // Switching to another bar popup closes this one at once (as
+      // KeyboardPanel does): no shrinking fog next to the new one.
+      if (reduced || grow <= 0 || panel.popoutSwitchClosing) {
+        closing.stop(); grow = 0; ink = 0
+        if (stage) stage.ghost.opacity = 0
+        return
+      }
       closing.start()
     }
   }

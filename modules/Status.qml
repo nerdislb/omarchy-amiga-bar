@@ -434,7 +434,11 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             y: compactDrive.faceY + 1
             width: Style.space(20); height: 4
-            color: root.driveActive || root.usbPhone !== "" || Bridge.ModuleBus.noteActive ? "#ffb000" : Util.alpha("#ffb000", 0.18)
+            // A500 form: DF0 also lights while a note comes out of the drive
+            // slot on this monitor.
+            readonly property bool noteHere: Bridge.ModuleBus.noteActive && (Bridge.ModuleBus.noteScreen === ""
+              || (!!root.QsWindow.window && !!root.QsWindow.window.screen && root.QsWindow.window.screen.name === Bridge.ModuleBus.noteScreen))
+            color: root.driveActive || root.usbPhone !== "" || noteHere ? "#ffb000" : Util.alpha("#ffb000", 0.18)
           }
         }
       }

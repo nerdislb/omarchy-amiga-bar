@@ -20,6 +20,7 @@ import os
 import re
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
 
 PATH = Path(os.environ.get("OMARCHY_USER_SHELL_TOML", Path.home() / ".config/omarchy/shell.toml"))
@@ -45,22 +46,31 @@ def strip(text):
     end += len(END)
     if text[end:end + 1] == "\n":
         end += 1
-    out = text[:start] + text[end:]
+    # Keys the user added right after the block belong to its [bar] table:
+    # keep the header for them.
+    rest = text[end:]
+    tail = []
+    for line in rest.splitlines():
+        if re.match(r"^\s*\[", line):
+            break
+        tail.append(line)
+    keep = "[bar]\n" if any(l.strip() and not l.strip().startswith("#") for l in tail) else ""
+    out = text[:start] + keep + rest
     return out.rstrip("\n") + "\n" if out.strip() else ""
 
 
 def other_bar_keys(text):
-    """Keys the user sets under [bar] outside our block."""
-    keys, section = [], None
-    for line in strip(text).splitlines():
-        s = line.strip()
-        m = re.match(r"^\[([^\]]+)\]", s)
-        if m:
-            section = m.group(1).strip()
-            continue
-        if section == "bar" and s and not s.startswith("#") and "=" in s:
-            keys.append(s.split("=", 1)[0].strip())
-    return keys
+    """How the file outside our block already defines the bar table (any
+    of these makes a second [bar] table invalid TOML)."""
+    rest = strip(text)
+    try:
+        doc = tomllib.loads(rest)
+    except tomllib.TOMLDecodeError:
+        return ["(file is not valid TOML)"]
+    if "bar" not in doc:
+        return []
+    bar = doc["bar"]
+    return sorted(bar.keys()) if isinstance(bar, dict) and bar else ["[bar] table"]
 
 
 def write(text):
@@ -88,7 +98,13 @@ def main():
             print(json.dumps({"error": "shell.toml already sets [bar] keys: " + ", ".join(others) + " — not changed"}))
             sys.exit(1)
         base = text.rstrip("\n")
-        write((base + "\n\n" if base else "") + BLOCK)
+        result = (base + "\n\n" if base else "") + BLOCK
+        try:
+            tomllib.loads(result)
+        except tomllib.TOMLDecodeError as e:
+            print(json.dumps({"error": "result would not be valid TOML (" + str(e) + ") — not changed"}))
+            sys.exit(1)
+        write(result)
         print(json.dumps({"form": "a500", "changed": True}))
         return
     if action == "disable":

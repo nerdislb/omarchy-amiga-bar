@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
+import qs.Ui
 
 // Bar form "A500 case edge": the bar as the top edge of an Amiga 500, inside
 // the normal bar height — a flat top face, the darker wedge front with a
@@ -38,6 +39,9 @@ PanelWindow {
   readonly property real slotCx: slot ? slot.x + slot.w / 2 : width / 2
   readonly property int slotW: Math.round(Math.max(120, Math.min(220, slot ? slot.w * 0.8 : 200)))
 
+  // Follows monitor moves like the bar (no case left behind meanwhile).
+  ScreenMoveRemap { id: remapGuard; window: win }
+  visible: !remapGuard.remapping
   color: "transparent"
   surfaceFormat.opaque: false
   anchors { top: true; left: true; right: true }

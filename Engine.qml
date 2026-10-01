@@ -211,6 +211,9 @@ Item {
   Binding { target: Bridge.ModuleBus; property: "fog"; value: root.fogOn }
   Binding { target: Bridge.ModuleBus; property: "fogColor"; value: root.fogColor }
   Binding { target: Bridge.ModuleBus; property: "noteActive"; value: root.caseVisible && !!root.islandSpan.note }
+  Binding { target: Bridge.ModuleBus; property: "noteScreen"; value: String(root.islandSpan.noteScreen || "") }
+  // per screen: the note comes out of the slot on the monitor it hangs on
+  function noteOn(screenName) { return !!islandSpan.note && (!islandSpan.noteScreen || islandSpan.noteScreen === screenName) }
 
   // ---------------------------------------------------------------- bar form
   // "a500": the native bar's own fill goes transparent (bin/bar-form.py, a
@@ -219,15 +222,30 @@ Item {
   // once the options are read, so a restart never flashes the other form.
   readonly property string formOption: options.form
   readonly property bool caseVisible: formOption === "a500" && barReady
+  // The bar's fill is transparent only while the case can be under it: on
+  // the native bar at the top (a hidden bar keeps it, no churn).
+  readonly property bool formWanted: formOption === "a500" && !!edgeBar && edgeBar.position === "top"
+    && (!shell.barConfig || !shell.barConfig.id || shell.barConfig.id === "omarchy.bar")
   property string formResult: ""
   property bool formPending: false
-  onFormOptionChanged: if (configLoaded) syncForm()
-  onConfigLoadedChanged: if (configLoaded) syncForm()
+  onFormWantedChanged: if (configLoaded && edgeBar) syncForm()
+  onConfigLoadedChanged: if (configLoaded && edgeBar) syncForm()
+  onEdgeBarChanged: if (configLoaded && edgeBar) syncForm()
   function syncForm() {
     if (formWriter.running) { formPending = true; return }
-    formWriter.action = formOption === "a500" ? "enable" : "disable"
+    formWriter.action = formWanted ? "enable" : "disable"
     formWriter.running = true
   }
+  // Removed or disabled (not just reloaded): give the bar its fill back.
+  // The script is copied to the state dir first, so this works even when
+  // the plugin's files are already gone.
+  Process { running: true; command: ["cp", root.pluginDir + "/bin/bar-form.py", root.stateDir + "/bar-form.py"] }
+  Component.onDestruction: Quickshell.execDetached(["sh", "-c",
+    "sleep 4; c=\"$HOME/.config/omarchy/shell.json\"; " +
+    "jq -e --arg id \"$1\" '([.plugins[]? | select(type == \"object\" and .id == $id)] | length > 0) " +
+    "and (((.disabledPlugins // []) | index($id)) == null)' \"$c\" >/dev/null 2>&1 && exit 0; " +
+    "python3 \"$2\" disable >/dev/null 2>&1",
+    "sh", root.pluginId, root.stateDir + "/bar-form.py"])
   Process {
     id: formWriter
     property string action: "status"
@@ -277,7 +295,7 @@ Item {
         barHeight: root.edgeBar ? root.edgeBar.barSize : Style.bar.sizeHorizontal
         slot: root.islandSpan.screens && root.islandSpan.screens[modelData.name] ? root.islandSpan.screens[modelData.name] : null
         led: root.ledSpans[modelData.name] || null
-        noteOpen: !!root.islandSpan.note
+        noteOpen: root.noteOn(modelData.name)
       }
     }
   }

@@ -43,6 +43,23 @@ class BarForm(unittest.TestCase):
         self.assertIn("error", out)
         self.assertEqual(self.path.read_text(), '[bar]\nbackground = "#000000"\n')
 
+    def test_refuses_empty_or_dotted_bar_table(self):
+        for text in ['[bar]\n', 'bar.text = "#ffffff"\n', '[bar.extra]\nx = 1\n']:
+            self.path.write_text(text)
+            self.assertEqual(run(self.path, "enable")[0], 1, text)
+            self.assertEqual(self.path.read_text(), text)
+
+    def test_user_keys_after_the_block_keep_their_table(self):
+        self.path.write_text('[font]\nbase-size = 14\n')
+        run(self.path, "enable")
+        with open(self.path, "a") as fh:
+            fh.write('text = "#ffffff"\n')
+        run(self.path, "disable")
+        import tomllib
+        doc = tomllib.loads(self.path.read_text())
+        self.assertEqual(doc["bar"], {"text": "#ffffff"})
+        self.assertEqual(doc["font"], {"base-size": 14})
+
     def test_missing_file(self):
         self.assertEqual(run(self.path, "status")[1], {"form": "full", "other_bar_keys": []})
         self.assertEqual(run(self.path, "enable")[0], 0)

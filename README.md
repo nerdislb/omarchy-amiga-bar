@@ -16,6 +16,8 @@ Presets and compact Amiga-style modules for the **native** Omarchy bar. See `ROA
 | AI quotas (`Quota.qml`) | today, gauge, vu, rings, ondemand, title (Workbench title line) |
 | Right side (`Status.qml`) | today, groups, deviations, drawer (Workbench window), hardware (A500 strip), compact (A500 strip, compact) |
 | Bar edge | none (default), workbench (Workbench edge) |
+| Bar form (`A500Case.qml`) | full (default), a500 (A500 case edge) — kept by presets |
+| Fog look (test) (`FogEdge.qml`, `FogPanel.qml`, `FogLayer.qml`) | off (default), on — kept by presets |
 | Logo (`PixelLogo.qml`) | omarchy, amiga (rainbow double tick), boing (Boing ball) — drawn in the pixel font's brick grid with theme colours; with native workspaces only the menu logo is replaced |
 | Centre (`Centre.qml`) | today, calm (temperature at the weather glyph) |
 | Pixel font (NerdWorkbench) | theme · topaz = Amiga moments (menu strip, status screen, Workbench window title, requester, Guru strip, title line) · bar = all Amiga Bar and Island text and icons · desktop = bar + the reversible desktop profile |
@@ -38,6 +40,36 @@ It hides for bottom/side bars, and is removed when set to `none` or when the
 plugin unloads. Existing presets and older saved combinations default to `none`.
 Both options are available in Options and through `amiga-bar set right compact`
 or `amiga-bar set edge workbench` with the usual `omarchy-shell` prefix.
+
+**A500 case edge** (`form: a500`) turns the bar into the top edge of an Amiga
+500 inside the normal bar height: a flat top face, the darker wedge front with
+a light crease, cooling grooves left of the island, an LED window around the
+compact strip and the drive slot under the island; DF0 lights while a note
+comes out of it (the island publishes its span and a note flag in
+`~/.local/state/omarchy/amiga-island/bar-span.json`). The native bar stays the
+bar: `bin/bar-form.py` keeps one managed block in `~/.config/omarchy/shell.toml`
+(`[bar] background-alpha = 0.0`, between `# >>> amiga-bar form` markers) so its
+own fill is transparent while its text keeps the theme colour, and the case is
+drawn on the Bottom layer under it. `full` removes the block; so does removing
+or disabling the plugin (checked 4 s after the engine unloads). The block is
+only written while the bar is the native one at the top, and never when the
+file already defines a `[bar]` table (the script refuses rather than produce
+invalid TOML). Manual undo: `python3 bin/bar-form.py disable`.
+
+**Fog look (test)** (`fog: on`): the bar ends in soft, slightly lumpy fog
+instead of a hard edge (replaces the Workbench edge while on), and everything
+that opens from the bar grows out of it as fog — a drop falls out of the bar,
+swells to the popup's size, then the content fades in; closing reverses and
+leaves a faint fog for a moment. Covered: Amiga Island notes and its popup,
+the Quota and Status popups, the Control Center. Omarchy's own popups (Wi-Fi,
+audio, power, calendar …) keep their cards. The fog is a gooey layer
+(`FogLayer.qml`: blur plus a soft alpha threshold with MultiEffect) in the
+bar's colour, opaque, or the case's front colour with `form: a500`.
+`FogPanel.qml` attaches to an Omarchy `KeyboardPanel` (declare it inside the
+panel). Two Qt details shape the code: the effect chain is built only while
+the layer is visible (a MultiEffect created hidden never drew), and shapes
+change size, never just visibility (the hidden shape layer does not repaint
+for that). Reduced Motion: shapes jump, the content fades.
 
 AI usage records (`~/.local/state/omarchy/agents/usage`) are refreshed by
 `omarchy.agents` only while it sits in the bar. When a variant folds the AI

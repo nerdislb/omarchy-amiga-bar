@@ -199,6 +199,7 @@ Item {
   // the system profile (bin/system-font.py); the option is saved only after
   // the script succeeded, then Ghostty and the shell reload.
   Binding { target: Bridge.ModuleBus; property: "fontLevel"; value: root.options.font }
+  Binding { target: Bridge.ModuleBus; property: "fog"; value: root.fogOn }
   property string systemProfile: "unknown"   // normal · amiga · partial
   property string systemFontResult: ""
   property string pendingFont: ""

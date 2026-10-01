@@ -1,5 +1,6 @@
 import QtQuick
 import "../bridge" as Bridge
+import ".." as Root
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -330,6 +331,9 @@ Item {
     focusTarget: popupKeys
     contentWidth: Style.space(440)
     contentHeight: popup.fittedContentHeight(list.implicitHeight)
+
+    // Fog look (test): the popup grows out of the bar as fog.
+    Root.FogPanel { panel: popup; fog: Bridge.ModuleBus.fog }
 
     Item {
       id: popupKeys

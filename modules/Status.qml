@@ -1,5 +1,6 @@
 import QtQuick
 import "../bridge" as Bridge
+import ".." as Root
 import Quickshell
 import Quickshell.Io
 import Quickshell.Bluetooth
@@ -634,6 +635,9 @@ Item {
     focusTarget: popupKeys
     contentWidth: root.workbench ? Style.space(470) : Style.space(360)
     contentHeight: popup.fittedContentHeight(content.implicitHeight)
+
+    // Fog look (test): the popup grows out of the bar as fog.
+    Root.FogPanel { panel: popup; fog: Bridge.ModuleBus.fog }
 
     Item {
       id: popupKeys

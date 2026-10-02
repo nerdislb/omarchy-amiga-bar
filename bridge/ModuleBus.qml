@@ -6,6 +6,9 @@ import qs.Commons
 
 QtObject {
   property var instances: ({})
+  // The bar colour as an opaque ink/fill. The A500 form makes the native
+  // bar's background transparent, so Color.bar.background has alpha 0 then.
+  readonly property color barColor: Qt.rgba(Color.bar.background.r, Color.bar.background.g, Color.bar.background.b, 1)
   // Fog look (test), set by the engine from the `fog` option.
   property bool fog: false
   property color fogColor: "black"

@@ -193,7 +193,7 @@ Item {
             opacity: pips.grow
             text: modelData === 10 ? "0" : String(modelData)
             font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.bodySmall)
-            color: parent.occ ? Color.bar.background : root.fg
+            color: parent.occ ? Bridge.ModuleBus.barColor : root.fg
           }
           MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.focusWorkspace(parent.modelData) }
         }
@@ -212,7 +212,7 @@ Item {
           opacity: pips.grow
           text: root.active === 10 ? "0" : String(root.active)
           font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.bodySmall)
-          color: Color.bar.background
+          color: Bridge.ModuleBus.barColor
         }
       }
       Rectangle {
@@ -240,7 +240,7 @@ Item {
           x: n * Style.space(4)
           y: (root.barSize - parent.box) / 2 - n * Style.space(2) + Style.space(2)
           width: parent.box; height: parent.box
-          color: Color.bar.background
+          color: Bridge.ModuleBus.barColor
           border.width: 1
           border.color: root.urgent(parent.others[n - 1]) ? root.urgentColor : root.dim
           z: -n
@@ -249,7 +249,7 @@ Item {
       Rectangle {
         y: (root.barSize - parent.box) / 2 + Style.space(2)
         width: parent.box; height: parent.box
-        color: Color.bar.background
+        color: Bridge.ModuleBus.barColor
         border.width: Math.max(1, Style.space(1.5)); border.color: root.accent
         Text { renderType: Text.NativeRendering; anchors.centerIn: parent; text: root.active === 10 ? "0" : String(root.active); font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.body); color: root.fg }
       }
@@ -305,7 +305,7 @@ Item {
           readonly property int n: Math.max(1, root.windows(modelData))
           anchors.verticalCenter: parent.verticalCenter
           width: Math.round(root.barSize * 0.9); height: Math.round(root.barSize * 0.6)
-          color: act ? Qt.lighter(Color.bar.background, 1.6) : Qt.darker(Color.bar.background, 1.3)
+          color: act ? Qt.lighter(Bridge.ModuleBus.barColor, 1.6) : Qt.darker(Bridge.ModuleBus.barColor, 1.3)
           border.width: act ? Math.max(1, Style.space(1.5)) : 1
           border.color: root.urgent(modelData) ? root.urgentColor : act ? root.accent : root.dim
           Row {

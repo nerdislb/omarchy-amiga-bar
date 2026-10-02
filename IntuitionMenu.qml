@@ -42,7 +42,7 @@ PanelWindow {
   onCurrentChanged: { item = -1; menuScroll.contentY = 0 }
 
   readonly property color stripBg: Color.bar.text
-  readonly property color stripInk: Color.bar.background
+  readonly property color stripInk: Bridge.ModuleBus.barColor
   readonly property int barH: Style.bar.sizeHorizontal
 
   screen: {
@@ -119,7 +119,7 @@ PanelWindow {
           width: tl.layoutWidth + Style.space(24)
           height: strip.height
           color: hot ? Color.accent : "transparent"
-          Label { id: tl; x: Style.space(12); anchors.verticalCenter: parent.verticalCenter; text: title.modelData.title; color: title.hot ? Color.bar.background : win.stripInk }
+          Label { id: tl; x: Style.space(12); anchors.verticalCenter: parent.verticalCenter; text: title.modelData.title; color: title.hot ? Bridge.ModuleBus.barColor : win.stripInk }
           MouseArea {
             anchors.fill: parent; hoverEnabled: true
             onPositionChanged: function(mouse) { if (win.pointerMoved(this, mouse)) win.current = title.index }
@@ -199,7 +199,7 @@ PanelWindow {
               anchors.verticalCenter: parent.verticalCenter
               text: row.modelData.checked ? "✓" : ""
               font.family: Bridge.ModuleBus.momentFamily; font.bold: true; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body)
-              color: row.hot ? Color.bar.background : win.stripInk
+              color: row.hot ? Bridge.ModuleBus.barColor : win.stripInk
             }
             Label {
               id: rl
@@ -207,7 +207,7 @@ PanelWindow {
               width: Math.max(0, (rowContent.width - Style.space(20)) / (1))
               elide: Text.ElideRight
               text: row.modelData.label || ""
-              color: row.hot ? Color.bar.background : win.stripInk
+              color: row.hot ? Bridge.ModuleBus.barColor : win.stripInk
               opacity: row.modelData.disabled ? 0.45 : 1
             }
           }
@@ -222,7 +222,7 @@ PanelWindow {
               anchors.verticalCenter: parent.verticalCenter
               text: row.modelData.note || ""
               font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption)
-              color: row.hot ? Color.bar.background : Util.alpha(win.stripInk, 0.7)
+              color: row.hot ? Bridge.ModuleBus.barColor : Util.alpha(win.stripInk, 0.7)
             }
             // Amiga key (= Super) shortcut hint
             Row {
@@ -231,10 +231,10 @@ PanelWindow {
               spacing: Style.space(3)
               Rectangle {
                 width: Bridge.ModuleBus.pixelMoments ? 18 : Style.space(14); height: width
-                color: "transparent"; border.width: 1; border.color: row.hot ? Color.bar.background : win.stripInk
-                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.centerIn: parent; text: "A"; font.family: Bridge.ModuleBus.momentFamily; font.bold: true; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption - 1); color: row.hot ? Color.bar.background : win.stripInk }
+                color: "transparent"; border.width: 1; border.color: row.hot ? Bridge.ModuleBus.barColor : win.stripInk
+                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.centerIn: parent; text: "A"; font.family: Bridge.ModuleBus.momentFamily; font.bold: true; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption - 1); color: row.hot ? Bridge.ModuleBus.barColor : win.stripInk }
               }
-              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; text: row.modelData.key || ""; font.family: Bridge.ModuleBus.momentFamily; font.bold: true; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption); color: row.hot ? Color.bar.background : win.stripInk }
+              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; text: row.modelData.key || ""; font.family: Bridge.ModuleBus.momentFamily; font.bold: true; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption); color: row.hot ? Bridge.ModuleBus.barColor : win.stripInk }
             }
           }
 

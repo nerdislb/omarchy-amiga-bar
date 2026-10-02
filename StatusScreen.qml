@@ -76,21 +76,21 @@ PanelWindow {
         font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body)
         font.bold: !Bridge.ModuleBus.pixelMoments
         renderType: Text.NativeRendering
-        color: Color.bar.background
+        color: Bridge.ModuleBus.barColor
       }
       Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
         anchors.right: gadget.left; anchors.rightMargin: Style.space(14); anchors.verticalCenter: parent.verticalCenter
         text: Qt.formatDateTime(clock.date, "dddd, d. MMMM · HH:mm") + "   ·   Super+M / Esc to go back"
         font.family: Bridge.ModuleBus.momentFamily; font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption)
-        color: Util.alpha(Color.bar.background, 0.7)
+        color: Util.alpha(Bridge.ModuleBus.barColor, 0.7)
       }
       // Depth gadget: front/back
       Item {
         id: gadget
         anchors.right: parent.right
         width: parent.height; height: parent.height
-        Rectangle { x: parent.width * 0.2; y: parent.height * 0.2; width: parent.width * 0.42; height: parent.height * 0.38; color: "transparent"; border.width: 1; border.color: Color.bar.background }
-        Rectangle { x: parent.width * 0.38; y: parent.height * 0.42; width: parent.width * 0.42; height: parent.height * 0.38; color: Color.bar.background }
+        Rectangle { x: parent.width * 0.2; y: parent.height * 0.2; width: parent.width * 0.42; height: parent.height * 0.38; color: "transparent"; border.width: 1; border.color: Bridge.ModuleBus.barColor }
+        Rectangle { x: parent.width * 0.38; y: parent.height * 0.42; width: parent.width * 0.42; height: parent.height * 0.38; color: Bridge.ModuleBus.barColor }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.closeRequested() }
       }
     }

@@ -311,9 +311,9 @@ Item {
       height: root.barSize
       Rectangle {
         anchors.fill: parent; anchors.topMargin: Style.space(3); anchors.bottomMargin: Style.space(3)
-        color: Qt.lighter(Color.bar.background, 1.35)
+        color: Qt.lighter(Bridge.ModuleBus.barColor, 1.35)
         Rectangle { width: parent.width; height: 1; color: Util.alpha(root.fg, 0.25) }
-        Rectangle { y: parent.height - 1; width: parent.width; height: 1; color: Qt.darker(Color.bar.background, 1.6) }
+        Rectangle { y: parent.height - 1; width: parent.width; height: 1; color: Qt.darker(Bridge.ModuleBus.barColor, 1.6) }
       }
       Row {
         id: caseRow
@@ -361,7 +361,7 @@ Item {
           Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width; height: Math.round(root.barSize * 0.56)
-            color: Qt.darker(Color.bar.background, 1.3)
+            color: Qt.darker(Bridge.ModuleBus.barColor, 1.3)
             border.width: 1; border.color: Util.alpha(root.fg, 0.15)
             Text { id: df0Label; renderType: Text.NativeRendering; textFormat: Text.PlainText; x: Style.space(6); anchors.verticalCenter: parent.verticalCenter; text: "DF0:"; font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: Util.alpha(root.fg, 0.6) }
             Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
@@ -383,9 +383,9 @@ Item {
       height: root.barSize
       Rectangle {
         anchors.fill: parent; anchors.topMargin: 1; anchors.bottomMargin: 1
-        color: Qt.lighter(Color.bar.background, 1.35)
+        color: Qt.lighter(Bridge.ModuleBus.barColor, 1.35)
         Rectangle { width: parent.width; height: 1; color: Util.alpha(root.fg, 0.25) }
-        Rectangle { y: parent.height - 1; width: parent.width; height: 1; color: Qt.darker(Color.bar.background, 1.6) }
+        Rectangle { y: parent.height - 1; width: parent.width; height: 1; color: Qt.darker(Bridge.ModuleBus.barColor, 1.6) }
       }
       Row {
         id: compactRow

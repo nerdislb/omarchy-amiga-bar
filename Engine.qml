@@ -213,6 +213,8 @@ Item {
   // theme/topaz/bar only change our own text, live. "desktop" also installs
   // the system profile (bin/system-font.py); the option is saved only after
   // the script succeeded, then Ghostty and the shell reload.
+  Binding { target: Bridge.ModuleBus; property: "engine"; value: root }
+  Binding { target: Bridge.ModuleBus; property: "menuStyle"; value: root.options.menu }
   Binding { target: Bridge.ModuleBus; property: "fontLevel"; value: root.options.font }
   Binding { target: Bridge.ModuleBus; property: "fog"; value: root.fogOn }
   Binding { target: Bridge.ModuleBus; property: "fogColor"; value: root.fogColor }
@@ -459,7 +461,10 @@ Item {
   // ---------------------------------------------------------------- menu strip + status screen (stage D)
   property bool menuOpen: false
   property bool screenOpen: false
-  SysState { id: sysState; active: root.menuOpen || root.screenOpen }
+  // The drop-down logo menu (DropMenu.qml) lives in the workspaces module.
+  property bool dropMenuOpen: false
+  function syncDropMenu() { dropMenuOpen = (Bridge.ModuleBus.instances.workspaces || []).some(function(i) { return i.dropOpen }) }
+  SysState { id: sysState; active: root.menuOpen || root.screenOpen || root.dropMenuOpen }
   readonly property alias sys: sysState
 
   function run(cmd) { Quickshell.execDetached(["sh", "-c", cmd]) }
@@ -482,12 +487,24 @@ Item {
       Object.keys(i.mounted).forEach(function(id) { var m = i.mounted[id]; if (m && typeof m.close === "function") m.close() })
     })
     ;(Bridge.ModuleBus.instances.quota || []).forEach(function(i) { i.close() })
+    ;(Bridge.ModuleBus.instances.workspaces || []).forEach(function(i) { i.close() })
   }
   onIsOpenChanged: if (isOpen) { closeModulePopups(); refreshSystemFont() }
   Component.onCompleted: refreshSystemFont()
   onMenuOpenChanged: if (menuOpen) { isOpen = false; screenOpen = false; closeModulePopups() }
+  onDropMenuOpenChanged: if (dropMenuOpen) { isOpen = false; screenOpen = false; menuOpen = false }
   onScreenOpenChanged: if (screenOpen) { isOpen = false; menuOpen = false; closeModulePopups(); refreshUsage("limits") }
   function openScreen() { menuOpen = false; screenOpen = true }
+  // Super+Alt+M / logo: the drop-down menu under the logo of the focused
+  // screen, or the menu strip (option menu = "strip", or no logo shown).
+  function toggleMenu() {
+    screenOpen = false
+    if (options.menu !== "strip") {
+      var w = Bridge.ModuleBus.pick("workspaces")
+      if (w && w.showMenu) { menuOpen = false; w.toggleDrop(); return }
+    }
+    menuOpen = !menuOpen
+  }
 
   // Menus (built on demand from live state). Items: { label, note, checked,
   // key, disabled, separator, action }.
@@ -544,6 +561,24 @@ Item {
     ]
   }
 
+  // The same menus for the drop-down: our groups under the Omarchy menu
+  // (whose own entries replace "Omarchy menu …"). Items as in menuModel().
+  function dropGroups() {
+    var m = menuModel()
+    function items(title) { for (var i = 0; i < m.length; i++) if (m[i].title === title) return m[i].items; return [] }
+    function pick(title, labels) { return items(title).filter(function(e) { return labels.indexOf(e.label) !== -1 }) }
+    var sep = { separator: true }
+    return [
+      { id: "agents", title: "Agents", icon: "\u{f06a9}", items: items("Agents") },
+      { id: "network", title: "Network", icon: "\u{f05a9}", items: items("Network") },
+      { id: "phone", title: "Phone", icon: "\u{f011c}", items: items("Phone") },
+      { id: "widgets", title: "Widgets", icon: "\u{f056e}", items: items("System") },
+      { id: "amiga", title: "Amiga", icon: "\u{f02ca}",
+        items: pick("Tools", ["Status screen", "Open island", "Control Center …"]).concat([sep],
+               pick("Omarchy", ["Terminal", "Do not disturb", "Stay awake"]), [sep], pick("Tools", ["Concept gallery"])) }
+    ]
+  }
+
   IntuitionMenu {
     id: intuitionMenu
     host: root
@@ -588,7 +623,9 @@ Item {
     }
     function save(name: string): string { return root.saveCombination(name) }
     function load(name: string): string { return root.loadCombination(name) }
-    function menu(): void { root.screenOpen = false; root.menuOpen = !root.menuOpen }
+    function menu(): void { root.toggleMenu() }
+    // The menu strip, whatever the menu option says.
+    function strip(): void { root.screenOpen = false; root.menuOpen = !root.menuOpen }
     function screen(): void { root.menuOpen = false; root.screenOpen = !root.screenOpen }
     function preset(id: string): string { return root.applyPreset(id) }
     function set(element: string, variant: string): string { return root.setVariant(element, variant) }
@@ -600,7 +637,7 @@ Item {
     }
     function state(): string {
       return JSON.stringify({ preset: root.presetId, options: root.options, hasBase: root.baseLayout !== null,
-                              open: root.isOpen, menuOpen: root.menuOpen, screenOpen: root.screenOpen, saved: root.savedPresets.map(function(p) { return p.name }), lastResult: root.lastResult, moduleDir: root.moduleDir,
+                              open: root.isOpen, menuOpen: root.menuOpen, dropMenuOpen: root.dropMenuOpen, screenOpen: root.screenOpen, saved: root.savedPresets.map(function(p) { return p.name }), lastResult: root.lastResult, moduleDir: root.moduleDir,
                               systemFont: root.systemProfile, fontResult: root.systemFontResult,
                               form: { option: root.formOption, caseVisible: root.caseVisible, result: root.formResult, island: root.islandSpan, led: root.ledSpans },
                               usage: { folded: root.usageFolded, intervalSec: root.usageIntervalSec, running: usageUpdate.running, command: usageUpdate.command },

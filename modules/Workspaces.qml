@@ -1,5 +1,6 @@
 import QtQuick
 import "../bridge" as Bridge
+import ".." as Root
 import Quickshell.Hyprland
 import qs.Commons
 import qs.Ui
@@ -10,10 +11,11 @@ import qs.Ui
 //     "variant": "pips" | "stack" | "logo" | "minimap" | "cli" | "boing"
 //                | "none" (menu logo only, next to the native workspaces),
 //     "menu": true, "logo": "omarchy" | "amiga" | "boing" }
-// Left click on a workspace focuses it, on the logo opens the Omarchy menu
-// (right click: the Amiga menu strip — the terminal lives in its Omarchy
-// menu; middle click: Amiga Bar options). The mouse wheel
-// steps through workspaces in every variant.
+// Left click on a workspace focuses it. On the logo, with the "menu" option
+// "drop" (default): left click folds out the drop-down menu (DropMenu.qml),
+// right click opens Omarchy's own centred menu; with "strip": left click the
+// Omarchy menu, right click the Amiga menu strip. Middle click: the Control
+// Center. The mouse wheel steps through workspaces in every variant.
 Item {
   id: root
 
@@ -72,11 +74,58 @@ Item {
     var next = ids[Math.max(0, Math.min(ids.length - 1, (i < 0 ? 0 : i) + delta))]
     if (next !== active) focusWorkspace(next)
   }
+  readonly property bool dropStyle: Bridge.ModuleBus.menuStyle !== "strip"
   function openMenu(button) {
     if (!bar) return
     if (button === Qt.MiddleButton) bar.run("omarchy-shell amiga-bar options")
-    else if (button === Qt.RightButton) bar.run("omarchy-shell amiga-bar menu")
+    else if (dropStyle && button !== Qt.RightButton) toggleDrop()
+    else if (!dropStyle && button === Qt.RightButton) bar.run("omarchy-shell amiga-bar strip")
     else bar.run("omarchy-shell shell toggle omarchy.menu '{\"menu\":\"root\"}'")
+  }
+
+  // ---------------------------------------------------------------- drop-down menu
+  // Popup contract for the panel and the bar's single-popout coordinator.
+  // Only with the logo shown and the "drop" option; otherwise open() is a
+  // no-op, so panel navigation never holds an invisible "opened" owner.
+  readonly property bool dropAvailable: showMenu && dropStyle && !!bar
+  property bool dropOpen: false
+  readonly property bool opened: dropOpen
+  property bool popoutSwitchClosing: false
+  function open() { if (dropAvailable) dropOpen = true }
+  function close() { dropOpen = false }
+  function closeForPopoutSwitch() { popoutSwitchClosing = true; dropOpen = false; Qt.callLater(function() { root.popoutSwitchClosing = false }) }
+  function toggleDrop() { if (dropOpen) close(); else open() }
+  function syncDrop() { if (Bridge.ModuleBus.engine) Bridge.ModuleBus.engine.syncDropMenu() }
+  onDropOpenChanged: syncDrop()
+  // Close (and so release the bar's popout) before the panel goes away.
+  onDropAvailableChanged: if (!dropAvailable) close()
+
+  // The logo as a bar click target: with a popup open, the panel covers the
+  // bar and forwards clicks only to registered targets.
+  property var registeredBar: null
+  function syncClickRegistration() {
+    if (registeredBar && registeredBar.unregisterClickTarget) registeredBar.unregisterClickTarget(menuSlot)
+    registeredBar = root.bar
+    if (registeredBar && registeredBar.registerClickTarget) registeredBar.registerClickTarget(menuSlot)
+  }
+  onBarChanged: syncClickRegistration()
+  Component.onCompleted: { Bridge.ModuleBus.register("workspaces", root); syncClickRegistration() }
+  Component.onDestruction: {
+    dropOpen = false
+    if (registeredBar && registeredBar.unregisterClickTarget) registeredBar.unregisterClickTarget(menuSlot)
+    Bridge.ModuleBus.unregister("workspaces", root); syncDrop()
+  }
+
+  Loader {
+    active: root.dropAvailable || root.dropOpen
+    sourceComponent: Component {
+      Root.DropMenu {
+        anchorItem: menuSlot
+        owner: root
+        bar: root.bar
+        open: root.dropOpen
+      }
+    }
   }
 
   readonly property real menuWidth: showMenu ? barSize + Style.space(4) : 0
@@ -87,6 +136,7 @@ Item {
   Item {
     id: menuSlot
     visible: root.showMenu
+    function triggerPress(button) { root.openMenu(button) }
     width: root.menuWidth
     height: root.barSize
 
@@ -305,7 +355,8 @@ Item {
           readonly property int n: Math.max(1, root.windows(modelData))
           anchors.verticalCenter: parent.verticalCenter
           width: Math.round(root.barSize * 0.9); height: Math.round(root.barSize * 0.6)
-          color: act ? Qt.lighter(Bridge.ModuleBus.barColor, 1.6) : Qt.darker(Bridge.ModuleBus.barColor, 1.3)
+          color: Bridge.ModuleBus.barLight ? Qt.darker(Bridge.ModuleBus.barColor, act ? 1.04 : 1.16)
+                 : act ? Qt.lighter(Bridge.ModuleBus.barColor, 1.6) : Qt.darker(Bridge.ModuleBus.barColor, 1.3)
           border.width: act ? Math.max(1, Style.space(1.5)) : 1
           border.color: root.urgent(modelData) ? root.urgentColor : act ? root.accent : root.dim
           Row {

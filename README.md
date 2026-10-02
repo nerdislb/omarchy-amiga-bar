@@ -18,6 +18,7 @@ Presets and compact Amiga-style modules for the **native** Omarchy bar. See `ROA
 | Bar edge | none (default), workbench (Workbench edge) |
 | Bar form (`A500Case.qml`) | full (default), a500 (A500 case edge) — kept by presets |
 | Fog look (test) (`FogEdge.qml`, `FogPanel.qml`, `FogLayer.qml`) | off (default), on — kept by presets |
+| Logo menu (`DropMenu.qml`, `IntuitionMenu.qml`) | drop (default, drop-down under the logo), strip (menu strip) — kept by presets |
 | Logo (`PixelLogo.qml`) | omarchy, amiga (rainbow double tick), boing (Boing ball) — drawn in the pixel font's brick grid with theme colours; with native workspaces only the menu logo is replaced |
 | Centre (`Centre.qml`) | today, calm (temperature at the weather glyph) |
 | Pixel font (NerdWorkbench) | theme · topaz = Amiga moments (menu strip, status screen, Workbench window title, requester, Guru strip, title line) · bar = all Amiga Bar and Island text and icons · desktop = bar + the reversible desktop profile |
@@ -90,9 +91,10 @@ it replaces only the `logo` object of `~/.config/fastfetch/config.jsonc`
 `restore` puts the previous logo back and removes file and hook; `status`
 reports the state. Test: `python3 tests/fastfetch_logo.py`.
 
-## Menu strip and status screen
-- `IntuitionMenu.qml`: Omarchy · Agents · System · Network · Phone · Tools, opened by right click on the Omarchy logo or **Super+Alt+M**; arrows/Enter/Esc; toggles show ✓ (DND, stay awake, VPN, Tailscale).
-- `StatusScreen.qml`: the "screen behind the Workbench" with agents, nbtiles tests, AI quotas, phone, today & tomorrow, system & network; **Super+M** (Amiga-M) or Esc. `SysState.qml` polls only while one of them is open.
+## Logo menu, menu strip and status screen
+- `DropMenu.qml` (`menu: drop`, default): left click on the logo or **Super+Alt+M** folds out one tall menu under the logo (with the fog look it grows out of the bar as fog). On top the Omarchy menu itself — `omarchy-menu.jsonc` plus `~/.config/omarchy/extensions/omarchy-menu.jsonc`, read by `OmarchyMenuSource.qml` with Omarchy's own model library (`vendor/MenuModel.js`, unchanged copy) including `when:`/`checked:`/`disabled:` guards; below our groups Agents · Network · Phone · Widgets · Amiga. Submenus open inside it (‹ back), typing searches the whole tree; ↑↓, Enter/→, ←/Backspace, Esc. Lists the shell fills in (Apps, fonts) open the native menu there. Right click on the logo: Omarchy's own centred menu.
+- `IntuitionMenu.qml` (`menu: strip`): Omarchy · Agents · System · Network · Phone · Tools, opened by right click on the Omarchy logo or **Super+Alt+M**; arrows/Enter/Esc; toggles show ✓ (DND, stay awake, VPN, Tailscale). `amiga-bar strip` opens it with either option.
+- `StatusScreen.qml`: the "screen behind the Workbench" with agents, nbtiles tests, AI quotas, phone, today & tomorrow, system & network; **Super+M** (Amiga-M) or Esc. `SysState.qml` polls only while one of them (or the drop-down) is open.
 - Keybindings live in a managed block in `~/.config/hypr/bindings.lua` (`BEGIN/END Amiga Bar (managed)`).
 
 ## Companion: Amiga Island

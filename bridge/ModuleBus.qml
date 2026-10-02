@@ -9,6 +9,14 @@ QtObject {
   // The bar colour as an opaque ink/fill. The A500 form makes the native
   // bar's background transparent, so Color.bar.background has alpha 0 then.
   readonly property color barColor: Qt.rgba(Color.bar.background.r, Color.bar.background.g, Color.bar.background.b, 1)
+  // Light themes (Amiga 500 Kickstart …): Qt.lighter() runs into white
+  // there, so raised and sunken parts are drawn the other way round.
+  function isLight(c) { return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b > 0.55 }
+  readonly property bool barLight: isLight(barColor)
+  // The engine, for modules that show its menus (set by the engine).
+  property var engine: null
+  // Logo menu: "drop" (DropMenu.qml) or "strip" (IntuitionMenu.qml).
+  property string menuStyle: "drop"
   // Fog look (test), set by the engine from the `fog` option.
   property bool fog: false
   property color fogColor: "black"

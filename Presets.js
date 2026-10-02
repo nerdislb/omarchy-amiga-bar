@@ -5,7 +5,7 @@
 // first preset) and the chosen options, and gets a full bar.layout back.
 //
 // Options: { workspaces, ai, right, edge, logo, centre, effects, font, form,
-// fog } — see ELEMENTS. effects/font/fog are read by the Amiga Island too
+// fog, menu } — see ELEMENTS. effects/font/fog are read by the Amiga Island too
 // (Guru look, Boing, Copper, NerdWorkbench, fog cards). font "desktop" also
 // installs the system font profile; only the font row switches it, presets
 // and saved combinations never do.
@@ -96,12 +96,19 @@ var ELEMENTS = {
       { id: "off", label: "Off" },
       { id: "on", label: "On" }
     ]
+  },
+  menu: {
+    label: "Logo menu",
+    variants: [
+      { id: "drop", label: "Drop-down" },
+      { id: "strip", label: "Menu strip" }
+    ]
   }
 }
 
 // Look options that sit on top of any preset: presets keep the current
 // value, and preset matching ignores them.
-var LOOK = ["form", "fog"]
+var LOOK = ["form", "fog", "menu"]
 
 // Presets from the concept film.
 var PRESETS = [

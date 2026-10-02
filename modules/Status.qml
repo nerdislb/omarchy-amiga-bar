@@ -309,12 +309,7 @@ Item {
       visible: root.variant === "hardware"
       width: visible ? caseRow.implicitWidth + Style.space(16) : 0
       height: root.barSize
-      Rectangle {
-        anchors.fill: parent; anchors.topMargin: Style.space(3); anchors.bottomMargin: Style.space(3)
-        color: Qt.lighter(Bridge.ModuleBus.barColor, 1.35)
-        Rectangle { width: parent.width; height: 1; color: Util.alpha(root.fg, 0.25) }
-        Rectangle { y: parent.height - 1; width: parent.width; height: 1; color: Qt.darker(Bridge.ModuleBus.barColor, 1.6) }
-      }
+      CaseWindow { anchors.fill: parent; anchors.topMargin: Style.space(3); anchors.bottomMargin: Style.space(3) }
       Row {
         id: caseRow
         x: Style.space(8)
@@ -381,12 +376,7 @@ Item {
       visible: root.variant === "compact"
       width: visible ? compactRow.implicitWidth : 0
       height: root.barSize
-      Rectangle {
-        anchors.fill: parent; anchors.topMargin: 1; anchors.bottomMargin: 1
-        color: Qt.lighter(Bridge.ModuleBus.barColor, 1.35)
-        Rectangle { width: parent.width; height: 1; color: Util.alpha(root.fg, 0.25) }
-        Rectangle { y: parent.height - 1; width: parent.width; height: 1; color: Qt.darker(Bridge.ModuleBus.barColor, 1.6) }
-      }
+      CaseWindow { anchors.fill: parent; anchors.topMargin: 1; anchors.bottomMargin: 1 }
       Row {
         id: compactRow
         height: parent.height
@@ -438,7 +428,7 @@ Item {
             // slot on this monitor.
             readonly property bool noteHere: Bridge.ModuleBus.noteActive && (Bridge.ModuleBus.noteScreen === ""
               || (!!root.QsWindow.window && !!root.QsWindow.window.screen && root.QsWindow.window.screen.name === Bridge.ModuleBus.noteScreen))
-            color: root.driveActive || root.usbPhone !== "" || noteHere ? "#ffb000" : Util.alpha("#ffb000", 0.18)
+            color: root.driveActive || root.usbPhone !== "" || noteHere ? "#ffb000" : Util.alpha("#ffb000", Bridge.ModuleBus.barLight ? 0.4 : 0.18)
           }
         }
       }
@@ -537,6 +527,15 @@ Item {
       font.pixelSize: Bridge.ModuleBus.px(Math.max(7, Style.font.caption - 3))
       color: Util.alpha(root.fg, 0.6)
     }
+  }
+
+  // The A500 strips' panel: raised on dark themes; on light ones a sunken
+  // window instead (Qt.lighter() would turn it into a white box there).
+  component CaseWindow: Rectangle {
+    readonly property bool light: Bridge.ModuleBus.barLight
+    color: light ? Qt.darker(Bridge.ModuleBus.barColor, 1.07) : Qt.lighter(Bridge.ModuleBus.barColor, 1.35)
+    Rectangle { width: parent.width; height: 1; color: parent.light ? Util.alpha("#000000", 0.22) : Util.alpha(root.fg, 0.25) }
+    Rectangle { y: parent.height - 1; width: parent.width; height: 1; color: parent.light ? Util.alpha("#ffffff", 0.75) : Qt.darker(Bridge.ModuleBus.barColor, 1.6) }
   }
 
   component Glyph: Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;

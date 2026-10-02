@@ -38,7 +38,7 @@ var CARDS_SETTING = { key: "override", label: "Theme & wallpaper menus",
   values: [{ id: "enabled", label: "Card picker" }, { id: "disabled", label: "Omarchy pickers" }] }
 
 // Quick area: the most-used switches, in this order.
-var QUICK = ["bar.fog", "bar.form", "bar.edge", "island.notifications", "island.noteStyle", "bar.font"]
+var QUICK = ["bar.fog", "bar.form", "bar.edge", "bar.menu", "island.notifications", "island.noteStyle", "bar.font"]
 
 function copy(v) { return JSON.parse(JSON.stringify(v)) }
 

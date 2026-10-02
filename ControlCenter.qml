@@ -1178,12 +1178,15 @@ PanelWindow {
   }
 
   // 1 px Workbench bevel: light top/left, dark bottom/right (swapped when inset).
+  // On light themes the highlight has to be near white to show at all, and
+  // the shadow softer, or only the dark half of the frame is seen.
   component Bevel: Item {
     id: bevel
     property bool inset: false
     property color fill: "transparent"
-    readonly property color light: Util.alpha("#ffffff", 0.22)
-    readonly property color shade: Util.alpha("#000000", 0.5)
+    readonly property bool lightTheme: Bridge.ModuleBus.isLight(Color.popups.background)
+    readonly property color light: lightTheme ? Util.alpha("#ffffff", 0.85) : Util.alpha("#ffffff", 0.22)
+    readonly property color shade: lightTheme ? Util.alpha("#000000", 0.32) : Util.alpha("#000000", 0.5)
     Rectangle { anchors.fill: parent; color: bevel.fill }
     Rectangle { width: parent.width; height: 1; color: bevel.inset ? bevel.shade : bevel.light }
     Rectangle { width: 1; height: parent.height; color: bevel.inset ? bevel.shade : bevel.light }

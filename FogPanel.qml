@@ -17,6 +17,14 @@ Item {
   property bool fog: false
   // The colour the bar ends in (opaque).
   property color color: Qt.rgba(Color.bar.background.r, Color.bar.background.g, Color.bar.background.b, 1)
+  // Edge, with and without fog: a faint line in the text colour and a soft
+  // shadow, so a popup in the bar's colour still stands apart from windows
+  // of the same colour behind it. With fog the line follows the fog's shape.
+  property bool edge: true
+  readonly property bool lightTheme: 0.2126 * Color.popups.background.r + 0.7152 * Color.popups.background.g + 0.0722 * Color.popups.background.b > 0.55
+  readonly property color rimColor: Util.alpha(Color.popups.text, lightTheme ? 0.24 : 0.22)
+  readonly property real rim: 1.5
+  readonly property real shadowOpacity: lightTheme ? 0.22 : 0.55
 
   // Inside the panel we sit in its content holder; its parent is the card,
   // and the card's parent the panel window's root item.
@@ -85,7 +93,12 @@ Item {
   NumberAnimation { id: ghostFade; property: "opacity"; to: 0; duration: 760; easing.type: Easing.InQuad }
 
   function follow() {
-    if (!active) { opening.stop(); closing.stop(); grow = 0; ink = 1; return }
+    // Fog off: only stop. Writing grow/ink here would still go through the
+    // card's opacity Binding (not yet released) and start the panel's
+    // opacity Behavior, which then outlives the restored binding — closed
+    // popups came back fully opaque and never unmapped. Turning the fog on
+    // again resets both below.
+    if (!active) { opening.stop(); closing.stop(); return }
     if (panel.open) {
       closing.stop()
       if (reduced) { grow = 1; ink = 1; return }
@@ -132,6 +145,43 @@ Item {
         layer.enabled: stageItem.visible
         layer.effect: MultiEffect { blurEnabled: true; blur: 1; blurMax: 48; autoPaddingEnabled: false }
         Rectangle { id: ghost; opacity: 0; radius: 12; color: fp.color }
+        // soft shadow under the blob, kept off the bar's edge
+        Rectangle {
+          visible: fp.edge
+          x: fp.blob.x - stageItem.x + 4
+          y: 18
+          width: fp.grow > 0 ? Math.max(0, fp.blob.w - 8) : 0
+          height: Math.max(0, fp.blob.h - 12)
+          radius: 12
+          color: Qt.rgba(0, 0, 0, fp.shadowOpacity)
+        }
+      }
+
+      // the edge line: the same shapes a little larger, in the rim colour,
+      // under the fog itself
+      FogLayer {
+        visible: fp.edge
+        y: -fp.margin
+        width: stageItem.width
+        height: stageItem.height + fp.margin
+        color: fp.rimColor
+        blurMax: 24
+        threshold: 0.4
+        softness: 0.5
+        Rectangle {
+          x: fp.blob.x - stageItem.x - 14 - fp.rim
+          width: fp.grow > 0 ? fp.blob.w + 28 + 2 * fp.rim : 0
+          height: fp.margin + 1
+          color: "white"
+        }
+        Rectangle {
+          x: fp.blob.x - stageItem.x - fp.rim
+          y: fp.margin
+          width: fp.grow > 0 ? fp.blob.w + 2 * fp.rim : 0
+          height: fp.blob.h + fp.rim
+          radius: 10 + fp.rim
+          color: "white"
+        }
       }
 
       FogLayer {
@@ -163,9 +213,55 @@ Item {
     }
   }
 
+  // Without fog (or where the fog does not apply): line on the card and a
+  // shadow under it, fading with the card.
+  property Item cardShadow: null
+  property Item cardLine: null
+  Component {
+    id: cardShadowComponent
+    Item {
+      readonly property real spread: 40
+      visible: fp.edge && !fp.active && !!fp.card && fp.card.opacity > 0
+      opacity: fp.card ? fp.card.opacity : 0
+      x: fp.card ? fp.card.x - spread : 0
+      y: fp.card ? fp.card.y - spread : 0
+      width: fp.card ? fp.card.width + 2 * spread : 0
+      height: fp.card ? fp.card.height + 2 * spread : 0
+      layer.enabled: visible
+      layer.effect: MultiEffect { blurEnabled: true; blur: 1; blurMax: 32; autoPaddingEnabled: false }
+      Rectangle {
+        x: parent.spread + 2; y: parent.spread + 8
+        width: parent.width - 2 * parent.spread - 4
+        height: parent.height - 2 * parent.spread - 6
+        radius: fp.card ? fp.card.radius : 0
+        color: Qt.rgba(0, 0, 0, fp.shadowOpacity)
+      }
+    }
+  }
+  Component {
+    id: cardLineComponent
+    Rectangle {
+      anchors.fill: parent
+      z: 1000
+      visible: fp.edge && !fp.active
+      color: "transparent"
+      radius: fp.card ? fp.card.radius : 0
+      border.width: 1
+      border.color: fp.rimColor
+    }
+  }
+
   Component.onCompleted: {
-    if (surface) stage = stageComponent.createObject(surface, { z: card.z - 1 })
+    if (surface) {
+      cardShadow = cardShadowComponent.createObject(surface, { z: card.z - 2 })
+      stage = stageComponent.createObject(surface, { z: card.z - 1 })
+    }
+    if (card) cardLine = cardLineComponent.createObject(card)
     follow()
   }
-  Component.onDestruction: if (stage) stage.destroy()
+  Component.onDestruction: {
+    if (stage) stage.destroy()
+    if (cardShadow) cardShadow.destroy()
+    if (cardLine) cardLine.destroy()
+  }
 }

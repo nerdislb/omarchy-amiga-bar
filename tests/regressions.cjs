@@ -181,9 +181,10 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     const strip = t => t.replace(/^\/\/ \(Same component in the Amiga (Island|Bar): keep both copies alike\.\)$/m, '');
     assert.equal(strip(fs.readFileSync(islandInk, 'utf8')), strip(ink), 'both InkSheet copies alike');
   }
-  for (const s of ['wetink', 'gauss', 'bloomcut', 'restink'])
+  for (const s of ['wetink', 'gauss', 'bloomcut', 'restink', 'halo'])
     assert.match(ink, new RegExp(`fragmentShader: Qt\\.resolvedUrl\\("shaders/${s}\\.frag\\.qsb"\\)`), `InkSheet uses ${s}`);
   assert.doesNotMatch(ink, /function smooth\(/, 'no method named like the Item property `smooth`');
+  assert.doesNotMatch(ink, /MultiEffect/, 'the halo is exact (analytic Gaussian), no blurred layers');
   assert.match(ink, /wetAlpha: clearing < 0\.999 \? 1 : sstep\(0, 0\.7, wet\)/, 'the wet residue evaporates with the water');
   assert.match(ink, /show: sstep\(0\.55, 1, clearing\)/, 'the rim comes in as the front reaches the edge');
   assert.match(ink, /sourceItem: cut\n/, 'the paper itself is the mask of ink and pigment (one mask per sheet)');
@@ -191,6 +192,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     gauss: ['dir', 's1', 's2', 'first'],
     bloomcut: ['size', 'origin', 'drift', 'lo', 'hi', 'amp', 'paper'],
     restink: ['size', 'origin', 'ink', 'ridge', 'pool', 'echo', 'resid', 'show', 'dry', 'barY'],
+    halo: ['size', 'box', 'radius', 'sigma', 'tint', 'alpha'],
   };
   for (const dir of [root, path.resolve(root, '../omarchy-amiga-island/views')]) {
     if (!fs.existsSync(dir)) continue;

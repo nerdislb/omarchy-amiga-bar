@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 
 // One Lavur bloom as a sheet of wet paper (Tusche & Papier, frame round
 // 03.10.2026, recommendation 6 „getrockneter Pigmentrand“):
@@ -83,25 +82,24 @@ Item {
   readonly property real show: sstep(0.55, 1, clearing)
   readonly property real dry: 1 - wetAlpha
 
-  component Halo: Item {
+  // one halo part: its rounded rectangle blurred analytically (shaders/halo.frag)
+  component Halo: ShaderEffect {
     id: part
     property var spec: null
-    readonly property real sigma: spec && spec.blur > 0 ? spec.blur : 8
     readonly property real spread: spec ? sheet.num(spec.spread, 0) : 0
     visible: sheet.on && !!spec && sheet.num(spec.alpha, 0) > 0
     width: sheet.width
     height: sheet.height
-    // enabled only while shown: a MultiEffect created hidden never draws
-    layer.enabled: visible
-    layer.effect: MultiEffect { blurEnabled: true; blur: 1; blurMax: Math.max(2, Math.min(64, Math.round(3.2 * part.sigma))); autoPaddingEnabled: false }
-    Rectangle {
-      x: sheet.blobX - part.spread + (part.spec ? sheet.num(part.spec.dx, 0) : 0)
-      y: sheet.blobY + (part.spec ? sheet.num(part.spec.dy, 0) : 0)
-      width: Math.max(0, sheet.blobW + 2 * part.spread)
-      height: Math.max(0, sheet.blobH + (part.spec ? sheet.num(part.spec.dh, 0) : 0))
-      radius: sheet.radius + part.spread / 2
-      color: part.spec ? sheet.rgba(part.spec.color, sheet.num(part.spec.alpha, 0)) : "transparent"
-    }
+    property size size: Qt.size(width, height)
+    property rect box: Qt.rect(sheet.blobX - spread + (spec ? sheet.num(spec.dx, 0) : 0),
+                               sheet.blobY + (spec ? sheet.num(spec.dy, 0) : 0),
+                               Math.max(0, sheet.blobW + 2 * spread),
+                               Math.max(0, sheet.blobH + (spec ? sheet.num(spec.dh, 0) : 0)))
+    property real radius: sheet.radius + spread / 2
+    property real sigma: spec && spec.blur > 0 ? spec.blur : 8
+    property color tint: spec ? sheet.rgba(spec.color, 1) : "black"
+    property real alpha: spec ? sheet.num(spec.alpha, 0) : 0
+    fragmentShader: Qt.resolvedUrl("shaders/halo.frag.qsb")
   }
   Halo { spec: sheet.halo.seam || null }
   Halo { spec: sheet.halo.glow || null }

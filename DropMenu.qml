@@ -88,7 +88,9 @@ KeyboardPanel {
   Behavior on contentHeight { NumberAnimation { duration: Style.duration(160); easing.type: Easing.OutCubic } }
 
   OmarchyMenuSource { id: source; live: menu.visible; appLibrary: menu.appLibrary }
-  FogPanel { panel: menu; fog: Bridge.ModuleBus.fog; color: Bridge.ModuleBus.fogColor; material: Bridge.ModuleBus.material }
+  FogPanel { id: fogPanel; panel: menu; fog: Bridge.ModuleBus.fog; color: Bridge.ModuleBus.fogColor; material: Bridge.ModuleBus.material }
+  // how far the card is out (rolled, grown or faded): the logo stays its tab until it is back in the bar
+  readonly property real cardPresence: fogPanel.presence
 
   // ---------------------------------------------------------------- rows
   readonly property var groups: {

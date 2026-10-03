@@ -82,8 +82,43 @@ Item {
   readonly property bool matOn: !fog && !!mat && mat.bloom !== true && !!card && !!surface && !!panel
   readonly property bool rolls: matOn && mat.roll !== false && panel.barPos === "top"
   property real roll: 0      // 0 = rolled up into the bar, 1 = open
-  // only while it is out or on its way (closed, the card and its mask need no layer)
-  readonly property bool rolling: rolls && roll < 0.999 && (panel.open || roll > 0.001)
+  // only while it is out or on its way, and on closing until the rolled-in
+  // card has faded: released earlier, the whole card flashed up at full
+  // height for the panel's fade (closed, the card and its mask need no layer)
+  readonly property bool rolling: rolls && roll < 0.999 && (panel.open || roll > 0.001 || (!!card && card.opacity > 0.001))
+  // How far the card is out (0–1): the roll, the fog's or bloom's growth,
+  // else its fade – a source tab stays until its card is back in the bar.
+  readonly property real presence: rolls ? roll : active ? grow : (card ? card.opacity : 0)
+  // Closing a rolling card: some panels drop part of their content the
+  // moment they close (Omarchy's audio panel detaches its device lists), so
+  // the card jumped to a smaller size before rolling in. While the card is
+  // open a snapshot follows it, clipped away; on closing it freezes as it
+  // was and rolls in instead of the card.
+  readonly property bool rollingIn: rolls && !panel.open && roll > 0.001
+  property real snapX: 0
+  property real snapY: 0
+  property real snapW: 1
+  property real snapH: 1
+  // taken a moment later, once the change has settled: a panel that drops
+  // content on closing changes the card's size in the same breath as its
+  // `open`, which may still read true at that instant
+  function keepSnap() { Qt.callLater(fp.takeSnap) }
+  function takeSnap() {
+    if (!card || !panel || !panel.open) return
+    snapX = card.x; snapY = card.y; snapW = card.width; snapH = card.height
+  }
+  Connections {
+    target: fp.card
+    function onXChanged() { fp.keepSnap() }
+    function onYChanged() { fp.keepSnap() }
+    function onWidthChanged() { fp.keepSnap() }
+    function onHeightChanged() { fp.keepSnap() }
+  }
+  // where the card is drawn: the frozen snapshot while it rolls in
+  readonly property real frameX: rollingIn ? snapX : (card ? card.x : 0)
+  readonly property real frameY: rollingIn ? snapY : (card ? card.y : 0)
+  readonly property real frameW: rollingIn ? snapW : (card ? card.width : 0)
+  readonly property real frameH: rollingIn ? snapH : (card ? card.height : 0)
   function rgba(hex, alpha) { var c = Qt.color(hex || "#000000"); return Qt.rgba(c.r, c.g, c.b, alpha === undefined ? 1 : alpha) }
   // the card's own shadow/halo from the material (null: the default soft shadow)
   readonly property var matShadow: !mat ? null : (mat.shadow ? { color: rgba(mat.shadow.color, mat.shadow.alpha), dx: mat.shadow.dx || 0, dy: mat.shadow.dy || 0, blur: 0 }
@@ -217,7 +252,7 @@ Item {
   }
   Connections {
     target: fp.panel
-    function onOpenChanged() { fp.follow() }
+    function onOpenChanged() { fp.keepSnap(); fp.follow() }
   }
   onActiveChanged: follow()
 
@@ -359,10 +394,10 @@ Item {
       readonly property bool soft: !spec || spec.blur > 0
       visible: (fp.edge || !!spec) && !fp.active && !!fp.card && fp.card.opacity > 0 && (!fp.matOn || !!spec)
       opacity: fp.card ? fp.card.opacity : 0
-      x: fp.card ? fp.card.x - spread : 0
-      y: fp.card ? fp.card.y - spread : 0
-      width: fp.card ? fp.card.width + 2 * spread : 0
-      height: fp.card ? fp.card.height + 2 * spread : 0
+      x: fp.frameX - spread
+      y: fp.frameY - spread
+      width: fp.frameW + 2 * spread
+      height: fp.frameH + 2 * spread
       layer.enabled: visible && soft
       layer.effect: MultiEffect { blurEnabled: true; blur: 1; blurMax: shade.spec ? Math.min(64, shade.spec.blur) : 32; autoPaddingEnabled: false }
       Rectangle {
@@ -387,7 +422,28 @@ Item {
       y: fp.card ? fp.card.y : 0
       width: fp.card ? fp.card.width : 1
       height: fp.card ? fp.card.height : 1
-      Rectangle { width: parent.width; height: Math.max(1, parent.height * fp.roll); color: "white" }
+      Rectangle { width: parent.width; height: parent.height * fp.roll; color: "white" }
+    }
+  }
+  // the snapshot: follows the open card (clipped to nothing), frozen on
+  // closing and cut to the part that is still out
+  property Item rollSnap: null
+  Component {
+    id: rollSnapComponent
+    Item {
+      visible: fp.rolls
+      x: fp.snapX
+      y: fp.snapY
+      width: fp.snapW
+      height: fp.rollingIn ? fp.snapH * fp.roll : 0
+      clip: true
+      ShaderEffectSource {
+        width: fp.snapW
+        height: fp.snapH
+        sourceItem: fp.rolls ? fp.card : null
+        live: !!fp.panel && fp.panel.open
+        hideSource: fp.rollingIn
+      }
     }
   }
   Component {
@@ -408,7 +464,9 @@ Item {
       cardShadow = cardShadowComponent.createObject(surface, { z: card.z - 2 })
       stage = stageComponent.createObject(surface, { z: card.z - 1 })
       rollMask = rollMaskComponent.createObject(surface, { z: card.z - 3 })
+      rollSnap = rollSnapComponent.createObject(surface, { z: card.z + 1 })
     }
+    keepSnap()
     if (card) cardLine = cardLineComponent.createObject(card)
     follow()
   }
@@ -417,5 +475,6 @@ Item {
     if (cardShadow) cardShadow.destroy()
     if (cardLine) cardLine.destroy()
     if (rollMask) rollMask.destroy()
+    if (rollSnap) rollSnap.destroy()
   }
 }

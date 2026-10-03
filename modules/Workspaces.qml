@@ -161,11 +161,12 @@ Item {
     width: root.menuWidth
     height: root.barSize
 
-    // Theme material (edge "theme"): while the drop menu is open the logo is
+    // Theme material (edge "theme"): while the drop menu is out the logo is
     // its source – an inverted block from just under the bar's top down to
-    // its lower edge, where the menu card hangs from it.
+    // its lower edge, where the menu card hangs from it; on closing it stays
+    // until the card is back in the bar.
     readonly property var source: Bridge.ModuleBus.material ? Bridge.ModuleBus.material.source || null : null
-    readonly property bool inverted: !!source && root.dropOpen
+    readonly property bool inverted: !!source && (root.dropOpen || (!!dropLoader.item && dropLoader.item.cardPresence > 0.01))
     Rectangle {
       visible: menuSlot.inverted
       y: Math.round(root.barSize * 0.17)

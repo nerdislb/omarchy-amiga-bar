@@ -143,6 +143,20 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.match(fp, /matOn: !fog && !!mat/, 'material only without fog');
   assert.match(fp, /if \(!rolls\) \{ rollOut\.stop\(\); rollIn\.stop\(\); return \}/, 'never write roll through a releasing Binding');
   assert.match(fp, /property: "gap"; value: 0; when: fp\.rolls/, 'the rolling card hangs flush from the bar');
+  assert.match(fp, /rolling: rolls && roll < 0\.999 && \(panel\.open \|\| roll > 0\.001 \|\| \(!!card && card\.opacity > 0\.001\)\)/,
+    'the roll mask stays until the rolled-in card has faded (no full-height flash on closing)');
+  assert.match(fp, /height: parent\.height \* fp\.roll; color: "white"/, 'a rolled-in card shows nothing (no 1 px rest)');
+  assert.match(fp, /presence: rolls \? roll : active \? grow : \(card \? card\.opacity : 0\)/, 'how far the card is out');
+  // a panel that drops content on closing (Omarchy's audio panel) rolls in as it was while open
+  assert.match(fp, /rollingIn: rolls && !panel\.open && roll > 0\.001/);
+  assert.match(fp, /function keepSnap\(\) \{ Qt\.callLater\(fp\.takeSnap\) \}/, 'the snapshot geometry settles before it is taken');
+  assert.match(fp, /live: !!fp\.panel && fp\.panel\.open\n\s*hideSource: fp\.rollingIn/, 'the snapshot freezes on closing and stands in for the card');
+  assert.match(fp, /height: fp\.rollingIn \? fp\.snapH \* fp\.roll : 0\n\s*clip: true/, 'cut to the part that is still out');
+  assert.match(fp, /x: fp\.frameX - spread/, 'the shadow follows the frozen frame');
+  const wsTab = fs.readFileSync(path.join(root, 'modules/Workspaces.qml'), 'utf8');
+  assert.match(wsTab, /inverted: !!source && \(root\.dropOpen \|\| \(!!dropLoader\.item && dropLoader\.item\.cardPresence > 0\.01\)\)/,
+    'the logo stays the menu\'s tab until the card is back in the bar');
+  assert.match(fs.readFileSync(path.join(root, 'DropMenu.qml'), 'utf8'), /readonly property real cardPresence: fogPanel\.presence/);
   const island = path.resolve(root, '../omarchy-amiga-island/views/FogPanel.qml');
   if (fs.existsSync(island)) {
     const strip = t => t.replace(/^\/\/ \(Same component in the Amiga (Island|Bar): keep both copies alike\.\)$/m, '');

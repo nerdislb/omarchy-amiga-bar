@@ -55,12 +55,21 @@ menu, quota, status) roll out of the bar from the top in the theme's frame
 with its shadow (Papier: hard ink, 6/6) or halo (Tusche, Lavur), hanging
 flush from the bar; the logo becomes an inverted tab while the drop menu is
 open, and the hovered row inverts. A material card with `bloom` (the Lavur
-themes) blooms instead of rolling: the fog's growth out of the bar with a
-scalloped edge and the theme's tide line (`tide`), wet at first: ink fills it,
-the water clears it from the source and pushes the pigment as a ridge into
-the tide line (`shaders/wetink.frag`, compiled `.qsb` next to it; rebuild with
-`qsb --glsl "100 es,120,150" --hlsl 50 --msl 12 -o shaders/wetink.frag.qsb shaders/wetink.frag`),
-then it dries still and sharp; the drop menu's hover is
+themes) blooms instead of rolling: the fog's growth out of the bar as one
+sheet of wet paper (`InkSheet.qml`). Ink fills it (in the tide colour,
+`tide`), the water clears it from the source (`shaders/wetink.frag`) and its
+residue evaporates with the water; the pigment dries into a rim at the calm
+edge – a blurred blob cut at a gently noise-displaced threshold
+(`shaders/bloomcut.frag`), the rim just inside it gathered in a few short
+denser sections, a broken faint drying line further in
+(`shaders/restink.frag`, over the paper's mask blurred by
+`shaders/gauss.frag`); all noise in the card's own coordinates. Under it a
+halo: Papier a short soft ink wash, Tusche a flat dark seam plus a breath of
+moonlight. The theme tunes it with `card.rest` (`ridge`, `pool`, `echo`,
+`residue`, `halo` parts with `color`, `alpha`, `blur` = σ in px, `dx`, `dy`,
+`spread`, `dh`). The compiled `.qsb` files ship next to the shaders; rebuild
+one with `qsb --glsl "100 es,120,150" --hlsl 50 --msl 12 -o shaders/X.frag.qsb shaders/X.frag`.
+The drop menu's hover is
 then a brush stroke (`brush`, a PNG in the theme folder). With `tones.strong`
 the bar's own text is the quieter tone (the theme sets it) and logo and the
 active workspace's number stay strong. The fog look replaces all of it while
@@ -123,7 +132,7 @@ reports the state. Test: `python3 tests/fastfetch_logo.py`.
   - **Lists the shell fills in** open as levels inside it: **Apps** from the shell's application library (the facade Omarchy hands to plugins of kind `menu` — hence `"menu"` next to `"panel"` in `manifest.json`; the plugin still loads as the same keep-loaded panel), alphabetical with the apps' own icons, launched like the native menu; **Font** and power profiles with the native menu's own bash providers (copied, ✓ on the current value; fonts reload each time). Typing inside a list filters it (label and subtext). Without the library (older shell) or for an unknown provider the native menu opens there as before.
   - **Questions** an action asks through `omarchy-menu-select` / `omarchy-menu-input` (Keybindings, Tmux, Herdr, Timezone, the plugin rows, Remove › TUI/Theme/Web App, Transcode …) are answered inside it. Every Omarchy action started from the drop-down runs with `bin/menu-shim` first on its `PATH`; those two shims take the same arguments, stdin and file protocol as Omarchy's commands and hand the payload to `omarchy-shell amiga-bar ask`. When no drop-down takes it (no Amiga Bar, menu option `strip`, shell not answering) they run Omarchy's own command with the same prompt, options (stdin included) and menu arguments. An action known to ask (its first word is a script calling one of the two; screen captures excepted) keeps the drop-down open on a waiting level that turns into the question, or closes when the action ends without asking (at the latest after 3 s). A question that arrives with the drop-down closed opens it on the screen that had it last. The answer is written as the native menu writes it (the selection file, then the done file); Esc, ×, a click outside, ‹ and every other close cancel (the done file alone), so no script is ever left waiting. `amiga-bar state` shows `ask` (library present, pending questions, running asking actions).
 - `IntuitionMenu.qml` (`menu: strip`): Omarchy · Agents · System · Network · Phone · Tools, opened by right click on the Omarchy logo or **Super+Alt+M**; arrows/Enter/Esc; toggles show ✓ (DND, stay awake, VPN, Tailscale). `amiga-bar strip` opens it with either option.
-- Omarchy's own popups take the theme material too (0.7.0, `NativeMaterial.qml`): the status module finds the KeyboardPanel of every Omarchy widget it folds (network, Bluetooth, Tailscale, monitor …) and of Omarchy's panel widgets that stay in the native bar (audio, power, weather, world clock …; it walks the bar's scene a few times after loading) and hangs a FogPanel into it, as our own popups declare one – roll and theme shadow, the Lavur bloom, the fog look. Omarchy's code is untouched; widgets keep their own (trusted) bar and services. A popup the search does not recognise keeps Omarchy's look; without fog or material nothing changes.
+- Omarchy's own popups take the theme material too (0.7.0, `NativeMaterial.qml`): the status module finds the KeyboardPanel of every Omarchy widget it folds (network, Bluetooth, Tailscale, monitor …) and of Omarchy's panel widgets that stay in the native bar (audio, power, weather, world clock …; it walks the bar's scene a few times after loading) and hangs a FogPanel into it, as our own popups declare one – roll and theme shadow, the Lavur bloom (since 0.8.0 with the dried rim), the fog look. Omarchy's code is untouched; widgets keep their own (trusted) bar and services. A popup the search does not recognise keeps Omarchy's look; without fog or material nothing changes.
 - `StatusScreen.qml`: the "screen behind the Workbench" with agents, nbtiles tests, AI quotas, phone, today & tomorrow, system & network; **Super+M** (Amiga-M) or Esc. `SysState.qml` polls only while one of them (or the drop-down) is open.
 - Keybindings live in a managed block in `~/.config/hypr/bindings.lua` (`BEGIN/END Amiga Bar (managed)`).
 

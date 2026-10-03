@@ -155,7 +155,9 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.match(engine, /property: "material"; value: root\.materialOn \? root\.material : null/);
   assert.match(fp, /bloomWanted: !fog && !!material && !!material\.card && material\.card\.bloom === true/, 'Lavur cards bloom');
   assert.match(fp, /matOn: !fog && !!mat && mat\.bloom !== true/, 'a bloom never rolls');
-  assert.match(fp, /model: fp\.bloom \? fp\.scallopCount : 0/, 'scallops only in a bloom');
+  assert.doesNotMatch(fp, /scallop/, 'no scallops: the dried rim replaced them (frame round, recommendation 6)');
+  assert.match(fp, /InkSheet \{\n\s*visible: fp\.bloom\n/, 'a bloom is one sheet of wet paper');
+  assert.match(fp, /FogLayer \{\n\s*visible: fp\.edge && !fp\.bloom\n/, 'the fog keeps its rim line, a bloom has none');
   const dm = fs.readFileSync(path.join(root, 'DropMenu.qml'), 'utf8');
   assert.match(dm, /visible: row\.hot && menu\.inverting && \(!menu\.brushFile \|\| brushImage\.status !== Image\.Ready\)/, 'hard inversion (Tusche/Papier, or while the brush is missing)');
   assert.match(fp, /if \(active && \(opening\.running \|\| closing\.running\)\) \{ opening\.stop\(\); closing\.stop\(\); follow\(\) \}/, 'reduced motion mid-bloom jumps to the end');
@@ -170,10 +172,43 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     for (const u of ['size', 'center', 'region', 'ink', 'front', 'band', 'body', 'ridge', 'resid', 'jitter', 'seed'])
       assert.match(frag, new RegExp(`\\b${u};`), `uniform ${u}`);
   }
-  assert.match(fp, /fragmentShader: Qt\.resolvedUrl\("shaders\/wetink\.frag\.qsb"\)/);
   assert.match(fp, /if \(bloom\) \{ wetting\.stop\(\); clearing = 0; wet = 1; phase = 0; wetting\.start\(\) \}/, 'all ink from the first frame');
   assert.match(fp, /if \(wetting\.running\) settle\(\)/, 'reduced motion dries at once');
-  console.log('PASS: theme edge option, material wiring, rolling cards, blooms, hover, tones, wet ink');
+  // the dried rim (frame round 03.10.2026, recommendation 6): InkSheet and its shaders, alike in both repos
+  const ink = fs.readFileSync(path.join(root, 'InkSheet.qml'), 'utf8');
+  const islandInk = path.resolve(root, '../omarchy-amiga-island/views/InkSheet.qml');
+  if (fs.existsSync(islandInk)) {
+    const strip = t => t.replace(/^\/\/ \(Same component in the Amiga (Island|Bar): keep both copies alike\.\)$/m, '');
+    assert.equal(strip(fs.readFileSync(islandInk, 'utf8')), strip(ink), 'both InkSheet copies alike');
+  }
+  for (const s of ['wetink', 'gauss', 'bloomcut', 'restink'])
+    assert.match(ink, new RegExp(`fragmentShader: Qt\\.resolvedUrl\\("shaders/${s}\\.frag\\.qsb"\\)`), `InkSheet uses ${s}`);
+  assert.doesNotMatch(ink, /function smooth\(/, 'no method named like the Item property `smooth`');
+  assert.match(ink, /wetAlpha: clearing < 0\.999 \? 1 : sstep\(0, 0\.7, wet\)/, 'the wet residue evaporates with the water');
+  assert.match(ink, /show: sstep\(0\.55, 1, clearing\)/, 'the rim comes in as the front reaches the edge');
+  assert.match(ink, /sourceItem: cut\n/, 'the paper itself is the mask of ink and pigment (one mask per sheet)');
+  const uniforms = {
+    gauss: ['dir', 's1', 's2', 'first'],
+    bloomcut: ['size', 'origin', 'drift', 'lo', 'hi', 'amp', 'paper'],
+    restink: ['size', 'origin', 'ink', 'ridge', 'pool', 'echo', 'resid', 'show', 'dry', 'barY'],
+  };
+  for (const dir of [root, path.resolve(root, '../omarchy-amiga-island/views')]) {
+    if (!fs.existsSync(dir)) continue;
+    for (const [s, list] of Object.entries(uniforms)) {
+      const file = path.join(dir, `shaders/${s}.frag`);
+      assert.ok(fs.existsSync(file + '.qsb'), `compiled ${s} shader in ${dir}`);
+      const frag = fs.readFileSync(file, 'utf8');
+      for (const u of list) assert.match(frag, new RegExp(`\\b${u};`), `${s}: uniform ${u}`);
+      if (dir !== root) assert.equal(frag, fs.readFileSync(path.join(root, `shaders/${s}.frag`), 'utf8'), `${s} alike in both repos`);
+    }
+  }
+  const rest = fs.readFileSync(path.join(root, 'shaders/restink.frag'), 'utf8');
+  assert.match(rest, /\(d\.r - \(0\.53 \+ 0\.1 \* wN\)\)/, 'the rim just inside the edge (σ 2.2 distance)');
+  assert.match(rest, /\(d\.g - 0\.82\) \/ 0\.045/, 'the drying line ~3–4 px further in (σ 4 distance)');
+  assert.match(rest, /smoothstep\(barY \+ 2\.0, barY \+ 16\.0, px\.y\)/, 'no rim up into the bar');
+  const gauss = fs.readFileSync(path.join(root, 'shaders/gauss.frag'), 'utf8');
+  assert.match(gauss, /for \(int i = -24; i <= 24; i\+\+\)/, 'constant loop bounds (GLSL ES 100 target)');
+  console.log('PASS: theme edge option, material wiring, rolling cards, blooms, hover, tones, wet ink, dried rim');
 }
 
 // The thin integer surface encloses two physical pixel rows at fractional scale.

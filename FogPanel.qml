@@ -31,10 +31,42 @@ Item {
   readonly property bool lightTheme: 0.2126 * Color.popups.background.r + 0.7152 * Color.popups.background.g + 0.0722 * Color.popups.background.b > 0.55
   readonly property color rimColor: Util.alpha(Color.popups.text, lightTheme ? 0.24 : 0.22)
   readonly property real rim: 1.5
-  // the line around the fog: faint rim, or the bloom's tide line
+  // the line around the fog: faint rim, or the bloom's tide line – lighter
+  // while the pigment is still on its way out, wider and softer while wet
   readonly property var tide: bloom && material && material.card ? material.card.tide || null : null
-  readonly property color edgeColor: tide ? rgba(tide.color, tide.alpha) : rimColor
-  readonly property real edgeW: tide ? tide.width || 2 : rim
+  readonly property color edgeColor: tide ? rgba(tide.color, tide.alpha * (0.4 + 0.6 * clearing)) : rimColor
+  readonly property real edgeW: tide ? (tide.width || 2) * (1 + 0.35 * wet) : rim
+  readonly property real edgeSoftness: bloom ? 0.5 + 0.18 * wet : 0.5
+
+  // Wet bloom (Lavur): the ink fills the bloom, the water clears it from the
+  // source outward and pushes the pigment as a ridge into the tide line
+  // (shaders/wetink.frag); while wet the edge is soft and its scallops move,
+  // drying it sharpens and stills – as in the bar round's film.
+  property real clearing: 1  // 0 = all ink, 1 = cleared up to the tide line
+  property real wet: 0       // 1 = wet, 0 = dry
+  property real phase: 0     // the scallops' movement while wet
+  readonly property color inkColor: tide ? rgba(tide.color, 1) : Color.popups.text
+  // the clearing front's reach: the farthest corner of the card seen from the source, plus a margin
+  readonly property real clearFar: {
+    if (!card) return 1
+    var sx = dropCx, sy = barBottom, far = 0
+    var xs = [card.x, card.x + card.width], ys = [card.y, card.y + card.height]
+    for (var i = 0; i < 2; i++) for (var j = 0; j < 2; j++) far = Math.max(far, Math.hypot(xs[i] - sx, ys[j] - sy))
+    return far + 30
+  }
+  ParallelAnimation {
+    id: wetting
+    // the water follows the ink: it starts clearing once the drop spreads
+    // (the first ~30 % of the growth is the drop) and passes the far corner
+    // after the bloom has reached its size
+    SequentialAnimation {
+      PauseAnimation { duration: 200 }
+      NumberAnimation { target: fp; property: "clearing"; from: 0; to: 1; duration: 720; easing.type: Easing.InOutQuad }
+    }
+    NumberAnimation { target: fp; property: "wet"; from: 1; to: 0; duration: 1700; easing.type: Easing.InQuad }
+    NumberAnimation { target: fp; property: "phase"; from: 0; to: 6.283; duration: 1700 }
+  }
+  function settle() { wetting.stop(); clearing = 1; wet = 0 }
   // the bloom's soft halo under the blob, else the fog's shadow
   readonly property color shadeColor: bloom && mat && mat.halo ? rgba(mat.halo.color, mat.halo.alpha) : Qt.rgba(0, 0, 0, shadowOpacity)
 
@@ -56,7 +88,8 @@ Item {
     if (u < b.h) { x = 0; y = u }
     else if ((u -= b.h) < b.w) { x = u; y = b.h }
     else { u -= b.w; x = b.w; y = Math.max(0, b.h - u) }
-    return { x: b.x + x, y: y, r: sd.r * Math.max(0, Math.min(1, (grow - 0.3) / 0.5)) }
+    var swell = 1 + 0.28 * wet * Math.sin(phase * 1.7 + i * 1.3)   // wet scallops move
+    return { x: b.x + x, y: y, r: sd.r * swell * Math.max(0, Math.min(1, (grow - 0.3) / 0.5)) }
   }
   readonly property real shadowOpacity: lightTheme ? 0.22 : 0.55
 
@@ -177,6 +210,7 @@ Item {
     if (!reduced) return
     if (rolls && (rollOut.running || rollIn.running)) followRoll()
     if (active && (opening.running || closing.running)) { opening.stop(); closing.stop(); follow() }
+    if (wetting.running) settle()
   }
 
   function follow() {
@@ -186,12 +220,16 @@ Item {
     // opacity Behavior, which then outlives the restored binding — closed
     // popups came back fully opaque and never unmapped. Turning the fog on
     // again resets both below.
-    if (!active) { opening.stop(); closing.stop(); return }
+    if (!active) { opening.stop(); closing.stop(); settle(); return }
     if (panel.open) {
       closing.stop()
-      if (reduced) { grow = 1; ink = 1; return }
+      if (reduced) { grow = 1; ink = 1; settle(); return }
       if (grow >= 1) ink = 1          // reopened while still up
-      else { ink = 0; opening.start() }
+      else {
+        ink = 0; opening.start()
+        // all ink from the first frame (the pause in `wetting` holds it)
+        if (bloom) { wetting.stop(); clearing = 0; wet = 1; phase = 0; wetting.start() } else settle()
+      }
     } else {
       opening.stop()
       // Switching to another bar popup closes this one at once (as
@@ -255,7 +293,7 @@ Item {
         color: fp.edgeColor
         blurMax: 24
         threshold: 0.4
-        softness: 0.5
+        softness: fp.edgeSoftness
         Rectangle {
           x: fp.blob.x - stageItem.x - 14 - fp.edgeW
           width: fp.grow > 0 ? fp.blob.w + 28 + 2 * fp.edgeW : 0
@@ -285,13 +323,14 @@ Item {
       }
 
       FogLayer {
+        id: fillFog
         y: -fp.margin
         width: stageItem.width
         height: stageItem.height + fp.margin
         color: fp.color
         blurMax: 24
         threshold: 0.4
-        softness: 0.5
+        softness: fp.edgeSoftness
 
         // up into the bar: the flare where the blob leaves it (shapes only
         // change size: the fog layer does not repaint a merely hidden one)
@@ -320,6 +359,37 @@ Item {
             color: "white"
           }
         }
+      }
+
+      // the wet ink over the bloom's body (only while the water clears it);
+      // the bloom's own fog layer is its mask, through an explicit source
+      ShaderEffectSource {
+        id: fillMask
+        sourceItem: wetInk.visible ? fillFog : null
+        hideSource: false
+        live: true
+        visible: false
+      }
+      ShaderEffect {
+        id: wetInk
+        visible: fp.bloom && fp.clearing < 0.999 && fp.grow > 0
+        // below the bar's edge only (the flare reaching up into the bar stays paper)
+        x: fillFog.x; y: fillFog.y + fp.margin - 4
+        width: fillFog.width; height: Math.max(1, fillFog.height - fp.margin + 4)
+        property var mask: fillMask
+        property size size: Qt.size(fillFog.width, fillFog.height)
+        // the source: where the blob leaves the bar (fill-layer coordinates)
+        property point center: Qt.point(fp.dropCx - stageItem.x, fp.margin - 2)
+        property rect region: Qt.rect(0, fp.margin - 4, width, height)
+        property color ink: fp.inkColor
+        property real front: fp.clearFar * 1.15 * fp.clearing
+        property real band: 58
+        property real body: fp.lightTheme ? 0.44 : 0.34
+        property real ridge: fp.lightTheme ? 0.38 : 0.3
+        property real resid: fp.lightTheme ? 0.08 : 0.07
+        property real jitter: 26
+        property real seed: 5.0
+        fragmentShader: Qt.resolvedUrl("shaders/wetink.frag.qsb")
       }
     }
   }

@@ -56,7 +56,11 @@ with its shadow (Papier: hard ink, 6/6) or halo (Tusche, Lavur), hanging
 flush from the bar; the logo becomes an inverted tab while the drop menu is
 open, and the hovered row inverts. A material card with `bloom` (the Lavur
 themes) blooms instead of rolling: the fog's growth out of the bar with a
-scalloped edge and the theme's tide line (`tide`); the drop menu's hover is
+scalloped edge and the theme's tide line (`tide`), wet at first: ink fills it,
+the water clears it from the source and pushes the pigment as a ridge into
+the tide line (`shaders/wetink.frag`, compiled `.qsb` next to it; rebuild with
+`qsb --glsl "100 es,120,150" --hlsl 50 --msl 12 -o shaders/wetink.frag.qsb shaders/wetink.frag`),
+then it dries still and sharp; the drop menu's hover is
 then a brush stroke (`brush`, a PNG in the theme folder). With `tones.strong`
 the bar's own text is the quieter tone (the theme sets it) and logo and the
 active workspace's number stay strong. The fog look replaces all of it while

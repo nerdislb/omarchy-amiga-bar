@@ -162,7 +162,18 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.match(dm, /themeStamp/, 'the brush reloads on a theme switch');
   const ws = fs.readFileSync(path.join(root, 'modules/Workspaces.qml'), 'utf8');
   assert.match(ws, /tones\.strong/, 'logo and active number in the strong tone');
-  console.log('PASS: theme edge option, material wiring, rolling cards, blooms, hover, tones');
+  // wet bloom: the shader and its compiled form ship next to FogPanel in both repos
+  for (const dir of [root, path.resolve(root, '../omarchy-amiga-island/views')]) {
+    if (!fs.existsSync(dir)) continue;
+    assert.ok(fs.existsSync(path.join(dir, 'shaders/wetink.frag.qsb')), `compiled wet-ink shader in ${dir}`);
+    const frag = fs.readFileSync(path.join(dir, 'shaders/wetink.frag'), 'utf8');
+    for (const u of ['size', 'center', 'region', 'ink', 'front', 'band', 'body', 'ridge', 'resid', 'jitter', 'seed'])
+      assert.match(frag, new RegExp(`\\b${u};`), `uniform ${u}`);
+  }
+  assert.match(fp, /fragmentShader: Qt\.resolvedUrl\("shaders\/wetink\.frag\.qsb"\)/);
+  assert.match(fp, /if \(bloom\) \{ wetting\.stop\(\); clearing = 0; wet = 1; phase = 0; wetting\.start\(\) \}/, 'all ink from the first frame');
+  assert.match(fp, /if \(wetting\.running\) settle\(\)/, 'reduced motion dries at once');
+  console.log('PASS: theme edge option, material wiring, rolling cards, blooms, hover, tones, wet ink');
 }
 
 // The thin integer surface encloses two physical pixel rows at fractional scale.

@@ -454,7 +454,8 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   const os = require('node:os');
   const shellQuote = v => "'" + String(v || '').replace(/'/g, "'\\''") + "'";   // qs.Commons Util.shellQuote
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
-  assert.match(manifest.version, /^0\.7\.0-local\.\d+$/);
+  const [major, minor] = manifest.version.split(/[.-]/).map(Number);
+  assert.ok(major > 0 || minor >= 7, `nested drop-down since 0.7.0 (version ${manifest.version})`);
   assert.deepEqual(manifest.kinds, ['panel', 'menu'], '"menu" brings the app-library facade; "panel" keeps the loader');
   // omarchy-plugin-validate: every kind needs its entry point
   const entryFor = {bar: 'bar', 'bar-widget': 'barWidget', menu: 'menu', overlay: 'overlay', panel: 'panel', service: 'service'};

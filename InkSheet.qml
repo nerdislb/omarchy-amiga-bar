@@ -175,13 +175,16 @@ Item {
     property color paper: Qt.rgba(sheet.paper.r, sheet.paper.g, sheet.paper.b, 1)
     fragmentShader: Qt.resolvedUrl("shaders/bloomcut.frag.qsb")
   }
-  // the paper as a mask for the ink and the pigment
+  // the paper, drawn from its cached texture (redrawn only when the cut
+  // changes, not with every repaint of the window), and the mask for the
+  // ink and the pigment
   ShaderEffectSource {
     id: paperMask
+    anchors.fill: parent
     sourceItem: cut
-    hideSource: false
+    hideSource: true
     live: true
-    visible: false
+    visible: sheet.on
   }
 
   // the wet ink over the paper, below inkTop
@@ -236,11 +239,12 @@ Item {
     property real first: 0
     fragmentShader: Qt.resolvedUrl("shaders/gauss.frag.qsb")
   }
-  // the dried pigment
+  // the dried pigment (cached in its layer: once dry it costs nothing on a repaint)
   ShaderEffect {
     id: pigment
     anchors.fill: parent
     visible: sheet.on && (sheet.show > 0 || sheet.dry > 0)
+    layer.enabled: visible
     property var mask: paperMask
     property var blurs: edgeV
     property size size: Qt.size(width, height)

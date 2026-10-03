@@ -43,7 +43,8 @@ Item {
   readonly property bool matOn: !fog && !!mat && !!card && !!surface && !!panel
   readonly property bool rolls: matOn && mat.roll !== false && panel.barPos === "top"
   property real roll: 0      // 0 = rolled up into the bar, 1 = open
-  readonly property bool rolling: rolls && roll < 0.999
+  // only while it is out or on its way (closed, the card and its mask need no layer)
+  readonly property bool rolling: rolls && roll < 0.999 && (panel.open || roll > 0.001)
   function rgba(hex, alpha) { var c = Qt.color(hex || "#000000"); return Qt.rgba(c.r, c.g, c.b, alpha === undefined ? 1 : alpha) }
   // the card's own shadow/halo from the material (null: the default soft shadow)
   readonly property var matShadow: !mat ? null : (mat.shadow ? { color: rgba(mat.shadow.color, mat.shadow.alpha), dx: mat.shadow.dx || 0, dy: mat.shadow.dy || 0, blur: 0 }
@@ -128,7 +129,7 @@ Item {
     if (!rolls) { rollOut.stop(); rollIn.stop(); return }
     if (panel.open) {
       rollIn.stop()
-      if (reduced) { roll = 1; return }
+      if (reduced) { rollOut.stop(); roll = 1; return }
       rollOut.start()            // from where it is: 0 when fresh, partway when reopened
     } else {
       rollOut.stop()
@@ -138,6 +139,8 @@ Item {
   }
   // becoming a rolling card: take the state without animating (open = out, closed = in)
   onRollsChanged: { rollOut.stop(); rollIn.stop(); if (rolls) roll = panel && panel.open ? 1 : 0 }
+  // Reduced Motion switched on mid-roll: jump to where it is going
+  onReducedChanged: if (reduced && rolls && (rollOut.running || rollIn.running)) followRoll()
 
   function follow() {
     followRoll()
@@ -298,7 +301,7 @@ Item {
     id: rollMaskComponent
     Item {
       visible: false
-      layer.enabled: fp.rolls
+      layer.enabled: fp.rolling
       x: fp.card ? fp.card.x : 0
       y: fp.card ? fp.card.y : 0
       width: fp.card ? fp.card.width : 1

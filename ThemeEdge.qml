@@ -30,6 +30,9 @@ Scope {
   required property var modelData
   property var spec: null           // the theme's `edge` object
   property string themeDir: ""
+  // bumped on every theme switch: both Lavur themes name their texture
+  // bar-lavur.png, so the Image must be told to load it again
+  property int stamp: 0
   property int barHeight: Style.bar.sizeHorizontal
 
   readonly property bool lavur: !!spec && spec.kind === "lavur" && !!spec.texture
@@ -79,9 +82,16 @@ Scope {
     }
   }
 
-  // the gap above tiled windows (Hyprland general:gaps_out, top value)
+  // the gap above tiled windows (Hyprland general:gaps_out, top value);
+  // read again on config reloads and whenever windows come or go
   property int gap: 5
+  function readGap() { if (!gapReader.running) gapReader.running = true }
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) { if (event && event.name === "configreloaded") root.readGap() }
+  }
   Process {
+    id: gapReader
     running: true
     command: ["hyprctl", "getoption", "general:gaps_out", "-j"]
     stdout: StdioCollector {
@@ -104,6 +114,10 @@ Scope {
     readonly property bool fullscreen: !workspace || workspace.hasFullscreen
     // windows on this workspace: only the gap above them (never over a window)
     readonly property bool busy: !workspace || !workspace.toplevels || workspace.toplevels.values.length > 0
+    readonly property int windows: workspace && workspace.toplevels ? workspace.toplevels.values.length : -1
+    onWindowsChanged: root.readGap()
+    // a surface under 2 px is never drawn: with no real gap there is nothing to show
+    readonly property real height_: busy ? Math.min(depth + top, root.gap) : depth + top
     readonly property real top: root.lavur && texture.status !== Image.Error ? Number(root.spec.top || 0) : 0
     readonly property real depth: {
       if (root.lavur && texture.status !== Image.Error) return texture.implicitHeight > 0 ? texture.implicitHeight : 140
@@ -111,13 +125,13 @@ Scope {
       if (!d) return 1
       return Math.max(d.haze ? d.haze.height || 0 : 0, d.glow ? d.glow.height || 0 : 0, d.shadow ? d.shadow.height || 0 : 0, 1)
     }
-    visible: (!!root.dry || root.lavur) && !underGuard.remapping && !fullscreen
+    visible: (!!root.dry || root.lavur) && !underGuard.remapping && !fullscreen && height_ >= 2
     color: "transparent"
     surfaceFormat.opaque: false
     anchors { top: true; left: true; right: true }
     // the Lavur wash starts a little above the bar's edge: skip that part (it is the bar's own colour)
     margins.top: root.barHeight
-    implicitHeight: Math.max(1, Math.ceil(busy ? Math.min(depth + top, root.gap) : depth + top))
+    implicitHeight: Math.max(2, Math.ceil(height_))
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "amiga-bar-theme-edge"
     WlrLayershell.layer: WlrLayer.Top
@@ -133,6 +147,15 @@ Scope {
       width: parent.width
       height: implicitHeight
       source: root.lavur ? "file://" + root.themeDir + "/" + root.spec.texture : ""
+      // a theme switch between the two Lavur themes keeps the same URL: reload
+      Connections {
+        target: root
+        function onStampChanged() {
+          if (!root.lavur) return
+          texture.source = ""
+          Qt.callLater(function() { texture.source = Qt.binding(function() { return root.lavur ? "file://" + root.themeDir + "/" + root.spec.texture : "" }) })
+        }
+      }
       fillMode: Image.Stretch
       cache: false
       smooth: true

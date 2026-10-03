@@ -69,13 +69,15 @@ Item {
     onLoaded: { try { root.material = JSON.parse(text()) } catch (e) { root.material = null } }
     onLoadFailed: root.material = null
   }
-  // `omarchy theme set` replaces the theme folder; the name file changes each time
+  // `omarchy theme set` replaces the theme folder; the name file changes each
+  // time: one reload path (changed → reload → loaded → material + stamp)
+  property int themeStamp: 0
   FileView {
     path: Quickshell.env("HOME") + "/.local/state/omarchy/current/theme.name"
     watchChanges: true
     printErrors: false
-    onFileChanged: { reload(); materialFile.reload() }
-    onLoaded: materialFile.reload()
+    onFileChanged: reload()
+    onLoaded: { root.themeStamp++; materialFile.reload() }
   }
   readonly property bool materialOn: options.edge === "theme" && !fogOn && !!material
   readonly property bool themeEdgeVisible: materialOn && !!material.edge && options.form !== "a500" && barReady
@@ -113,6 +115,7 @@ Item {
       ThemeEdge {
         spec: root.material ? root.material.edge : null
         themeDir: root.themeDir
+        stamp: root.themeStamp
         barHeight: root.edgeBar ? root.edgeBar.barSize : Style.bar.sizeHorizontal
       }
     }

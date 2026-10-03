@@ -426,5 +426,9 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert(nm.includes('dressed.indexOf(p) !== -1'), 'never two FogPanels in one popup');
   assert(st.includes('Root.NativeMaterial { id: nativeMaterial }'));
   assert(st.includes('Qt.callLater(function() { nativeMaterial.attach(it) })'));
+  // Omarchy's widgets in its own bar keep their trusted bar; only their popups are dressed
+  assert(nm.includes('function dressBar(from)') && st.includes('nativeMaterial.dressBar(root)'));
+  assert(/nativeIds: \["omarchy\.audio", "omarchy\.power"/.test(nm), 'only Omarchy panel widgets');
+  assert(nm.includes('o.activeItem !== undefined && o.region !== undefined'), 'bar slots recognised by their API');
   console.log('PASS: native popups take the theme material');
 }

@@ -58,6 +58,32 @@ QtObject {
     if (added.length) dressed = dressed.concat(added)
     return added.length
   }
+  // Omarchy's widgets that stay in its own bar (audio, power, weather, world
+  // clock …): their slots share the bar's scene with our modules, so walk up
+  // from one of ours and dress the KeyboardPanels of Omarchy's panel widgets.
+  // They stay Omarchy's (trusted bar, all their services); only the popup's
+  // look changes. Returns how many popups were new.
+  readonly property var nativeIds: ["omarchy.audio", "omarchy.power", "omarchy.weather", "omarchy.elsewhen", "omarchy.clock",
+    "omarchy.network", "omarchy.bluetooth", "omarchy.tailscale", "omarchy.monitor", "omarchy.dropbox"]
+  function isSlot(o) {
+    return !!o && o.entry !== undefined && o.moduleName !== undefined && o.activeItem !== undefined && o.region !== undefined
+  }
+  function slotsIn(o, depth, out) {
+    if (!o || depth > 14) return out
+    if (isSlot(o)) { out.push(o); return out }
+    var kids = o.children || []
+    for (var i = 0; i < kids.length; i++) slotsIn(kids[i], depth + 1, out)
+    return out
+  }
+  function dressBar(from) {
+    if (!enabled || !from) return 0
+    var top = from
+    for (var i = 0; i < 24 && top.parent; i++) top = top.parent
+    var slots = slotsIn(top, 0, []), n = 0
+    for (var j = 0; j < slots.length; j++)
+      if (nativeIds.indexOf(String(slots[j].moduleName)) !== -1 && slots[j].activeItem) n += attach(slots[j].activeItem)
+    return n
+  }
   // a destroyed widget takes its panels (and their FogPanels) along: forget them
   function forget() {
     dressed = dressed.filter(function(p) { return !!p && p.borderSpec !== undefined })

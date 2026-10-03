@@ -1,0 +1,139 @@
+#!/bin/bash
+
+# omarchy-menu-select for the actions the Amiga Bar's drop-down logo menu
+# runs (DropMenu.qml puts this directory first on their PATH). Same
+# arguments, stdin and answer as Omarchy's own command, and the same file
+# protocol: the payload goes to the drop-down (`omarchy-shell amiga-bar ask`)
+# instead of the centred menu, which writes the answer into the selection
+# file and then creates the done file (a cancel creates the done file only).
+# Whenever no drop-down takes the question (no Amiga Bar, no drop-down, the
+# shell not answering), Omarchy's own command runs with the same prompt,
+# options and menu arguments; options read from stdin go to it on stdin.
+
+set -euo pipefail
+
+if (( $# < 1 )); then
+  echo "Usage: omarchy-menu-select <prompt> [option...] [-- menu args...]" >&2
+  exit 1
+fi
+
+args=("$@")
+prompt="$1"
+shift
+
+options=()
+menu_width=""
+menu_maxheight=""
+
+while (( $# > 0 )); do
+  if [[ $1 == "--" ]]; then
+    shift
+    while (( $# > 0 )); do
+      case "$1" in
+        --width)
+          shift
+          if (( $# == 0 )); then
+            echo "omarchy-menu-select: --width requires a value" >&2
+            exit 1
+          fi
+          menu_width="$1"
+          ;;
+        --height|--maxheight)
+          arg="$1"
+          shift
+          if (( $# == 0 )); then
+            echo "omarchy-menu-select: $arg requires a value" >&2
+            exit 1
+          fi
+          menu_maxheight="$1"
+          ;;
+      esac
+      shift
+    done
+    break
+  fi
+
+  options+=("$1")
+  shift
+done
+
+piped=0
+if (( ${#options[@]} == 0 )) && [[ ! -t 0 ]]; then
+  mapfile -t options
+  piped=1
+fi
+
+if (( ${#options[@]} == 0 )); then
+  echo "Usage: omarchy-menu-select <prompt> [option...] [-- menu args...]" >&2
+  exit 1
+fi
+
+shim_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+
+# PATH without this directory (however it is spelled), so the original
+# command, and everything it runs, never comes back here.
+path_without_shim() {
+  local entry real kept="" first=1
+  local -a entries=()
+  IFS=: read -r -a entries <<<"$PATH" || true
+  for entry in ${entries[@]+"${entries[@]}"}; do
+    real=$(cd -- "${entry:-.}" 2>/dev/null && pwd -P) || real=""
+    [[ -n $real && $real == "$shim_dir" ]] && continue
+    if (( first )); then
+      kept=$entry
+      first=0
+    else
+      kept+=":$entry"
+    fi
+  done
+  printf '%s' "$kept"
+}
+
+original() {
+  PATH=$(path_without_shim)
+  export PATH
+  if (( piped )); then
+    printf '%s\n' "${options[@]}" | omarchy-menu-select "${args[@]}"
+  else
+    omarchy-menu-select "${args[@]}"
+  fi
+}
+
+selection_file=$(mktemp)
+done_file=$(mktemp)
+rm -f "$done_file"
+trap 'rm -f "$selection_file" "$done_file"' EXIT
+
+options_json=$(perl -MEncode=decode -MJSON::PP=encode_json -e 'print encode_json([map { decode("UTF-8", $_) } @ARGV])' "${options[@]}")
+payload=$(perl -MEncode=decode -MJSON::PP=encode_json,decode_json -e '
+  my $payload = {
+    mode => "select",
+    prompt => decode("UTF-8", $ARGV[0]),
+    options => decode_json($ARGV[1]),
+    selectionFile => decode("UTF-8", $ARGV[2]),
+    doneFile => decode("UTF-8", $ARGV[3])
+  };
+  $payload->{width} = int($ARGV[4]) if length($ARGV[4] // "");
+  $payload->{maxHeight} = int($ARGV[5]) if length($ARGV[5] // "");
+  $payload->{token} = decode("UTF-8", $ARGV[6]) if length($ARGV[6] // "");
+  print encode_json($payload)
+' "$prompt" "$options_json" "$selection_file" "$done_file" "$menu_width" "$menu_maxheight" "${AMIGA_BAR_ASK_TOKEN:-}")
+
+reply=$(omarchy-shell amiga-bar ask "$payload" 2>/dev/null) || reply=""
+if [[ $reply != "ok" ]]; then
+  # Our files go first: a drop-down that took the question after all (a late
+  # reply) sees its asker gone and drops it.
+  rm -f "$selection_file" "$done_file"
+  original
+  exit
+fi
+
+while [[ ! -e $done_file ]]; do
+  sleep 0.05
+done
+
+if [[ -s $selection_file ]]; then
+  cat "$selection_file"
+else
+  exit 1
+fi

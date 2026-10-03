@@ -333,7 +333,7 @@ Item {
     contentHeight: popup.fittedContentHeight(list.implicitHeight)
 
     // Fog look (test): the popup grows out of the bar as fog.
-    Root.FogPanel { panel: popup; fog: Bridge.ModuleBus.fog; color: Bridge.ModuleBus.fogColor }
+    Root.FogPanel { panel: popup; fog: Bridge.ModuleBus.fog; color: Bridge.ModuleBus.fogColor; material: Bridge.ModuleBus.material }
 
     Item {
       id: popupKeys

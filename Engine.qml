@@ -56,6 +56,29 @@ Item {
   readonly property bool fogOn: options.fog === "on"
   readonly property bool fogVisible: fogOn && barReady && !edgeBar.transparent
   readonly property bool edgeVisible: options.edge === "workbench" && !fogOn && options.form !== "a500" && barReady
+  // Edge "theme": light and shadow from the current theme's bar-material.json
+  // (Tusche & Papier); a theme without one shows no edge.
+  readonly property string themeDir: Quickshell.env("HOME") + "/.local/state/omarchy/current/theme"
+  property var material: null
+  FileView {
+    id: materialFile
+    path: root.themeDir + "/bar-material.json"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: { try { root.material = JSON.parse(text()) } catch (e) { root.material = null } }
+    onLoadFailed: root.material = null
+  }
+  // `omarchy theme set` replaces the theme folder; the name file changes each time
+  FileView {
+    path: Quickshell.env("HOME") + "/.local/state/omarchy/current/theme.name"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: { reload(); materialFile.reload() }
+    onLoaded: materialFile.reload()
+  }
+  readonly property bool materialOn: options.edge === "theme" && !fogOn && !!material
+  readonly property bool themeEdgeVisible: materialOn && !!material.edge && options.form !== "a500" && barReady
   // The colour the bar ends in (opaque; the A500 form makes the native
   // bar's fill transparent): the bar's own, or the case's darker front.
   readonly property color fogColor: {
@@ -80,6 +103,16 @@ Item {
       WorkbenchEdge {
         required property var modelData
         screen: modelData
+        barHeight: root.edgeBar ? root.edgeBar.barSize : Style.bar.sizeHorizontal
+      }
+    }
+  }
+  Variants {
+    model: root.themeEdgeVisible ? Quickshell.screens : []
+    delegate: Component {
+      ThemeEdge {
+        spec: root.material ? root.material.edge : null
+        themeDir: root.themeDir
         barHeight: root.edgeBar ? root.edgeBar.barSize : Style.bar.sizeHorizontal
       }
     }
@@ -218,6 +251,7 @@ Item {
   Binding { target: Bridge.ModuleBus; property: "fontLevel"; value: root.options.font }
   Binding { target: Bridge.ModuleBus; property: "fog"; value: root.fogOn }
   Binding { target: Bridge.ModuleBus; property: "fogColor"; value: root.fogColor }
+  Binding { target: Bridge.ModuleBus; property: "material"; value: root.materialOn ? root.material : null }
   Binding { target: Bridge.ModuleBus; property: "noteActive"; value: root.caseVisible && !!root.islandSpan.note }
   Binding { target: Bridge.ModuleBus; property: "noteScreen"; value: String(root.islandSpan.noteScreen || "") }
   // per screen: the note comes out of the slot on the monitor it hangs on
@@ -640,6 +674,7 @@ Item {
                               open: root.isOpen, menuOpen: root.menuOpen, dropMenuOpen: root.dropMenuOpen, screenOpen: root.screenOpen, saved: root.savedPresets.map(function(p) { return p.name }), lastResult: root.lastResult, moduleDir: root.moduleDir,
                               systemFont: root.systemProfile, fontResult: root.systemFontResult,
                               form: { option: root.formOption, caseVisible: root.caseVisible, result: root.formResult, island: root.islandSpan, led: root.ledSpans },
+                              edge: { option: root.options.edge, material: root.material ? (root.material.edge ? root.material.edge.kind : "no edge") : null, themeEdge: root.themeEdgeVisible, workbench: root.edgeVisible, barReady: root.barReady },
                               usage: { folded: root.usageFolded, intervalSec: root.usageIntervalSec, running: usageUpdate.running, command: usageUpdate.command },
                               cc: controlCenter.stateObject() })
     }

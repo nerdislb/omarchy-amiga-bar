@@ -19,6 +19,9 @@ QtObject {
   property string menuStyle: "drop"
   // Fog look (test), set by the engine from the `fog` option.
   property bool fog: false
+  // the current theme's bar material (bar-material.json) while the edge option
+  // is "theme" and the fog is off; null otherwise. FogPanel styles cards with it.
+  property var material: null
   property color fogColor: "black"
   // A500 form: a note is coming out of the drive slot (DF0 lights).
   property bool noteActive: false

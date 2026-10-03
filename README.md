@@ -15,7 +15,7 @@ Presets and compact Amiga-style modules for the **native** Omarchy bar. See `ROA
 | Workspaces (`Workspaces.qml`, incl. Omarchy logo) | today, pips, stack, logo, minimap, cli, boing |
 | AI quotas (`Quota.qml`) | today, gauge, vu, rings, ondemand, title (Workbench title line) |
 | Right side (`Status.qml`) | today, groups, deviations, drawer (Workbench window), hardware (A500 strip), compact (A500 strip, compact) |
-| Bar edge | none (default), workbench (Workbench edge) |
+| Bar edge (`WorkbenchEdge.qml`, `ThemeEdge.qml`) | none (default), workbench (Workbench edge), theme (light & shadow from the theme's `bar-material.json`) — kept by presets |
 | Bar form (`A500Case.qml`) | full (default), a500 (A500 case edge) — kept by presets |
 | Fog look (test) (`FogEdge.qml`, `FogPanel.qml`, `FogLayer.qml`) | off (default), on — kept by presets |
 | Logo menu (`DropMenu.qml`, `IntuitionMenu.qml`) | drop (default, drop-down under the logo), strip (menu strip) — kept by presets |
@@ -41,6 +41,22 @@ It hides for bottom/side bars, and is removed when set to `none` or when the
 plugin unloads. Existing presets and older saved combinations default to `none`.
 Both options are available in Options and through `amiga-bar set right compact`
 or `amiga-bar set edge workbench` with the usual `omarchy-shell` prefix.
+
+**Edge from the theme** (`edge: theme`) reads `bar-material.json` from the
+current Omarchy theme (the Tusche & Papier themes ship one; other themes show
+no edge) and follows theme switches. `edge.kind` `dry`: a line over the bar's
+lower edge on Overlay (light in Tusche, ink in Papier), and under it a short
+hard shadow, a glow and a still haze on the Top layer — while the workspace
+has windows only in the gap above them (`general:gaps_out`), in full on an
+empty one (on the Bottom layer Hyprland here blends layer surfaces
+additively, so a dark haze would never show). `kind` `lavur`: a pre-rendered
+wash (`bar-lavur.png` in the theme) instead. With the material, popups (drop
+menu, quota, status) roll out of the bar from the top in the theme's frame
+with its shadow (Papier: hard ink, 6/6) or halo (Tusche, Lavur), hanging
+flush from the bar; the logo becomes an inverted tab while the drop menu is
+open. The fog look replaces all of it while on. `amiga-bar set edge theme`
+(or `none`) with the usual `omarchy-shell` prefix; the Amiga Island takes the
+same material for its notes.
 
 **A500 case edge** (`form: a500`) turns the bar into the top edge of an Amiga
 500 inside the normal bar height: a flat top face, the darker wedge front with

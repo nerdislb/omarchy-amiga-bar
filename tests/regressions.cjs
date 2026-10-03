@@ -127,6 +127,35 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   console.log('PASS: compact normalisation, folding, build/restoration and default-off slot-free edge');
 }
 
+// Edge "theme": light and shadow from the theme's bar-material.json (Tusche & Papier, 03.10.2026).
+{
+  assert.equal(ctx.ELEMENTS.edge.variants.find(v => v.id === 'theme').label, 'From the theme (light & shadow)');
+  assert.equal(ctx.normalizeOptions({edge: 'theme'}).edge, 'theme');
+  assert.ok(plain(ctx.LOOK).includes('edge'), 'the edge is a look option, kept by presets');
+  assert.equal(ctx.matchPreset(Object.assign({}, ctx.presetById('k1').options, {edge: 'theme'})), 'k1');
+  const te = fs.readFileSync(path.join(root, 'ThemeEdge.qml'), 'utf8');
+  assert.match(te, /bottom - px - 1/, 'the line surface keeps a transparent device pixel (1 px surfaces are never drawn)');
+  assert.match(te, /WlrLayershell\.layer: WlrLayer\.Overlay/, 'the line sits over the bar');
+  assert.match(te, /WlrLayershell\.layer: WlrLayer\.Top/, 'shadow/haze on Top: Bottom blends additively here');
+  assert.doesNotMatch(te, /WlrLayer\.Bottom/);
+  assert.match(te, /Math\.min\(depth \+ top, root\.gap\)/, 'with windows on the workspace only the gap above them');
+  const fp = fs.readFileSync(path.join(root, 'FogPanel.qml'), 'utf8');
+  assert.match(fp, /matOn: !fog && !!mat/, 'material only without fog');
+  assert.match(fp, /if \(!rolls\) \{ rollOut\.stop\(\); rollIn\.stop\(\); return \}/, 'never write roll through a releasing Binding');
+  assert.match(fp, /property: "gap"; value: 0; when: fp\.rolls/, 'the rolling card hangs flush from the bar');
+  const island = path.resolve(root, '../omarchy-amiga-island/views/FogPanel.qml');
+  if (fs.existsSync(island)) {
+    const strip = t => t.replace(/^\/\/ \(Same component in the Amiga (Island|Bar): keep both copies alike\.\)$/m, '');
+    assert.equal(strip(fs.readFileSync(island, 'utf8')), strip(fp), 'both FogPanel copies alike');
+  }
+  const engine = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
+  assert.match(engine, /current\/theme\.name/, 'reloads the material on theme switch');
+  assert.match(engine, /materialOn: options\.edge === "theme" && !fogOn && !!material/);
+  assert.match(engine, /themeEdgeVisible: materialOn && !!material\.edge && options\.form !== "a500" && barReady/);
+  assert.match(engine, /property: "material"; value: root\.materialOn \? root\.material : null/);
+  console.log('PASS: theme edge option, material wiring, rolling cards');
+}
+
 // The thin integer surface encloses two physical pixel rows at fractional scale.
 {
   const edge = fs.readFileSync(path.join(root, 'WorkbenchEdge.qml'), 'utf8');

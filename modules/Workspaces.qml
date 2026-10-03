@@ -140,13 +140,27 @@ Item {
     width: root.menuWidth
     height: root.barSize
 
+    // Theme material (edge "theme"): while the drop menu is open the logo is
+    // its source – an inverted block from just under the bar's top down to
+    // its lower edge, where the menu card hangs from it.
+    readonly property var source: Bridge.ModuleBus.material ? Bridge.ModuleBus.material.source || null : null
+    readonly property bool inverted: !!source && root.dropOpen
+    Rectangle {
+      visible: menuSlot.inverted
+      y: Math.round(root.barSize * 0.17)
+      width: parent.width
+      height: parent.height - y
+      color: menuSlot.source ? menuSlot.source.fill : "transparent"
+    }
+
     Text { renderType: Text.NativeRendering;
       anchors.centerIn: parent
+      anchors.verticalCenterOffset: menuSlot.inverted ? Math.round(root.barSize * 0.08) : 0
       visible: root.variant !== "logo" && root.logo === "omarchy"
       text: ""
       font.family: Bridge.ModuleBus.pixelAll ? Bridge.ModuleBus.pixelFamily : "omarchy"
       font.pixelSize: Bridge.ModuleBus.px(Style.font.icon + 2)
-      color: root.fg
+      color: menuSlot.inverted ? menuSlot.source.text : root.fg
     }
 
     // Amiga tick or Boing ball in the pixel brick grid, on whole pixels.

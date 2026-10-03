@@ -37,7 +37,7 @@ KeyboardPanel {
   Behavior on contentHeight { NumberAnimation { duration: Style.duration(160); easing.type: Easing.OutCubic } }
 
   OmarchyMenuSource { id: source; live: menu.visible }
-  FogPanel { panel: menu; fog: Bridge.ModuleBus.fog; color: Bridge.ModuleBus.fogColor }
+  FogPanel { panel: menu; fog: Bridge.ModuleBus.fog; color: Bridge.ModuleBus.fogColor; material: Bridge.ModuleBus.material }
 
   // ---------------------------------------------------------------- rows
   readonly property var groups: {

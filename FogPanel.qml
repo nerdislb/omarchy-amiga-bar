@@ -3,6 +3,10 @@ import QtQuick.Effects
 import qs.Commons
 
 // Fog look (Amiga Bar option `fog`, a test) for an Omarchy KeyboardPanel.
+// Without fog but with a theme material (edge option "theme": the theme's
+// bar-material.json, Tusche & Papier) the card takes the theme's light and
+// shadow instead – a hard ink shadow (Papier), a light halo (Tusche, Lavur)
+// – and rolls out of the bar from the top, and back up when it closes.
 // Declare it inside the panel. While `fog` is on it takes the card's own
 // fill and frame away and grows a fog blob out of the bar behind it: a drop
 // under the anchor, then the card's size; the content fades in last.
@@ -33,6 +37,19 @@ Item {
   readonly property bool active: fog && !!card && !!surface && !!panel && panel.barPos === "top"
   readonly property bool reduced: Style.reduceMotion
 
+  // Theme material (bar-material.json; set while the edge option is "theme").
+  property var material: null
+  readonly property var mat: material && material.card ? material.card : null
+  readonly property bool matOn: !fog && !!mat && !!card && !!surface && !!panel
+  readonly property bool rolls: matOn && mat.roll !== false && panel.barPos === "top"
+  property real roll: 0      // 0 = rolled up into the bar, 1 = open
+  readonly property bool rolling: rolls && roll < 0.999
+  function rgba(hex, alpha) { var c = Qt.color(hex || "#000000"); return Qt.rgba(c.r, c.g, c.b, alpha === undefined ? 1 : alpha) }
+  // the card's own shadow/halo from the material (null: the default soft shadow)
+  readonly property var matShadow: !mat ? null : (mat.shadow ? { color: rgba(mat.shadow.color, mat.shadow.alpha), dx: mat.shadow.dx || 0, dy: mat.shadow.dy || 0, blur: 0 }
+    : mat.halo ? { color: rgba(mat.halo.color, mat.halo.alpha), dx: 0, dy: 6, blur: mat.halo.blur || 40 }
+    : mat.glow ? { color: rgba(mat.glow.color, mat.glow.alpha), dx: 0, dy: 0, blur: mat.glow.blur || 18 } : null)
+
   property real grow: 0      // 0 = inside the bar, 1 = the card's size
   property real ink: 1       // the content's opacity
 
@@ -52,6 +69,19 @@ Item {
   Binding { target: fp.card; property: "color"; value: "transparent"; when: fp.active }
   Binding { target: fp.card; property: "borderSpec"; value: Border.flat("transparent", Math.max(1, Style.space(2))); when: fp.active }
   Binding { target: fp.card; property: "opacity"; value: Math.max(fp.ink, fp.grow > 0.001 ? 0.004 : 0); when: fp.active }
+  // Rolling (material): the card stays up while it rolls back into the bar;
+  // a mask on the card's layer shows only the rolled-out part.
+  Binding { target: fp.card; property: "opacity"; value: fp.panel && (fp.panel.open || fp.roll > 0.001) ? 1 : 0; when: fp.rolls }
+  // the card hangs flush from the bar: the inverted source tab runs into it
+  Binding { target: fp.panel; property: "gap"; value: 0; when: fp.rolls }
+  Binding { target: fp.card ? fp.card.layer : null; property: "enabled"; value: true; when: fp.rolling && !!fp.rollMask }
+  Binding { target: fp.card ? fp.card.layer : null; property: "effect"; value: rollEffect; when: fp.rolling && !!fp.rollMask }
+  Component {
+    id: rollEffect
+    MultiEffect { maskEnabled: true; maskSource: fp.rollMask; maskThresholdMin: 0.5; maskSpreadAtMin: 0; autoPaddingEnabled: false }
+  }
+  NumberAnimation { id: rollOut; target: fp; property: "roll"; to: 1; duration: 260; easing.type: Easing.OutCubic }
+  NumberAnimation { id: rollIn; target: fp; property: "roll"; to: 0; duration: 200; easing.type: Easing.InCubic }
 
   function blobRect() {
     if (!card) return { x: 0, y: 0, w: 0, h: 0 }
@@ -92,7 +122,25 @@ Item {
   }
   NumberAnimation { id: ghostFade; property: "opacity"; to: 0; duration: 760; easing.type: Easing.InQuad }
 
+  function followRoll() {
+    // Same rule as the fog below: when rolling stops applying, only stop –
+    // never write roll through a Binding that is about to be released.
+    if (!rolls) { rollOut.stop(); rollIn.stop(); return }
+    if (panel.open) {
+      rollIn.stop()
+      if (reduced) { roll = 1; return }
+      rollOut.start()            // from where it is: 0 when fresh, partway when reopened
+    } else {
+      rollOut.stop()
+      if (reduced || roll <= 0 || panel.popoutSwitchClosing) { rollIn.stop(); roll = 0; return }
+      rollIn.start()
+    }
+  }
+  // becoming a rolling card: take the state without animating (open = out, closed = in)
+  onRollsChanged: { rollOut.stop(); rollIn.stop(); if (rolls) roll = panel && panel.open ? 1 : 0 }
+
   function follow() {
+    followRoll()
     // Fog off: only stop. Writing grow/ink here would still go through the
     // card's opacity Binding (not yet released) and start the panel's
     // opacity Behavior, which then outlives the restored binding — closed
@@ -220,22 +268,42 @@ Item {
   Component {
     id: cardShadowComponent
     Item {
+      id: shade
       readonly property real spread: 40
-      visible: fp.edge && !fp.active && !!fp.card && fp.card.opacity > 0
+      // material: the theme's hard shadow (no blur) or halo; else the soft default
+      readonly property var spec: fp.matOn ? fp.matShadow : null
+      readonly property bool soft: !spec || spec.blur > 0
+      visible: (fp.edge || !!spec) && !fp.active && !!fp.card && fp.card.opacity > 0 && (!fp.matOn || !!spec)
       opacity: fp.card ? fp.card.opacity : 0
       x: fp.card ? fp.card.x - spread : 0
       y: fp.card ? fp.card.y - spread : 0
       width: fp.card ? fp.card.width + 2 * spread : 0
       height: fp.card ? fp.card.height + 2 * spread : 0
-      layer.enabled: visible
-      layer.effect: MultiEffect { blurEnabled: true; blur: 1; blurMax: 32; autoPaddingEnabled: false }
+      layer.enabled: visible && soft
+      layer.effect: MultiEffect { blurEnabled: true; blur: 1; blurMax: shade.spec ? Math.min(64, shade.spec.blur) : 32; autoPaddingEnabled: false }
       Rectangle {
-        x: parent.spread + 2; y: parent.spread + 8
-        width: parent.width - 2 * parent.spread - 4
-        height: parent.height - 2 * parent.spread - 6
+        x: parent.spread + (shade.spec ? shade.spec.dx : 2)
+        y: parent.spread + (shade.spec ? shade.spec.dy : 8)
+        width: parent.width - 2 * parent.spread - (shade.spec ? 0 : 4)
+        // rolls with the card
+        height: (parent.height - 2 * parent.spread - (shade.spec ? 0 : 6)) * (fp.rolls ? fp.roll : 1)
         radius: fp.card ? fp.card.radius : 0
-        color: Qt.rgba(0, 0, 0, fp.shadowOpacity)
+        color: shade.spec ? shade.spec.color : Qt.rgba(0, 0, 0, fp.shadowOpacity)
       }
+    }
+  }
+  // the roll mask: the card's top part, as far as it has rolled out
+  property Item rollMask: null
+  Component {
+    id: rollMaskComponent
+    Item {
+      visible: false
+      layer.enabled: fp.rolls
+      x: fp.card ? fp.card.x : 0
+      y: fp.card ? fp.card.y : 0
+      width: fp.card ? fp.card.width : 1
+      height: fp.card ? fp.card.height : 1
+      Rectangle { width: parent.width; height: Math.max(1, parent.height * fp.roll); color: "white" }
     }
   }
   Component {
@@ -243,7 +311,7 @@ Item {
     Rectangle {
       anchors.fill: parent
       z: 1000
-      visible: fp.edge && !fp.active
+      visible: fp.edge && !fp.active && !fp.matOn
       color: "transparent"
       radius: fp.card ? fp.card.radius : 0
       border.width: 1
@@ -255,6 +323,7 @@ Item {
     if (surface) {
       cardShadow = cardShadowComponent.createObject(surface, { z: card.z - 2 })
       stage = stageComponent.createObject(surface, { z: card.z - 1 })
+      rollMask = rollMaskComponent.createObject(surface, { z: card.z - 3 })
     }
     if (card) cardLine = cardLineComponent.createObject(card)
     follow()
@@ -263,5 +332,6 @@ Item {
     if (stage) stage.destroy()
     if (cardShadow) cardShadow.destroy()
     if (cardLine) cardLine.destroy()
+    if (rollMask) rollMask.destroy()
   }
 }

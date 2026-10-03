@@ -70,6 +70,18 @@ Item {
 
   // ---------------------------------------------------------------- embedded natives
   property var mounted: ({})    // id -> item
+  // the theme material / fog look for their own (Omarchy) popups – and for
+  // those of Omarchy's widgets that stay in its bar (audio, power, …): a
+  // few passes after loading, as the bar's slots load one by one
+  Root.NativeMaterial { id: nativeMaterial }
+  Timer {
+    id: dressTimer
+    property int pass: 0
+    interval: 1200
+    repeat: true
+    running: true
+    onTriggered: { nativeMaterial.dressBar(root); if (++pass >= 4) stop() }
+  }
   // The bar forwards clicks to every registered click target by geometry,
   // whatever its container's visibility, so the mounts live far above the
   // bar (no overlap with our cells). Only their x matters: the native popups
@@ -102,11 +114,15 @@ Item {
           var m = Object.assign({}, root.mounted)
           m[modelData] = item
           root.mounted = m
+          // Omarchy's own popup of this widget takes the theme material too
+          var it = item
+          Qt.callLater(function() { nativeMaterial.attach(it) })
         }
         Component.onDestruction: {
           var m = Object.assign({}, root.mounted)
           delete m[modelData]
           root.mounted = m
+          nativeMaterial.forget()
         }
       }
     }

@@ -748,3 +748,24 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   }
   console.log('PASS: nested drop-down (manifest kind, shell facade, providers, questions, routing, writes, detection, shims end to end)');
 }
+
+// Omarchy's own popups (native widgets folded into the status groups) take
+// the theme material: NativeMaterial finds their KeyboardPanel and hangs a
+// FogPanel into its content holder; without material/fog nothing changes.
+{
+  const nm = fs.readFileSync(path.join(root, 'NativeMaterial.qml'), 'utf8');
+  const st = fs.readFileSync(path.join(root, 'modules/Status.qml'), 'utf8');
+  assert(nm.includes('readonly property Component fogComponent: Component { FogPanel {} }'));
+  assert(nm.includes('fogComponent.createObject(holder, {'));
+  assert(nm.includes('edge: false'), 'no extra line or shadow on Omarchy popups without material');
+  assert(/o\.borderSpec !== undefined && o\.anchorItem !== undefined/.test(nm));
+  assert(nm.includes('h.parent.borderSpec !== undefined'), 'the holder sits in the card, as FogPanel expects');
+  assert(nm.includes('dressed.indexOf(p) !== -1'), 'never two FogPanels in one popup');
+  assert(st.includes('Root.NativeMaterial { id: nativeMaterial }'));
+  assert(st.includes('Qt.callLater(function() { nativeMaterial.attach(it) })'));
+  // Omarchy's widgets in its own bar keep their trusted bar; only their popups are dressed
+  assert(nm.includes('function dressBar(from)') && st.includes('nativeMaterial.dressBar(root)'));
+  assert(/nativeIds: \["omarchy\.audio", "omarchy\.power"/.test(nm), 'only Omarchy panel widgets');
+  assert(nm.includes('o.activeItem !== undefined && o.region !== undefined'), 'bar slots recognised by their API');
+  console.log('PASS: native popups take the theme material');
+}

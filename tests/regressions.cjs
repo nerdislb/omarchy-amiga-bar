@@ -419,7 +419,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   const os = require('node:os');
   const shellQuote = v => "'" + String(v || '').replace(/'/g, "'\\''") + "'";   // qs.Commons Util.shellQuote
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
-  assert.equal(manifest.version, '0.7.0-local.1');
+  assert.match(manifest.version, /^0\.7\.0-local\.\d+$/);
   assert.deepEqual(manifest.kinds, ['panel', 'menu'], '"menu" brings the app-library facade; "panel" keeps the loader');
   // omarchy-plugin-validate: every kind needs its entry point
   const entryFor = {bar: 'bar', 'bar-widget': 'barWidget', menu: 'menu', overlay: 'overlay', panel: 'panel', service: 'service'};
@@ -578,7 +578,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     'unknown providers (or Apps without the library) keep the native menu');
   assert.match(dm, /function runAction\(action\) \{\n    Util\.execDetached\(prefixed\(action, ""\)\)/, 'every action gets the shims');
   assert.match(dm, /proc\.command = launchCommand\(r\.action, token\)/);
-  assert.match(dm, /if \(!menu\.open\) \{ menu\.closed\(\); return \}/, 'every close cancels what is pending');
+  assert.match(dm, /if \(!menu\.open\) \{ menu\.dropClosed\(\); return \}/, 'every close cancels what is pending');
   assert.match(dm, /Component\.onDestruction: cancelAll\(\)/);
   assert.match(dm, /visible: row\.isApp && status === Image\.Ready/, "an app's own icon, the glyph until it is there");
 

@@ -375,7 +375,7 @@ KeyboardPanel {
     requests = []
     for (var i = 0; i < pending.length; i++) writeCancel(pending[i])
   }
-  function closed() {
+  function dropClosed() {
     waitTimer.stop()
     var top = level
     if (top && top.kind === "waiting") abandon(top.token)
@@ -438,7 +438,7 @@ KeyboardPanel {
     Connections {
       target: menu
       function onOpenChanged() {
-        if (!menu.open) { menu.closed(); return }
+        if (!menu.open) { menu.dropClosed(); return }
         menu.stack = []; menu.query = ""; menu.current = -1
         keys.keyboard = false; keys.pointerKnown = false
         menu.slideX = 0

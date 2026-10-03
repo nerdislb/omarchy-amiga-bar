@@ -411,3 +411,340 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   }
   console.log('PASS: control center wiring (engine, IPC, argv processes, fog hook)');
 }
+
+// Nested drop-down menu (0.7.0): Apps, fonts and the questions of the actions
+// it runs (omarchy-menu-select / -input) open inside the drop-down, never in
+// the centred menu.
+{
+  const os = require('node:os');
+  const shellQuote = v => "'" + String(v || '').replace(/'/g, "'\\''") + "'";   // qs.Commons Util.shellQuote
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
+  assert.equal(manifest.version, '0.7.0-local.1');
+  assert.deepEqual(manifest.kinds, ['panel', 'menu'], '"menu" brings the app-library facade; "panel" keeps the loader');
+  // omarchy-plugin-validate: every kind needs its entry point
+  const entryFor = {bar: 'bar', 'bar-widget': 'barWidget', menu: 'menu', overlay: 'overlay', panel: 'panel', service: 'service'};
+  for (const k of manifest.kinds) assert.equal(manifest.entryPoints[entryFor[k]], 'Engine.qml', k);
+
+  const dm = fs.readFileSync(path.join(root, 'DropMenu.qml'), 'utf8');
+  const oms = fs.readFileSync(path.join(root, 'OmarchyMenuSource.qml'), 'utf8');
+  const en = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
+  const ws = fs.readFileSync(path.join(root, 'modules/Workspaces.qml'), 'utf8');
+  const providersOf = text => {
+    const from = text.indexOf('readonly property var providers: ');
+    const c = {Util: {shellQuote}};
+    vm.createContext(c);
+    return vm.runInContext(text.slice(text.indexOf('({', from), text.indexOf('\n  })', from) + 5), c);
+  };
+
+  // Omarchy's own shell, where installed: the plugin still loads as the same
+  // keep-loaded panel; only its scoped shell gains the application library.
+  const omarchy = [process.env.OMARCHY_PATH, path.join(os.homedir(), '.local/share/omarchy'), path.join(os.homedir(), 'omarchy'), '/usr/share/omarchy']
+    .find(d => d && fs.existsSync(path.join(d, 'shell/shell.qml')));
+  if (omarchy) {
+    const shellQml = fs.readFileSync(path.join(omarchy, 'shell/shell.qml'), 'utf8');
+    const sc = {};
+    vm.createContext(sc);
+    vm.runInContext(['manifestHasKind', 'pluginShellCapabilityProfile', 'computePanelEntries', 'isBarWidgetPanelPlugin']
+      .map(n => functionSource(shellQml, n)).join('\n'), sc);
+    sc.shell = {manifestHasKind: sc.manifestHasKind, pluginRegistry: {installedPlugins: {}, isEnabled: () => true}};
+    const before = Object.assign({}, manifest, {kinds: ['panel'], entryPoints: {panel: 'Engine.qml'}});
+    for (const m of [before, manifest]) {
+      sc.shell.pluginRegistry.installedPlugins = {[m.id]: m};
+      assert.deepEqual(plain(sc.computePanelEntries().map(e => [e.id, e.kind, e.keepLoaded])), [[m.id, 'panel', true]]);
+      assert.equal(sc.isBarWidgetPanelPlugin(m.id), false);
+    }
+    assert.equal(sc.pluginShellCapabilityProfile(before, true, false), 'own-service|no-bar|no-menu');
+    assert.equal(sc.pluginShellCapabilityProfile(manifest, true, false), 'own-service|no-bar|menu');
+    assert.match(shellQml, /appLibrary: shell\.manifestHasKind\(manifest, "menu"\)/, 'menu plugins get the app library facade');
+    // the providers are the native menu's, unchanged
+    const mine = providersOf(oms), native = providersOf(fs.readFileSync(path.join(omarchy, 'shell/plugins/menu/Menu.qml'), 'utf8'));
+    assert.deepEqual(Object.keys(mine), Object.keys(native));
+    for (const k of Object.keys(native)) {
+      assert.equal(mine[k].script, native[k].script, k);
+      assert.equal(mine[k].icon, native[k].icon, k);
+      assert.equal(!!mine[k].volatile, !!native[k].volatile, k);
+      assert.equal(mine[k].actionFor("Fira Code's"), native[k].actionFor("Fira Code's"), k);
+    }
+    assert.equal(fs.readFileSync(path.join(root, 'vendor/MenuModel.js'), 'utf8'),
+      fs.readFileSync(path.join(omarchy, 'shell/plugins/menu/MenuModel.js'), 'utf8'), 'vendor/MenuModel.js: refresh the copy (vendor/README.md)');
+  } else console.log('(no Omarchy shell source found: shell checks skipped)');
+
+  // Questions, read the native way: the glyph never comes back, a subtext does.
+  const dc = {menu: {requestSerial: 0, query: ''}};
+  vm.createContext(dc);
+  vm.runInContext(['choiceRow', 'makeRequest', 'listRows'].map(n => functionSource(dm, n)).join('\n'), dc);
+  assert.deepEqual(plain(dc.choiceRow('Berlin', 0)), {kind: 'choice', id: 'choice.0', icon: '', label: 'Berlin', note: '', answer: 'Berlin'});
+  assert.deepEqual(plain(dc.choiceRow('G\tOnly', 1)), {kind: 'choice', id: 'choice.1', icon: 'G', label: 'Only', note: '', answer: 'Only'});
+  assert.deepEqual(plain(dc.choiceRow('\u{f0431}\tAmiga Bar\tnerdibeard.amiga-bar', 2)),
+    {kind: 'choice', id: 'choice.2', icon: '\u{f0431}', label: 'Amiga Bar', note: 'nerdibeard.amiga-bar', answer: 'Amiga Bar\tnerdibeard.amiga-bar'});
+  assert.equal(dc.choiceRow('G\tL\tsub\tmore', 3).answer, 'L\tsub\tmore');
+  const rq = dc.makeRequest({mode: 'select', prompt: 'Set timezone', options: ['A', 'B'], selectionFile: '/t/s', doneFile: '/t/d', width: 520, maxHeight: '400', token: 'tok'});
+  assert.deepEqual([rq.id, rq.mode, rq.rows.length, rq.width, rq.maxHeight, rq.token], [1, 'select', 2, 520, 400, 'tok']);
+  const inp = dc.makeRequest({mode: 'input', doneFile: '/t/d'});
+  assert.deepEqual([inp.id, inp.prompt, inp.rows.length, inp.width, inp.token], [2, 'Input', 0, 0, '']);
+  assert.equal(dc.makeRequest({mode: 'other', doneFile: '/t/d'}).prompt, 'Select');
+  // typing inside a list level filters it by label and subtext
+  const zones = ['a\tEurope/Berlin\tCET', 'b\tAmerica/New_York\tEST', 'c\tAsia/Tokyo'].map(dc.choiceRow);
+  dc.menu.query = 'est';
+  assert.deepEqual(plain(dc.listRows(zones).map(r => r.label)), ['America/New_York']);
+  dc.menu.query = ' TOKYO ';
+  assert.deepEqual(plain(dc.listRows(zones).map(r => r.label)), ['Asia/Tokyo']);
+  dc.menu.query = 'browser';
+  assert.equal(dc.listRows([{kind: 'app', label: 'Zen', sub: 'Web Browser'}])[0].label, 'Zen');
+  dc.menu.query = 'zzz';
+  assert.deepEqual(plain(dc.listRows(zones).map(r => [r.label, r.disabled])), [['No matches', true]]);
+  dc.menu.query = '';
+  assert.equal(dc.listRows(zones).length, 3);
+  assert.equal(dc.listRows([])[0].label, 'Nothing here');
+
+  // Actions that ask, providers, apps (OmarchyMenuSource).
+  const MenuModel = require(path.join(root, 'vendor/MenuModel.js'));
+  const sc2 = {MenuModel, Util: {shellQuote}, askWords: {}, providers: providersOf(oms)};
+  vm.createContext(sc2);
+  vm.runInContext(['firstWord', 'asks', 'askScript', 'providerList', 'appRow', 'loadApps', 'appHits'].map(n => functionSource(oms, n)).join('\n'), sc2);
+  assert.equal(sc2.firstWord('omarchy-menu-plugin enable'), 'omarchy-menu-plugin');
+  assert.equal(sc2.firstWord('  omarchy-menu-keybindings'), 'omarchy-menu-keybindings');
+  assert.equal(sc2.firstWord("omarchy-launch-webapp 'https://x'"), 'omarchy-launch-webapp');
+  assert.equal(sc2.firstWord('background=$(omarchy-theme-bg-switcher); x'), '');
+  sc2.askWords = {'omarchy-menu-plugin': true, 'omarchy-capture-screenrecording-with-webcam': true};
+  assert(sc2.asks('omarchy-menu-plugin enable'));
+  assert(!sc2.asks('omarchy-menu-plugins enable'));
+  assert(!sc2.asks('omarchy-capture-screenrecording-with-webcam'), 'screen captures never wait in the drop-down');
+  const fonts = sc2.providerList('style.font', 'fonts', 'Fira Code\tFira Code\tJetBrains Mono\nJetBrains Mono\tJetBrains Mono\tJetBrains Mono\n\nFira-Code\tFira-Code\tJetBrains Mono\n');
+  assert.deepEqual(plain(fonts.map(r => [r.label, r.checked, r.id, r.kind])), [
+    ['Fira Code', false, 'style.font.fira-code', 'action'], ['JetBrains Mono', true, 'style.font.jetbrains-mono', 'action'],
+    ['Fira-Code', false, 'style.font.fira-code-', 'action']]);
+  assert.equal(fonts[0].action, "omarchy-font-set 'Fira Code'");
+  assert.equal(fonts[0].icon, '\ue659');
+  assert.deepEqual(plain(sc2.providerList('x', 'unknown', 'a\tb')), []);
+  const entries = [{id: 'zen', name: 'Zen Browser', genericName: 'Web Browser', icon: 'zen'},
+    {id: 'alacritty', name: 'Alacritty', genericName: 'Terminal', icon: '/x/a.svg'}, {id: 'zen', name: 'Zen Browser', icon: 'zen'}, {id: '', name: 'Nameless'}];
+  sc2.appLibrary = {
+    sortedEntries: q => entries.filter(e => !q || e.name.toLowerCase().includes(q.toLowerCase())).map(entry => ({entry})),
+    entryName: e => e.name, entrySubtext: e => e.genericName || ''
+  };
+  sc2.loadApps();
+  assert.deepEqual(plain(sc2.appRows.map(r => [r.id, r.appId, r.label, r.sub, r.path, r.appIcon])), [
+    ['apps.alacritty', 'alacritty', 'Alacritty', 'Terminal', 'Terminal', '/x/a.svg'], ['apps.zen', 'zen', 'Zen Browser', 'Web Browser', 'Web Browser', 'zen']]);
+  assert.deepEqual(plain(sc2.appHits('browser', 8).map(r => [r.label, r.path])), [['Zen Browser', 'Apps']]);
+  assert.equal(sc2.appHits('a', 1).length, 1);
+  assert.deepEqual(plain(sc2.appHits(' ', 8)), []);
+  sc2.appLibrary = null;
+  sc2.loadApps();
+  assert.deepEqual(plain(sc2.appRows), []);
+  assert.deepEqual(plain(sc2.appHits('zen', 8)), []);
+
+  // The engine routes a question to a drop-down, or refuses (the shim then
+  // runs Omarchy's own command).
+  const ec = {};
+  vm.createContext(ec);
+  vm.runInContext(['screenOf', 'dropTarget', 'ask'].map(n => functionSource(en, n)).join('\n'), ec);
+  const inst = (name, more) => Object.assign({QsWindow: {window: {visible: true, screen: {name}}}, dropAvailable: true, dropOpen: false,
+    tracked: [], asked: [], accepts: true, dropTracks(t) { return this.tracked.includes(t) }, dropAsk(p) { this.asked.push(p); return this.accepts }}, more || {});
+  const A = inst('eDP-1'), B = inst('HDMI-A-1'), C = inst('DP-2', {dropAvailable: false});
+  ec.Bridge = {ModuleBus: {instances: {workspaces: [C, A, B]}, pick: () => B}};
+  ec.root = {lastDropScreen: '', dropTarget: t => ec.dropTarget(t), screenOf: i => ec.screenOf(i)};
+  const payload = more => JSON.stringify(Object.assign({mode: 'select', prompt: 'P', options: ['a'], selectionFile: '/tmp/s', doneFile: '/tmp/d'}, more));
+  for (const bad of ['not json', '"text"', payload({mode: 'menu'}), payload({doneFile: ''}), payload({doneFile: 'rel/d'}), payload({selectionFile: 'rel/s'})])
+    assert.equal(ec.ask(bad), 'invalid payload', bad);
+  assert.equal(ec.ask(payload({})), 'ok');
+  assert.equal(B.asked.length, 1, 'no history: the focused screen');
+  ec.root.lastDropScreen = 'eDP-1';
+  assert.equal(ec.ask(payload({mode: 'input', selectionFile: undefined})), 'ok');
+  assert.equal(A.asked.length, 1, 'the screen that had it last');
+  B.dropOpen = true;
+  ec.ask(payload({}));
+  assert.equal(B.asked.length, 2, 'an open drop-down');
+  A.tracked = ['tok'];
+  ec.ask(payload({token: 'tok'}));
+  assert.equal(A.asked.length, 2, 'the drop-down that launched the asking action');
+  assert.equal(C.asked.length, 0, 'never one that is not available');
+  A.accepts = false;
+  assert.equal(ec.ask(payload({token: 'tok'})), 'no drop-down');
+  ec.Bridge.ModuleBus = {instances: {workspaces: [C]}, pick: () => null};
+  assert.equal(ec.ask(payload({})), 'no drop-down');
+  assert.match(en, /function ask\(payload: string\): string \{ return root\.ask\(payload\) \}/);
+  assert.match(en, /readonly property string shimDir: pluginDir \+ "\/bin\/menu-shim"/);
+  assert.match(en, /ask: root\.askState\(\)/);
+  assert.match(ws, /if \(!dropAvailable \|\| !m \|\| !m\.takeRequest\(request\)\) return false\n    if \(m\.hasPending\(\)\) open\(\)/,
+    'opens only for a pending question (an abandoned one is cancelled quietly)');
+
+  // DropMenu wiring: nested levels, look kept, every close cancels.
+  assert.match(dm, /readonly property bool opens: r\.kind === "menu" \|\| r\.kind === "group" \|\| r\.kind === "provider" \|\| r\.asks === true/, 'chevrons for the new levels');
+  assert.match(dm, /ListView \{\n        id: list/);
+  assert.doesNotMatch(dm, /Repeater/);
+  assert.match(dm, /else if \(r\.kind === "app"\) \{ var lib = appLibrary; finish\(function\(\) \{ if \(lib\) lib\.launch\(r\.appId, r\.label\) \}\) \}/, 'close, then launch');
+  assert.match(dm, /if \(!source\.hasProvider\(r\.provider\)\) \{\n      finish\(function\(\) \{ Util\.execDetached\("omarchy-menu summon " \+ Util\.shellQuote\(r\.id\)\) \}\)/,
+    'unknown providers (or Apps without the library) keep the native menu');
+  assert.match(dm, /function runAction\(action\) \{\n    Util\.execDetached\(prefixed\(action, ""\)\)/, 'every action gets the shims');
+  assert.match(dm, /proc\.command = launchCommand\(r\.action, token\)/);
+  assert.match(dm, /if \(!menu\.open\) \{ menu\.closed\(\); return \}/, 'every close cancels what is pending');
+  assert.match(dm, /Component\.onDestruction: cancelAll\(\)/);
+  assert.match(dm, /visible: row\.isApp && status === Image\.Ready/, "an app's own icon, the glyph until it is there");
+
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'amiga-bar-test-'));
+  try {
+    const put = (dir, name, text, mode = 0o755) => {
+      fs.mkdirSync(dir, {recursive: true});
+      fs.writeFileSync(path.join(dir, name), text);
+      fs.chmodSync(path.join(dir, name), mode);
+    };
+    const clean = {HOME: tmp, LANG: 'C.UTF-8'};
+    const shimDir = path.join(root, 'bin/menu-shim');
+
+    // The PATH prefix and the tracked launch: shims first, the token along,
+    // the action waited for – and still running after its waiter is killed.
+    const lc = {Util: {shellQuote}, shimDir: "/x/it's dir"};
+    vm.createContext(lc);
+    vm.runInContext(functionSource(dm, 'prefixed') + '\n' + functionSource(dm, 'launchCommand'), lc);
+    const sh = (cmd, env) => cp.execFileSync('bash', ['-c', cmd], {encoding: 'utf8', env: Object.assign({PATH: '/usr/bin:/bin'}, clean, env)});
+    assert.equal(sh(lc.prefixed('printf "%s|%s" "${PATH%%:*}" "${AMIGA_BAR_ASK_TOKEN-unset}"', 'tok')), "/x/it's dir|tok");
+    assert.equal(sh(lc.prefixed('printf "%s" "${AMIGA_BAR_ASK_TOKEN-unset}"', '')), 'unset');
+    lc.shimDir = shimDir;
+    const timed = Date.now();
+    const waited = cp.spawnSync(...(a => [a[0], a.slice(1)])(lc.launchCommand('sleep 0.3; exit 7', 't')), {env: Object.assign({PATH: '/usr/bin:/bin'}, clean)});
+    assert.equal(waited.status, 7, 'the waiter ends with the action');
+    assert(Date.now() - timed >= 300);
+    const marker = path.join(tmp, 'marker');
+    const argv = lc.launchCommand('sleep 0.6; printf "%s|%s" "$(command -v omarchy-menu-select)" "$AMIGA_BAR_ASK_TOKEN" > ' + shellQuote(marker), 'tok9');
+    const survived = cp.execFileSync('bash', ['-c', '"$@" & w=$!; sleep 0.2; kill -9 $w; wait $w 2>/dev/null; sleep 1; cat ' + shellQuote(marker), 'bash', ...argv],
+      {encoding: 'utf8', env: Object.assign({PATH: '/usr/bin:/bin'}, clean)});
+    assert.equal(survived, path.join(shimDir, 'omarchy-menu-select') + '|tok9', 'the action outlives its waiter');
+
+    // The drop-down's writes, run as the QML runs them: the answer, then the
+    // done file; a cancel is the done file alone; nothing once the asker left.
+    const writes = [];
+    const wc = {Quickshell: {execDetached: argv => writes.push(argv)}};
+    vm.createContext(wc);
+    vm.runInContext(functionSource(dm, 'writeAnswer') + '\n' + functionSource(dm, 'writeCancel'), wc);
+    const runWrite = () => { const a = writes.pop(); cp.execFileSync(a[0], a.slice(1)); return a };
+    const sel = path.join(tmp, 'sel'), done = path.join(tmp, 'done');
+    fs.writeFileSync(sel, '');
+    wc.writeAnswer({selectionFile: sel, doneFile: done}, 'Europe/Berlin\tCET');
+    const answerArgv = runWrite();
+    assert.equal(fs.readFileSync(sel, 'utf8'), 'Europe/Berlin\tCET\n');
+    assert(fs.existsSync(done));
+    fs.writeFileSync(sel, ''); fs.rmSync(done);
+    wc.writeCancel({selectionFile: sel, doneFile: done});
+    const cancelArgv = runWrite();
+    assert.equal(fs.readFileSync(sel, 'utf8'), '');
+    assert(fs.existsSync(done));
+    fs.rmSync(done);
+    wc.writeAnswer({selectionFile: sel, doneFile: done}, "$(echo nope) 'q' \\n");
+    runWrite();
+    assert.equal(fs.readFileSync(sel, 'utf8'), "$(echo nope) 'q' \\n\n", 'answers stay literal');
+    fs.rmSync(sel); fs.rmSync(done);
+    wc.writeAnswer({selectionFile: sel, doneFile: done}, 'x'); runWrite();
+    wc.writeCancel({selectionFile: sel, doneFile: done}); runWrite();
+    assert(!fs.existsSync(sel) && !fs.existsSync(done), 'the asker has gone: nothing written');
+
+    // The detection: only `#!` scripts that call omarchy-menu-select / -input.
+    const bin = path.join(tmp, 'detect');
+    put(bin, 'asker', '#!/bin/bash\nx=$(omarchy-menu-select "Pick" a b)\n');
+    put(bin, 'typer', '#!/bin/sh\nomarchy-menu-input Name\n');
+    put(bin, 'quiet', '#!/bin/bash\necho hello\n');
+    put(bin, 'binary', '\x7fELF omarchy-menu-select\n');
+    put(bin, 'plain', '#!/bin/bash\nomarchy-menu-select x\n', 0o644);
+    const asking = cp.execFileSync('bash', ['-c', sc2.askScript(), 'bash', 'asker', 'typer', 'quiet', 'binary', 'plain', 'missing', 'echo', path.join(bin, 'asker')],
+      {encoding: 'utf8', env: Object.assign({PATH: bin + ':/usr/bin:/bin'}, clean)});
+    assert.deepEqual(asking.split('\n').filter(Boolean).sort(), [path.join(bin, 'asker'), 'asker', 'typer'].sort());
+
+    // The shims end to end: a fake omarchy-shell that answers as the
+    // drop-down does (with its own write commands), one that fails, one that
+    // refuses; a fake original for the fallback.
+    const tmpdir = path.join(tmp, 't'), log = path.join(tmp, 'payload.json');
+    fs.mkdirSync(tmpdir);
+    const fakeOk = '#!/bin/bash\n'
+      + '[[ ${1:-} == amiga-bar && ${2:-} == ask ]] || { echo "Function not found." >&2; exit 1; }\n'
+      + 'printf "%s" "$3" > "$FAKE_LOG"\n'
+      + 'sel=$(perl -MJSON::PP -e \'print decode_json($ARGV[0])->{selectionFile}\' "$3")\n'
+      + 'done=$(perl -MJSON::PP -e \'print decode_json($ARGV[0])->{doneFile}\' "$3")\n'
+      + '( sleep 0.2\n'
+      + '  if [[ -n ${FAKE_ANSWER+x} ]]; then sh -c "$FAKE_WRITE_ANSWER" sh "$sel" "$done" "$FAKE_ANSWER"\n'
+      + '  else sh -c "$FAKE_WRITE_CANCEL" sh "$sel" "$done"; fi ) >/dev/null 2>&1 &\n'
+      + 'echo ok\n';
+    put(path.join(tmp, 'shell-ok'), 'omarchy-shell', fakeOk);
+    put(path.join(tmp, 'shell-fail'), 'omarchy-shell', '#!/bin/bash\necho "omarchy-shell is not running" >&2\nexit 1\n');
+    put(path.join(tmp, 'shell-refuse'), 'omarchy-shell', '#!/bin/bash\necho "no drop-down"\n');
+    const fakeOriginal = '#!/bin/bash\n'
+      + 'printf "original"; for a in "$@"; do printf " [%s]" "$a"; done; printf "\\n"\n'
+      + 'case ":$PATH:" in *":$SHIM_DIR"*|*":$SHIM_LINK"*) echo "shim still on PATH" ;; esac\n'
+      + 'if [[ ! -t 0 ]]; then while IFS= read -r line; do printf "stdin [%s]\\n" "$line"; done; fi\n'
+      + 'exit "${FAKE_EXIT:-0}"\n';
+    put(path.join(tmp, 'orig'), 'omarchy-menu-select', fakeOriginal);
+    put(path.join(tmp, 'orig'), 'omarchy-menu-input', fakeOriginal);
+    const link = path.join(tmp, 'shim-link');
+    fs.symlinkSync(shimDir, link);
+    const shim = (name, args, mode, opts = {}) => {
+      fs.rmSync(log, {force: true});
+      const r = cp.spawnSync(name, args, {input: opts.input || '', encoding: 'utf8', timeout: 20000,
+        env: Object.assign({}, clean, {TMPDIR: tmpdir, SHIM_DIR: shimDir, SHIM_LINK: link, FAKE_LOG: log,
+          FAKE_WRITE_ANSWER: answerArgv[2], FAKE_WRITE_CANCEL: cancelArgv[2],
+          PATH: [opts.lead || shimDir, path.join(tmp, 'shell-' + mode), path.join(tmp, 'orig'), '/usr/bin', '/bin'].join(':')}, opts.env || {})});
+      assert.equal(r.error, undefined, String(r.error));
+      assert.deepEqual(fs.readdirSync(tmpdir), [], 'no temp file left behind');
+      return r;
+    };
+    const sent = () => JSON.parse(fs.readFileSync(log, 'utf8'));
+    for (const name of ['omarchy-menu-select', 'omarchy-menu-input']) {
+      const file = path.join(shimDir, name), text = fs.readFileSync(file, 'utf8');
+      assert(fs.statSync(file).mode & 0o111, name + ' is executable');
+      cp.execFileSync('bash', ['-n', file]);
+      assert.match(text, /^#!\/bin\/bash\n/);
+      assert.match(text, /\nset -euo pipefail\n/);
+    }
+    // select, answered in the drop-down (options as arguments, menu arguments, token)
+    let r = shim('omarchy-menu-select', ['Set timezone', 'Europe/Berlin', 'Asia/Tokyo', '--', '--width', '520', '--height', '400'], 'ok',
+      {env: {FAKE_ANSWER: 'Asia/Tokyo', AMIGA_BAR_ASK_TOKEN: 'tok1'}});
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, 'Asia/Tokyo\n');
+    let p = sent();
+    assert.deepEqual([p.mode, p.prompt, p.options, p.width, p.maxHeight, p.token], ['select', 'Set timezone', ['Europe/Berlin', 'Asia/Tokyo'], 520, 400, 'tok1']);
+    assert(path.isAbsolute(p.selectionFile) && path.isAbsolute(p.doneFile) && !fs.existsSync(p.selectionFile));
+    // options from stdin, with glyph and subtext; the answer keeps the subtext
+    r = shim('omarchy-menu-select', ['Enable plugin'], 'ok', {input: '\u{f0431}\tAmiga Bar\tnerdibeard.amiga-bar\nplain\n', env: {FAKE_ANSWER: 'Amiga Bar\tnerdibeard.amiga-bar'}});
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, 'Amiga Bar\tnerdibeard.amiga-bar\n');
+    p = sent();
+    assert.deepEqual(p.options, ['\u{f0431}\tAmiga Bar\tnerdibeard.amiga-bar', 'plain']);
+    assert(!('token' in p) && !('width' in p) && !('maxHeight' in p));
+    // cancelled in the drop-down: exit 1, nothing printed (as the original)
+    r = shim('omarchy-menu-select', ['Pick'], 'ok', {input: 'a\nb\n'});
+    assert.deepEqual([r.status, r.stdout], [1, '']);
+    // usage errors stay the original's, without asking anyone
+    r = shim('omarchy-menu-select', ['Pick'], 'ok', {input: ''});
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /Usage: omarchy-menu-select/);
+    assert(!fs.existsSync(log));
+    r = shim('omarchy-menu-select', [], 'ok');
+    assert.equal(r.status, 1);
+    // input, answered (an empty answer is an answer, as in the native menu)
+    r = shim('omarchy-menu-input', ['Reminder in minutes', '--width', '400'], 'ok', {env: {FAKE_ANSWER: '15'}});
+    assert.deepEqual([r.status, r.stdout], [0, '15\n']);
+    p = sent();
+    assert.deepEqual([p.mode, p.prompt, p.width, 'options' in p], ['input', 'Reminder in minutes', 400, false]);
+    r = shim('omarchy-menu-input', [], 'ok', {env: {FAKE_ANSWER: ''}});
+    assert.deepEqual([r.status, r.stdout, sent().prompt], [0, '\n', 'Input']);
+    r = shim('omarchy-menu-input', ['Name'], 'ok');
+    assert.deepEqual([r.status, r.stdout], [1, '']);
+    // no drop-down (shell failing or refusing): the original, same arguments, same stdin
+    for (const mode of ['fail', 'refuse']) {
+      r = shim('omarchy-menu-select', ['Pick', 'a b', 'c', '--', '--width', '520'], mode);
+      assert.deepEqual([r.status, r.stdout], [0, 'original [Pick] [a b] [c] [--] [--width] [520]\n'], mode);
+      r = shim('omarchy-menu-select', ['Pick', '--', '--maxheight', '300'], mode, {input: 'one\n--\n  spaced  \n\u{f0431}\tlabel\tsub\n', env: {FAKE_EXIT: '3'}});
+      assert.equal(r.status, 3, 'the original\'s exit status');
+      assert.equal(r.stdout, 'original [Pick] [--] [--maxheight] [300]\nstdin [one]\nstdin [--]\nstdin [  spaced  ]\nstdin [\u{f0431}\tlabel\tsub]\n');
+      r = shim('omarchy-menu-input', ['Name', '--width', '300'], mode);
+      assert.deepEqual([r.status, r.stdout], [0, 'original [Name] [--width] [300]\n'], mode);
+      r = shim('omarchy-menu-input', [], mode);
+      assert.deepEqual([r.status, r.stdout], [0, 'original\n'], mode);
+    }
+    // the shim directory spelled three ways on PATH: still no loop, and the
+    // original never sees it
+    r = shim('omarchy-menu-select', ['Pick', 'x'], 'fail', {lead: [link, shimDir + '/', shimDir].join(':')});
+    assert.deepEqual([r.status, r.stdout], [0, 'original [Pick] [x]\n']);
+  } finally {
+    fs.rmSync(tmp, {recursive: true, force: true});
+  }
+  console.log('PASS: nested drop-down (manifest kind, shell facade, providers, questions, routing, writes, detection, shims end to end)');
+}

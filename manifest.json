@@ -2,15 +2,17 @@
   "schemaVersion": 1,
   "id": "nerdibeard.amiga-bar",
   "name": "Amiga Bar",
-  "version": "0.6.0-local.1",
+  "version": "0.7.0-local.1",
   "author": "Nerdibeard",
   "license": "MIT",
   "description": "Presets and compact Amiga-style modules for the native Omarchy bar (workspaces, quotas, status, island). Private build.",
   "kinds": [
-    "panel"
+    "panel",
+    "menu"
   ],
   "entryPoints": {
-    "panel": "Engine.qml"
+    "panel": "Engine.qml",
+    "menu": "Engine.qml"
   },
   "keepLoaded": true
 }

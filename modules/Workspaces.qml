@@ -16,6 +16,8 @@ import qs.Ui
 // right click opens Omarchy's own centred menu; with "strip": left click the
 // Omarchy menu, right click the Amiga menu strip. Middle click: the Control
 // Center. The mouse wheel steps through workspaces in every variant.
+// The drop-down also answers the questions of the actions it ran
+// (dropAsk, for the engine's IPC `ask`).
 Item {
   id: root
 
@@ -121,6 +123,7 @@ Item {
   }
 
   Loader {
+    id: dropLoader
     active: root.dropAvailable || root.dropOpen
     sourceComponent: Component {
       Root.DropMenu {
@@ -130,6 +133,20 @@ Item {
         open: root.dropOpen
       }
     }
+  }
+
+  // Questions from the menu shims (bin/menu-shim, through the engine's IPC
+  // `ask`): this screen's drop-down answers them and opens for them.
+  function dropTracks(token) { var m = dropLoader.item; return !!m && m.tracks(token) }
+  function dropAsk(request) {
+    var m = dropLoader.item
+    if (!dropAvailable || !m || !m.takeRequest(request)) return false
+    if (m.hasPending()) open()
+    return true
+  }
+  function dropState() {
+    var m = dropLoader.item
+    return m ? { requests: m.requests.length, launches: m.launches.length } : null
   }
 
   readonly property real menuWidth: showMenu ? barSize + Style.space(4) : 0

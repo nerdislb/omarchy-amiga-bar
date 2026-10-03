@@ -502,7 +502,65 @@ Item {
   property bool screenOpen: false
   // The drop-down logo menu (DropMenu.qml) lives in the workspaces module.
   property bool dropMenuOpen: false
-  function syncDropMenu() { dropMenuOpen = (Bridge.ModuleBus.instances.workspaces || []).some(function(i) { return i.dropOpen }) }
+  // the screen whose drop-down was open last (questions with no other home go there)
+  property string lastDropScreen: ""
+  function syncDropMenu() {
+    var shown = (Bridge.ModuleBus.instances.workspaces || []).filter(function(i) { return i && i.dropOpen })
+    dropMenuOpen = shown.length > 0
+    var screen = shown.length ? root.screenOf(shown[0]) : ""
+    if (screen) lastDropScreen = screen
+  }
+  function screenOf(item) {
+    try {
+      var w = item.QsWindow.window
+      return w && w.screen ? String(w.screen.name) : ""
+    } catch (e) {
+      return ""
+    }
+  }
+
+  // ---------------------------------------------------------------- drop-down questions (bin/menu-shim)
+  // Actions run from the drop-down find bin/menu-shim first on their PATH.
+  // Its omarchy-menu-select / omarchy-menu-input send their payload here
+  // (IPC `ask` below) instead of summoning the centred menu; "ok" means a
+  // drop-down took it and answers through the payload's files, anything
+  // else sends the shim to Omarchy's own command.
+  readonly property string shimDir: pluginDir + "/bin/menu-shim"
+  // Where a question goes: the drop-down that launched the asking action
+  // (its token), else an open one, else the screen that had it last, else
+  // the focused screen's, else the first.
+  function dropTarget(token) {
+    var all = (Bridge.ModuleBus.instances.workspaces || []).filter(function(i) { return i && i.dropAvailable })
+    var i
+    if (token) for (i = 0; i < all.length; i++) if (all[i].dropTracks(token)) return all[i]
+    for (i = 0; i < all.length; i++) if (all[i].dropOpen) return all[i]
+    for (i = 0; i < all.length; i++) if (root.lastDropScreen && root.screenOf(all[i]) === root.lastDropScreen) return all[i]
+    var focused = Bridge.ModuleBus.pick("workspaces")
+    if (focused && focused.dropAvailable) return focused
+    return all.length ? all[0] : null
+  }
+  function ask(payloadJson) {
+    var p = null
+    try { p = JSON.parse(String(payloadJson || "")) } catch (e) { return "invalid payload" }
+    if (!p || typeof p !== "object" || (p.mode !== "select" && p.mode !== "input")) return "invalid payload"
+    // the answer goes into these files: absolute paths only
+    var done = typeof p.doneFile === "string" ? p.doneFile : ""
+    var sel = typeof p.selectionFile === "string" ? p.selectionFile : ""
+    if (done.charAt(0) !== "/" || (sel && sel.charAt(0) !== "/")) return "invalid payload"
+    var target = root.dropTarget(String(p.token || ""))
+    if (!target) return "no drop-down"
+    return target.dropAsk(p) ? "ok" : "no drop-down"
+  }
+  // For `amiga-bar state`: the app library facade, and per screen the
+  // questions pending and the asking actions still running.
+  function askState() {
+    var out = { shimDir: root.shimDir, appLibrary: !!(root.shell && root.shell.appLibrary), lastScreen: root.lastDropScreen, screens: {} }
+    ;(Bridge.ModuleBus.instances.workspaces || []).forEach(function(i) {
+      var s = i && typeof i.dropState === "function" ? i.dropState() : null
+      if (s) out.screens[root.screenOf(i) || "?"] = s
+    })
+    return out
+  }
   SysState { id: sysState; active: root.menuOpen || root.screenOpen || root.dropMenuOpen }
   readonly property alias sys: sysState
 
@@ -662,6 +720,9 @@ Item {
     }
     function save(name: string): string { return root.saveCombination(name) }
     function load(name: string): string { return root.loadCombination(name) }
+    // A question from bin/menu-shim (omarchy-menu-select / -input payload):
+    // "ok" when a drop-down took it.
+    function ask(payload: string): string { return root.ask(payload) }
     function menu(): void { root.toggleMenu() }
     // The menu strip, whatever the menu option says.
     function strip(): void { root.screenOpen = false; root.menuOpen = !root.menuOpen }
@@ -681,6 +742,7 @@ Item {
                               form: { option: root.formOption, caseVisible: root.caseVisible, result: root.formResult, island: root.islandSpan, led: root.ledSpans },
                               edge: { option: root.options.edge, material: root.material ? (root.material.edge ? root.material.edge.kind : "no edge") : null, themeEdge: root.themeEdgeVisible, workbench: root.edgeVisible, barReady: root.barReady },
                               usage: { folded: root.usageFolded, intervalSec: root.usageIntervalSec, running: usageUpdate.running, command: usageUpdate.command },
+                              ask: root.askState(),
                               cc: controlCenter.stateObject() })
     }
   }

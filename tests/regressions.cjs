@@ -411,3 +411,20 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   }
   console.log('PASS: control center wiring (engine, IPC, argv processes, fog hook)');
 }
+
+// Omarchy's own popups (native widgets folded into the status groups) take
+// the theme material: NativeMaterial finds their KeyboardPanel and hangs a
+// FogPanel into its content holder; without material/fog nothing changes.
+{
+  const nm = fs.readFileSync(path.join(root, 'NativeMaterial.qml'), 'utf8');
+  const st = fs.readFileSync(path.join(root, 'modules/Status.qml'), 'utf8');
+  assert(nm.includes('readonly property Component fogComponent: Component { FogPanel {} }'));
+  assert(nm.includes('fogComponent.createObject(holder, {'));
+  assert(nm.includes('edge: false'), 'no extra line or shadow on Omarchy popups without material');
+  assert(/o\.borderSpec !== undefined && o\.anchorItem !== undefined/.test(nm));
+  assert(nm.includes('h.parent.borderSpec !== undefined'), 'the holder sits in the card, as FogPanel expects');
+  assert(nm.includes('dressed.indexOf(p) !== -1'), 'never two FogPanels in one popup');
+  assert(st.includes('Root.NativeMaterial { id: nativeMaterial }'));
+  assert(st.includes('Qt.callLater(function() { nativeMaterial.attach(it) })'));
+  console.log('PASS: native popups take the theme material');
+}

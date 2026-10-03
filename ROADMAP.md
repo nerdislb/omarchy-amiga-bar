@@ -32,3 +32,4 @@ Concept source: `~/.openclaw/workspace/output/amiga-bar-2026-09-30/` (gallery, A
 | K2 Workbench | logo number | VU | island + weather | drawer |
 | K3 Fokus | stack | on demand | island + weather | deviations only |
 - **F** ✓ — pixel font everywhere (theme · moments · bar & island · whole desktop), one icon system (10,370 pixel icons in the Topaz brick grid), review fixes. See VERIFICATION.md.
+- **G** (0.7.0, branch `feat/nested-menu`, live check open) — the drop-down logo menu nested like the native menu: Apps (shell app library, manifest kind `menu`), fonts and power profiles as levels inside it; questions of the actions it runs (`omarchy-menu-select`/`-input`) answered inside it through `bin/menu-shim` and the `amiga-bar ask` IPC, falling back to Omarchy's own commands. See README (Logo menu) and VERIFICATION.md.

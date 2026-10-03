@@ -164,3 +164,61 @@ config backed up, enabled, JSON validated; a Ghostty window running plain
 `fastfetch` showed the tick and AMIGA crisp in NerdWorkbench beside the info;
 the theme-set hook ran without error.
 
+
+## Nested drop-down menu (2026-10-03, Claude Opus 5.5, 0.7.0-local.1)
+
+Owner request: picks in the drop-down logo menu must never end in the centred
+Omarchy menu. Apps, fonts and power profiles now open as levels inside the
+drop-down; questions of the actions it runs (`omarchy-menu-select` /
+`omarchy-menu-input`) are answered inside it via `bin/menu-shim` and the
+`amiga-bar ask` IPC (see README › Logo menu).
+
+Checked without touching the live session (no shell, IPC or install):
+
+- Omarchy's shell code read and run in isolation (`tests/regressions.cjs`):
+  with `"menu"` added to `kinds` the plugin still loads as the same
+  keep-loaded panel (`computePanelEntries` picks `panel`, same entry point),
+  it is not a bar-widget panel, and only its capability profile changes
+  (`own-service|no-bar|menu`), which is what hands it `shell.appLibrary`.
+  `entryPoints.menu` (Engine.qml) exists because `omarchy plugin validate`
+  requires one per kind; the shell never loads it for a plugin that is also a
+  panel. `omarchy-plugin-validate` passes on the tree.
+- The copied providers equal the native menu's (`fonts`, `power-profiles`:
+  script, icon, volatile, action); `vendor/MenuModel.js` is still upstream's.
+- Question rows parse like the native dmenu (glyph · label · subtext, answer
+  `label` or `label\tsubtext`); list filtering by label and subtext; the
+  engine's routing (launching drop-down by token, open one, last screen,
+  focused screen, first; refuses invalid payloads and relative paths).
+- The drop-down's own write commands, run as the QML runs them: answer then
+  done file; cancel = done file only; nothing once the asker has gone;
+  shell-looking answers stay literal.
+- Asking-action detection against the live menu definition (read only):
+  14 rows in ~25 ms — Keybindings, Tmux, Herdr, Timezone, the four plugin
+  rows, Remove › TUI/Theme/Web App, Transcode, RetroArch launcher, webcam
+  recording (the latter exempt from waiting: captures must not see the menu).
+- The tracked launch (`setsid -f -w`): the waiter ends with the action, and
+  the action keeps running (shims first on PATH, token set) after its waiter
+  is killed.
+- Shims end to end in a temp dir with fake `omarchy-shell`s (answering,
+  failing, refusing) and fake originals: answers, cancels, payload fields
+  (width, maxHeight, token), options from arguments and from stdin, exit
+  codes, no temp files left, the fallback with identical arguments and stdin,
+  no recursion with the shim directory on PATH three ways. `bash -n` clean.
+- `qmllint` on the four changed QML files: exit 0; only the known import /
+  unqualified-access / QProcess::ExitStatus warnings of this repository.
+
+Live test (owner/lead): `./dev-install.sh`, then `omarchy restart shell`
+(the new manifest kind takes effect on load); `omarchy-shell amiga-bar state
+| jq .ask` should show `"appLibrary": true`. Then, from the drop-down:
+Apps (icons, typing filters, Enter launches), Style › Font (✓, pick),
+Learn › Keybindings (waiting row, then the 800 px list; a pick runs the
+binding), Update › Timezone (type to filter, Esc cancels quietly),
+Setup › Plugins › Enable/Disable Plugin, Remove › TUI. A question with the
+drop-down closed opens it at the question:
+`PATH=~/.config/omarchy/plugins/nerdibeard.amiga-bar/bin/menu-shim:$PATH omarchy-menu-select Test a b`
+in any terminal prints the pick (exit 1 on Esc); with `menu: strip` the
+same command gets the centred menu.
+
+Not verified live: rendering (icons, widths, the ListView with the fog,
+roll and bloom looks), focus when a question opens the drop-down by itself,
+multi-monitor routing, and the 3 s waiting limit with slow scripts.

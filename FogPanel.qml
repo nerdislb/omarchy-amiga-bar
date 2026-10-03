@@ -7,6 +7,9 @@ import qs.Commons
 // bar-material.json, Tusche & Papier) the card takes the theme's light and
 // shadow instead – a hard ink shadow (Papier), a light halo (Tusche, Lavur)
 // – and rolls out of the bar from the top, and back up when it closes.
+// A material card with `bloom` (the Lavur themes) blooms instead: the fog's
+// growth out of the bar, but with a wet, scalloped edge and a darker tide
+// line (`tide`) – ink spreading on wet paper, standing still once open.
 // Declare it inside the panel. While `fog` is on it takes the card's own
 // fill and frame away and grows a fog blob out of the bar behind it: a drop
 // under the anchor, then the card's size; the content fades in last.
@@ -28,19 +31,49 @@ Item {
   readonly property bool lightTheme: 0.2126 * Color.popups.background.r + 0.7152 * Color.popups.background.g + 0.0722 * Color.popups.background.b > 0.55
   readonly property color rimColor: Util.alpha(Color.popups.text, lightTheme ? 0.24 : 0.22)
   readonly property real rim: 1.5
+  // the line around the fog: faint rim, or the bloom's tide line
+  readonly property var tide: bloom && material && material.card ? material.card.tide || null : null
+  readonly property color edgeColor: tide ? rgba(tide.color, tide.alpha) : rimColor
+  readonly property real edgeW: tide ? tide.width || 2 : rim
+  // the bloom's soft halo under the blob, else the fog's shadow
+  readonly property color shadeColor: bloom && mat && mat.halo ? rgba(mat.halo.color, mat.halo.alpha) : Qt.rgba(0, 0, 0, shadowOpacity)
+
+  // Bloom: scallops along the blob's sides and foot (fixed pseudo-random
+  // sizes; they follow the blob as it grows and come in with it)
+  readonly property int scallopCount: 34
+  // per scallop: where along the outline (0–1) and its size – computed once
+  readonly property var scallopSeeds: {
+    var out = []
+    for (var i = 0; i < scallopCount; i++) {
+      var k = Math.abs(Math.sin(i * 78.233) * 43758.5453) % 1
+      out.push({ u: (i + 0.5 + 0.3 * Math.sin(i * 12.9898)) / scallopCount, r: 4 + 10 * k * k })
+    }
+    return out
+  }
+  function scallopAt(i) {
+    var b = blob, per = 2 * b.h + b.w, sd = scallopSeeds[i]
+    var u = sd.u * per, x, y
+    if (u < b.h) { x = 0; y = u }
+    else if ((u -= b.h) < b.w) { x = u; y = b.h }
+    else { u -= b.w; x = b.w; y = Math.max(0, b.h - u) }
+    return { x: b.x + x, y: y, r: sd.r * Math.max(0, Math.min(1, (grow - 0.3) / 0.5)) }
+  }
   readonly property real shadowOpacity: lightTheme ? 0.22 : 0.55
 
   // Inside the panel we sit in its content holder; its parent is the card,
   // and the card's parent the panel window's root item.
   readonly property Item card: parent && parent.parent && parent.parent.borderSpec !== undefined ? parent.parent : null
   readonly property Item surface: card ? card.parent : null
-  readonly property bool active: fog && !!card && !!surface && !!panel && panel.barPos === "top"
+  // Lavur material: the fog machinery, styled as a bloom
+  readonly property bool bloomWanted: !fog && !!material && !!material.card && material.card.bloom === true
+  readonly property bool active: (fog || bloomWanted) && !!card && !!surface && !!panel && panel.barPos === "top"
+  readonly property bool bloom: active && !fog
   readonly property bool reduced: Style.reduceMotion
 
   // Theme material (bar-material.json; set while the edge option is "theme").
   property var material: null
   readonly property var mat: material && material.card ? material.card : null
-  readonly property bool matOn: !fog && !!mat && !!card && !!surface && !!panel
+  readonly property bool matOn: !fog && !!mat && mat.bloom !== true && !!card && !!surface && !!panel
   readonly property bool rolls: matOn && mat.roll !== false && panel.barPos === "top"
   property real roll: 0      // 0 = rolled up into the bar, 1 = open
   // only while it is out or on its way (closed, the card and its mask need no layer)
@@ -139,8 +172,12 @@ Item {
   }
   // becoming a rolling card: take the state without animating (open = out, closed = in)
   onRollsChanged: { rollOut.stop(); rollIn.stop(); if (rolls) roll = panel && panel.open ? 1 : 0 }
-  // Reduced Motion switched on mid-roll: jump to where it is going
-  onReducedChanged: if (reduced && rolls && (rollOut.running || rollIn.running)) followRoll()
+  // Reduced Motion switched on mid-roll, mid-fog or mid-bloom: jump to where it is going
+  onReducedChanged: {
+    if (!reduced) return
+    if (rolls && (rollOut.running || rollIn.running)) followRoll()
+    if (active && (opening.running || closing.running)) { opening.stop(); closing.stop(); follow() }
+  }
 
   function follow() {
     followRoll()
@@ -196,42 +233,54 @@ Item {
         layer.enabled: stageItem.visible
         layer.effect: MultiEffect { blurEnabled: true; blur: 1; blurMax: 48; autoPaddingEnabled: false }
         Rectangle { id: ghost; opacity: 0; radius: 12; color: fp.color }
-        // soft shadow under the blob, kept off the bar's edge
+        // soft shadow (bloom: the halo) under the blob, kept off the bar's edge
         Rectangle {
-          visible: fp.edge
+          visible: fp.edge || fp.bloom
           x: fp.blob.x - stageItem.x + 4
           y: 18
           width: fp.grow > 0 ? Math.max(0, fp.blob.w - 8) : 0
           height: Math.max(0, fp.blob.h - 12)
           radius: 12
-          color: Qt.rgba(0, 0, 0, fp.shadowOpacity)
+          color: fp.shadeColor
         }
       }
 
       // the edge line: the same shapes a little larger, in the rim colour,
       // under the fog itself
       FogLayer {
-        visible: fp.edge
+        visible: fp.edge || fp.bloom
         y: -fp.margin
         width: stageItem.width
         height: stageItem.height + fp.margin
-        color: fp.rimColor
+        color: fp.edgeColor
         blurMax: 24
         threshold: 0.4
         softness: 0.5
         Rectangle {
-          x: fp.blob.x - stageItem.x - 14 - fp.rim
-          width: fp.grow > 0 ? fp.blob.w + 28 + 2 * fp.rim : 0
+          x: fp.blob.x - stageItem.x - 14 - fp.edgeW
+          width: fp.grow > 0 ? fp.blob.w + 28 + 2 * fp.edgeW : 0
           height: fp.margin + 1
           color: "white"
         }
         Rectangle {
-          x: fp.blob.x - stageItem.x - fp.rim
+          x: fp.blob.x - stageItem.x - fp.edgeW
           y: fp.margin
-          width: fp.grow > 0 ? fp.blob.w + 2 * fp.rim : 0
-          height: fp.blob.h + fp.rim
-          radius: 10 + fp.rim
+          width: fp.grow > 0 ? fp.blob.w + 2 * fp.edgeW : 0
+          height: fp.blob.h + fp.edgeW
+          radius: 10 + fp.edgeW
           color: "white"
+        }
+        Repeater {
+          model: fp.bloom ? fp.scallopCount : 0
+          Rectangle {
+            required property int index
+            readonly property var p: fp.scallopAt(index)
+            readonly property real r: p.r > 0 ? p.r + fp.edgeW : 0
+            x: p.x - stageItem.x - r
+            y: fp.margin + p.y - r
+            width: 2 * r; height: 2 * r; radius: r
+            color: "white"
+          }
         }
       }
 
@@ -259,6 +308,17 @@ Item {
           height: fp.blob.h
           radius: 10
           color: "white"
+        }
+        Repeater {
+          model: fp.bloom ? fp.scallopCount : 0
+          Rectangle {
+            required property int index
+            readonly property var p: fp.scallopAt(index)
+            x: p.x - stageItem.x - p.r
+            y: fp.margin + p.y - p.r
+            width: 2 * p.r; height: 2 * p.r; radius: p.r
+            color: "white"
+          }
         }
       }
     }

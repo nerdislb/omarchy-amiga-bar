@@ -22,6 +22,10 @@ QtObject {
   // the current theme's bar material (bar-material.json) while the edge option
   // is "theme" and the fog is off; null otherwise. FogPanel styles cards with it.
   property var material: null
+  // the current theme folder and a counter bumped on every theme switch (reload images
+  // that keep their file name, e.g. the Lavur menu brush)
+  property string themeDir: ""
+  property int themeStamp: 0
   property color fogColor: "black"
   // A500 form: a note is coming out of the drive slot (DF0 lights).
   property bool noteActive: false

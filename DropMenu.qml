@@ -27,6 +27,14 @@ KeyboardPanel {
   readonly property int labelPx: Bridge.ModuleBus.momentPx(Style.font.body)
   readonly property int rowH: Math.max(Style.space(30), labelPx + Style.space(14))
   readonly property int rowRadius: Math.min(Style.cornerRadius, 6)
+  // Theme material (edge "theme"): the hovered row inverts (Tusche/Papier) or
+  // gets a brush stroke (Lavur: card.brush, a PNG in the theme folder)
+  readonly property var src: Bridge.ModuleBus.material ? Bridge.ModuleBus.material.source || null : null
+  readonly property bool inverting: !!src
+  readonly property string brushFile: inverting && Bridge.ModuleBus.material.card && Bridge.ModuleBus.material.card.brush
+    ? Bridge.ModuleBus.material.card.brush : ""
+  // the stamp in the URL: both Lavur themes name their brush the same – a new theme reloads it
+  readonly property string brushUrl: brushFile ? "file://" + Bridge.ModuleBus.themeDir + "/" + brushFile + "#" + Bridge.ModuleBus.themeStamp : ""
 
   padding: Style.space(8)
   focusTarget: keys
@@ -252,9 +260,28 @@ KeyboardPanel {
               }
               Rectangle {
                 anchors.fill: parent
-                visible: row.hot
+                visible: row.hot && !menu.inverting
                 radius: menu.rowRadius
                 color: Util.alpha(menu.ink, 0.09)
+              }
+              // material: hard inversion (also while the brush is missing) …
+              Rectangle {
+                anchors.fill: parent
+                visible: row.hot && menu.inverting && (!menu.brushFile || brushImage.status !== Image.Ready)
+                color: menu.src ? menu.src.fill : "transparent"
+              }
+              // … or the Lavur brush stroke (a little past the row's ends); the
+              // URL carries the theme stamp, so the cache is fine
+              Image {
+                id: brushImage
+                visible: row.hot && !!menu.brushFile && status === Image.Ready
+                x: -Style.space(4)
+                y: Math.round((parent.height - height) / 2)
+                width: parent.width + Style.space(10)
+                height: Math.round(parent.height * 1.08)
+                source: menu.brushFile ? menu.brushUrl : ""
+                fillMode: Image.Stretch
+                smooth: true
               }
 
               Text {
@@ -267,11 +294,12 @@ KeyboardPanel {
                 text: row.r.icon || ""
                 font.family: row.r.iconFont || Style.font.menuFamily
                 font.pixelSize: Style.font.body + 2
-                color: Util.alpha(menu.ink, row.hot ? 0.95 : 0.62)
+                color: row.hot && menu.inverting ? menu.src.text : Util.alpha(menu.ink, row.hot ? 0.95 : 0.62)
                 opacity: row.r.disabled ? 0.45 : 1
               }
               Label {
                 id: label
+                color: row.hot && menu.inverting ? menu.src.text : menu.ink
                 visible: !row.r.separator
                 x: icon.x + icon.width + Style.space(10)
                 width: Math.max(0, trail.x - x - Style.space(8))
@@ -291,20 +319,20 @@ KeyboardPanel {
                   anchors.verticalCenter: parent.verticalCenter
                   text: row.r.note || (menu.query ? (row.r.path || "") : "")
                   font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption)
-                  color: Util.alpha(menu.ink, 0.5)
+                  color: row.hot && menu.inverting ? Util.alpha(menu.src.text, 0.75) : Util.alpha(menu.ink, 0.5)
                 }
                 Label {
                   visible: row.r.checked === true
                   anchors.verticalCenter: parent.verticalCenter
                   text: "✓"
-                  color: Util.alpha(menu.ink, 0.8)
+                  color: row.hot && menu.inverting ? menu.src.text : Util.alpha(menu.ink, 0.8)
                 }
                 Label {
                   visible: row.opens
                   anchors.verticalCenter: parent.verticalCenter
                   text: "›"
                   font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body + 2)
-                  color: Util.alpha(menu.ink, row.hot ? 0.8 : 0.4)
+                  color: row.hot && menu.inverting ? menu.src.text : Util.alpha(menu.ink, row.hot ? 0.8 : 0.4)
                 }
               }
 

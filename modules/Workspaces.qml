@@ -34,6 +34,10 @@ Item {
   readonly property int barSize: bar && bar.barSize ? bar.barSize : Style.bar.sizeHorizontal
   readonly property color fg: bar && bar.barForeground ? bar.barForeground : Color.bar.text
   readonly property color accent: Color.accent
+  // Theme material `tones.strong` (Tusche & Papier): the bar's text is the
+  // quieter tone there; logo and the active workspace's number stay strong
+  readonly property color strong: Bridge.ModuleBus.material && Bridge.ModuleBus.material.tones && Bridge.ModuleBus.material.tones.strong
+    ? Qt.color(Bridge.ModuleBus.material.tones.strong) : fg
   readonly property color urgentColor: Color.urgent
   readonly property color dim: Util.alpha(fg, 0.45)
 
@@ -160,7 +164,7 @@ Item {
       text: ""
       font.family: Bridge.ModuleBus.pixelAll ? Bridge.ModuleBus.pixelFamily : "omarchy"
       font.pixelSize: Bridge.ModuleBus.px(Style.font.icon + 2)
-      color: menuSlot.inverted ? menuSlot.source.text : root.fg
+      color: menuSlot.inverted ? menuSlot.source.text : root.strong
     }
 
     // Amiga tick or Boing ball in the pixel brick grid, on whole pixels.
@@ -177,7 +181,7 @@ Item {
       anchors.centerIn: parent
       visible: root.variant === "logo"
       width: Math.round(root.barSize * 0.68); height: width
-      Rectangle { anchors.fill: parent; color: "transparent"; border.width: Math.max(1, Style.space(1.5)); border.color: root.fg; radius: Math.min(Style.cornerRadius, 3) }
+      Rectangle { anchors.fill: parent; color: "transparent"; border.width: Math.max(1, Style.space(1.5)); border.color: root.strong; radius: Math.min(Style.cornerRadius, 3) }
       Text { renderType: Text.NativeRendering;
         anchors.centerIn: parent
         text: root.active === 10 ? "0" : String(root.active)
@@ -315,7 +319,7 @@ Item {
         width: parent.box; height: parent.box
         color: Bridge.ModuleBus.barColor
         border.width: Math.max(1, Style.space(1.5)); border.color: root.accent
-        Text { renderType: Text.NativeRendering; anchors.centerIn: parent; text: root.active === 10 ? "0" : String(root.active); font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.body); color: root.fg }
+        Text { renderType: Text.NativeRendering; anchors.centerIn: parent; text: root.active === 10 ? "0" : String(root.active); font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.body); color: root.strong }
       }
       MouseArea {
         anchors.fill: parent
@@ -400,7 +404,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: (root.active === 10 ? "0" : String(root.active)) + ">"
         font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.body + 1)
-        color: root.fg
+        color: root.strong
       }
       Rectangle {
         id: cursor

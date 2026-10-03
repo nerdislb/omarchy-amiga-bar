@@ -153,7 +153,16 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.match(engine, /materialOn: options\.edge === "theme" && !fogOn && !!material/);
   assert.match(engine, /themeEdgeVisible: materialOn && !!material\.edge && options\.form !== "a500" && barReady/);
   assert.match(engine, /property: "material"; value: root\.materialOn \? root\.material : null/);
-  console.log('PASS: theme edge option, material wiring, rolling cards');
+  assert.match(fp, /bloomWanted: !fog && !!material && !!material\.card && material\.card\.bloom === true/, 'Lavur cards bloom');
+  assert.match(fp, /matOn: !fog && !!mat && mat\.bloom !== true/, 'a bloom never rolls');
+  assert.match(fp, /model: fp\.bloom \? fp\.scallopCount : 0/, 'scallops only in a bloom');
+  const dm = fs.readFileSync(path.join(root, 'DropMenu.qml'), 'utf8');
+  assert.match(dm, /visible: row\.hot && menu\.inverting && \(!menu\.brushFile \|\| brushImage\.status !== Image\.Ready\)/, 'hard inversion (Tusche/Papier, or while the brush is missing)');
+  assert.match(fp, /if \(active && \(opening\.running \|\| closing\.running\)\) \{ opening\.stop\(\); closing\.stop\(\); follow\(\) \}/, 'reduced motion mid-bloom jumps to the end');
+  assert.match(dm, /themeStamp/, 'the brush reloads on a theme switch');
+  const ws = fs.readFileSync(path.join(root, 'modules/Workspaces.qml'), 'utf8');
+  assert.match(ws, /tones\.strong/, 'logo and active number in the strong tone');
+  console.log('PASS: theme edge option, material wiring, rolling cards, blooms, hover, tones');
 }
 
 // The thin integer surface encloses two physical pixel rows at fractional scale.

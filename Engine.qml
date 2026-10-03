@@ -255,6 +255,8 @@ Item {
   Binding { target: Bridge.ModuleBus; property: "fog"; value: root.fogOn }
   Binding { target: Bridge.ModuleBus; property: "fogColor"; value: root.fogColor }
   Binding { target: Bridge.ModuleBus; property: "material"; value: root.materialOn ? root.material : null }
+  Binding { target: Bridge.ModuleBus; property: "themeDir"; value: root.themeDir }
+  Binding { target: Bridge.ModuleBus; property: "themeStamp"; value: root.themeStamp }
   Binding { target: Bridge.ModuleBus; property: "noteActive"; value: root.caseVisible && !!root.islandSpan.note }
   Binding { target: Bridge.ModuleBus; property: "noteScreen"; value: String(root.islandSpan.noteScreen || "") }
   // per screen: the note comes out of the slot on the monitor it hangs on

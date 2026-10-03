@@ -54,7 +54,13 @@ wash (`bar-lavur.png` in the theme) instead. With the material, popups (drop
 menu, quota, status) roll out of the bar from the top in the theme's frame
 with its shadow (Papier: hard ink, 6/6) or halo (Tusche, Lavur), hanging
 flush from the bar; the logo becomes an inverted tab while the drop menu is
-open. The fog look replaces all of it while on. `amiga-bar set edge theme`
+open, and the hovered row inverts. A material card with `bloom` (the Lavur
+themes) blooms instead of rolling: the fog's growth out of the bar with a
+scalloped edge and the theme's tide line (`tide`); the drop menu's hover is
+then a brush stroke (`brush`, a PNG in the theme folder). With `tones.strong`
+the bar's own text is the quieter tone (the theme sets it) and logo and the
+active workspace's number stay strong. The fog look replaces all of it while
+on. `amiga-bar set edge theme`
 (or `none`) with the usual `omarchy-shell` prefix; the Amiga Island takes the
 same material for its notes.
 

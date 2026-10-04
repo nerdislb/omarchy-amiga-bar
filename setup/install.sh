@@ -190,15 +190,26 @@ fi
 step "Restart the shell, load the bar combination '$combo', theme $theme"
 if ! $dry; then
   if pgrep -x quickshell >/dev/null; then
-    omarchy restart shell || die "the shell did not restart (locked session?) – unlock and run: omarchy restart shell"
+    # omarchy restart shell gives the notification service only 2 s after the shell answers; on a
+    # machine with many plugins it can report failure although the shell is up – carry on if it runs
+    if ! omarchy restart shell; then
+      sleep 2
+      pgrep -x quickshell >/dev/null || die "the shell did not come back (locked session?) – unlock and run: omarchy restart shell"
+      note "the restart reported a problem (above), but the shell runs – continuing"
+    fi
   fi
   ok=false
-  for _ in $(seq 1 60); do
+  for _ in $(seq 1 120); do
     if omarchy-shell amiga-bar state >/dev/null 2>&1; then ok=true; break; fi
     sleep 0.5
   done
-  $ok || die "the Amiga Bar does not answer – check: omarchy plugin list"
-  result="$(omarchy-shell amiga-bar load "$combo" 2>&1 || true)"
+  $ok || die "the Amiga Bar does not answer – check 'omarchy plugin list', then run: omarchy-shell amiga-bar load $combo"
+  result="busy"
+  for _ in $(seq 1 20); do
+    result="$(omarchy-shell amiga-bar load "$combo" 2>&1 || true)"
+    [[ $result == busy ]] || break
+    sleep 0.5
+  done
   note "bar: $result"
   for _ in $(seq 1 20); do
     omarchy-shell amiga-bar state 2>/dev/null | jq -e --arg c "$combo" --slurpfile l "$look" \

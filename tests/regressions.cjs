@@ -861,10 +861,12 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   const ws = fs.readFileSync(path.join(root, 'modules/Workspaces.qml'), 'utf8');
   assert(ws.includes('active: root.variant !== "logo" && root.logo === "arch"'));
   assert(ws.includes('active: root.variant !== "logo" && root.logo === "nerdibeard"'));
-  assert(ws.includes('visible: menuSlot.inverted && root.logo !== "nerdibeard"'), 'the seal brings its own tab');
+  assert(ws.includes('visible: menuSlot.inverted && (root.logo !== "nerdibeard" || root.variant === "logo")'), 'the seal brings its own tab; the numbered frame keeps the plain one');
   assert(/property: "bleed"; from: 0; to: 1; duration: 240; easing\.type: Easing\.OutCubic/.test(ws));
-  assert(ws.includes('pressed: menuMouse.pressed && !root.dropOpen && !Style.reduceMotion'));
-  assert(ws.includes('tab: sealTab.shown'));
+  assert(ws.includes('pressed: menuMouse.pressed && !root.dropOpen'), 'press feedback in both motion modes');
+  assert(ws.includes('readonly property bool target: reduced ? on && root.dropOpen : on'));
+  assert(ws.includes('tab: sealTab.target'), 'the seal changes colour in step with its tab');
+  assert(/Behavior on color \{ enabled: Style\.reduceMotion; ColorAnimation \{ duration: 120 \} \}/.test(seal), 'reduced motion: colour cross-fades');
   const dm = fs.readFileSync(path.join(root, 'DropMenu.qml'), 'utf8');
   assert(dm.includes('logo === "arch" ? "Arch Linux" : logo === "nerdibeard" ? "Nerdibeard" : "Omarchy"'));
   assert(dm.includes('(menu.level ? menu.level.title : menu.rootTitle).toUpperCase()'));

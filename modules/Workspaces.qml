@@ -169,7 +169,7 @@ Item {
     readonly property bool inverted: !!source && (root.dropOpen || (!!dropLoader.item && dropLoader.item.cardPresence > 0.01))
     readonly property real tabY: Math.round(root.barSize * 0.17)
     Rectangle {
-      visible: menuSlot.inverted && root.logo !== "nerdibeard"
+      visible: menuSlot.inverted && (root.logo !== "nerdibeard" || root.variant === "logo")
       y: menuSlot.tabY
       width: parent.width
       height: parent.height - y
@@ -180,14 +180,15 @@ Item {
     // OutCubic) – the seal's footprint grown by r with corner radius r,
     // clipped to the tab; the nb stays readable throughout. Closing: the tab
     // stays until the card is back, then the rest state returns at once.
-    // Reduced motion: the tab cross-fades around the seal (0.12 s).
+    // Reduced motion: the tab cross-fades around the seal (0.12 s), the seal
+    // takes the tab's colours in step (`target`).
     Item {
       id: sealTab
       readonly property bool reduced: Style.reduceMotion
       readonly property bool on: root.logo === "nerdibeard" && root.variant !== "logo" && menuSlot.inverted
-      readonly property bool shown: visible
+      readonly property bool target: reduced ? on && root.dropOpen : on
       visible: opacity > 0
-      opacity: reduced ? (on && root.dropOpen ? 1 : 0) : (on ? 1 : 0)
+      opacity: target ? 1 : 0
       Behavior on opacity { enabled: sealTab.reduced; NumberAnimation { duration: 120 } }
       y: menuSlot.tabY
       width: parent.width
@@ -268,8 +269,8 @@ Item {
         SealLogo {
           ink: root.strong
           pressInk: menuSlot.source ? menuSlot.source.fill : root.strong
-          pressed: menuMouse.pressed && !root.dropOpen && !Style.reduceMotion
-          tab: sealTab.shown
+          pressed: menuMouse.pressed && !root.dropOpen
+          tab: sealTab.target
           tabInk: menuSlot.source ? menuSlot.source.fill : root.strong
           cutInk: menuSlot.source ? menuSlot.source.text : "transparent"
         }

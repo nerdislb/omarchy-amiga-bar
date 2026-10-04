@@ -13,7 +13,8 @@ import qs.Commons
 //   hover: nothing. press: the ink takes the tab's tone (`pressInk`) inside
 //     the fixed outline. tab (`tab`, Workspaces.qml runs the ink out into the
 //     tab): the block in `tabInk` with the nb cut in `cutInk`.
-//   reduced motion: a 0.12 s cross-fade instead of the impression.
+//   reduced motion: a 0.12 s cross-fade instead of the impression; press and
+//     tab change colour in 0.12 s cross-fades too (no impulse, no front).
 // `rows` and `ranks` come from the design's own code (logo-bewegung
 // 06-empfehlung.js): '#' ink · 'x' cut · '.' outside; rank 0 = the letters'
 // edges (time 0), 1…89 = the order of the rest (chamfer distance to the cut
@@ -89,8 +90,11 @@ Item {
       y: Math.floor(index / 16)
       width: 1; height: 1
       antialiasing: false
-      visible: ch === "#" ? seal.due(seal.ranks[index]) <= seal.k : ch === "x" && seal.tab
-      color: ch === "x" ? seal.cutInk : seal.tab ? seal.tabInk : seal.pressed ? seal.pressInk : seal.ink
+      // the cut is drawn only on the tab (in the bar the ground shows through)
+      visible: ch === "#" ? seal.due(seal.ranks[index]) <= seal.k : ch === "x"
+      color: ch === "x" ? (seal.tab ? seal.cutInk : Qt.rgba(seal.cutInk.r, seal.cutInk.g, seal.cutInk.b, 0))
+             : seal.tab ? seal.tabInk : seal.pressed ? seal.pressInk : seal.ink
+      Behavior on color { enabled: Style.reduceMotion; ColorAnimation { duration: 120 } }
     }
   }
 }

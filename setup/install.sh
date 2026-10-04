@@ -104,7 +104,8 @@ for r in "${repos[@]}"; do
   if [[ $r == omarchy-amiga-bar ]]; then src="$bar_repo"
   elif [[ -d "$(dirname "$bar_repo")/$r/.git" ]]; then src="$(dirname "$bar_repo")/$r"
   else src="https://github.com/nerdislb/$r.git"; fi
-  if [[ $(cd "$dest" 2>/dev/null && pwd -P) == $(cd "$src" 2>/dev/null && pwd -P) ]]; then
+  # in place only when both are existing folders and the same one (two missing paths are not "the same")
+  if [[ -d $dest && -d $src && $(cd "$dest" && pwd -P) == $(cd "$src" && pwd -P) ]]; then
     if [[ $r == omarchy-amiga-bar ]]; then
       note "$r: in place ($dest) – to update it, git pull there before running this"
     else

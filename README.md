@@ -142,6 +142,23 @@ starts or the option switches to it), then still – no hover effect, no loop.
 Switch: Control Center → Logo, or `omarchy-shell amiga-bar set logo
 omarchy|arch|nerdibeard|amiga|boing`.
 
+## Boot screen logo (Plymouth)
+
+`bin/boot-logo.py set nerdibeard|arch [--theme NAME]` puts the seal (a
+finished stamp impression, a fifth smaller than the 230 px logo box, set a
+touch crooked) or the unaltered Arch mark on the boot screen that asks for
+the disk password, in the theme's foreground on its background (default: the
+current theme). The marks come from the design's own code
+(`assets/boot/*.alpha`, 240 × 240 alpha masks); the script composes the PNG
+under `~/.local/state/amiga-bar/boot-logo/` and hands it to Omarchy's
+`omarchy-plymouth-set`, which asks for the sudo password and rebuilds the
+initramfs. `restore` puts the theme's own unlock.png back
+(`omarchy-plymouth-set-by-theme`), `restore --default` Omarchy's logo;
+`status` tells what the boot screen shows. The boot screen does not follow
+the bar's logo option or theme switches by itself (each change needs sudo).
+Static: the impression's motion from the design would need frame sequences
+in Omarchy's `omarchy.script`. Test: `python3 tests/boot_logo.py`.
+
 ## fastfetch logo
 
 `bin/fastfetch-logo.py enable` puts the Amiga rainbow double tick (half-block

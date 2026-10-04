@@ -76,7 +76,7 @@ KeyboardPanel {
   readonly property real headerH: Style.space(32) + 1 + Style.space(6)
   // the top level's title follows the logo it folds out of
   readonly property string rootTitle: {
-    var logo = owner ? String(owner.logo || "") : ""
+    var logo = owner && owner.variant !== "logo" ? String(owner.logo || "") : ""
     return logo === "arch" ? "Arch Linux" : logo === "nerdibeard" ? "Nerdibeard" : "Omarchy"
   }
   readonly property real listHeight: rows.reduce(function(h, r) { return h + (r.separator ? menu.separatorH : menu.rowH) }, 0)

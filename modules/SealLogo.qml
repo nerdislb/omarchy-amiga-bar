@@ -74,6 +74,7 @@ Item {
   // arrival: p runs 0 → 1 in 0.32 s; a pixel shows once its time is ≤ k
   property real p: 0
   readonly property real k: 1 - Math.pow(1 - p, 1.6)
+  opacity: Style.reduceMotion ? 0 : 1
   NumberAnimation { id: impress; target: seal; property: "p"; from: 0; to: 1; duration: 320 }
   NumberAnimation { id: fadeIn; target: seal; property: "opacity"; from: 0; to: 1; duration: 120; easing.type: Easing.InOutQuad }
   Component.onCompleted: {

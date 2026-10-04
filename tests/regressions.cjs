@@ -854,7 +854,8 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   const archPath = arch.match(/PathSvg \{ path: "([^"]+)" \}/)[1];
   const svgFile = '/usr/share/pixmaps/archlinux-logo.svg';
   if (fs.existsSync(svgFile)) assert.equal(archPath, fs.readFileSync(svgFile, 'utf8').match(/ d="([^"]+)"/)[1], 'the mark unaltered');
-  assert(arch.includes('fillRule: ShapePath.OddEvenFill'));
+  assert(arch.includes('fillRule: ShapePath.WindingFill'), 'one contour without holes: winding = the SVG\'s even-odd');
+  assert(!/m[0-9.]+ [0-9.]+[^z]*z\s*m/i.test(archPath), 'a single closed contour');
   assert(/duration: Style\.reduceMotion \? 120 : 220/.test(arch));
   assert(!/Behavior on (x|y|scale)/.test(arch), 'motion only as a whole: no movement');
   // Workspaces: only the chosen logo is loaded; the seal's tab bleeds once; the menu title follows
@@ -868,7 +869,13 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert(ws.includes('tab: sealTab.target'), 'the seal changes colour in step with its tab');
   assert(/Behavior on color \{ enabled: Style\.reduceMotion; ColorAnimation \{ duration: 120 \} \}/.test(seal), 'reduced motion: colour cross-fades');
   const dm = fs.readFileSync(path.join(root, 'DropMenu.qml'), 'utf8');
-  assert(dm.includes('logo === "arch" ? "Arch Linux" : logo === "nerdibeard" ? "Nerdibeard" : "Omarchy"'));
+  const titleBody = dm.match(/readonly property string rootTitle: \{([\s\S]*?)\n  \}/)[1];
+  const rootTitle = new Function('owner', titleBody);
+  assert.equal(rootTitle({logo: 'arch', variant: 'none'}), 'Arch Linux');
+  assert.equal(rootTitle({logo: 'nerdibeard', variant: 'stack'}), 'Nerdibeard');
+  assert.equal(rootTitle({logo: 'nerdibeard', variant: 'logo'}), 'Omarchy', 'the numbered frame shows no mark');
+  assert.equal(rootTitle({logo: 'amiga', variant: 'pips'}), 'Omarchy');
+  assert.equal(rootTitle(null), 'Omarchy');
   assert(dm.includes('(menu.level ? menu.level.title : menu.rootTitle).toUpperCase()'));
   console.log('PASS: logos Arch and Nerdibeard seal (variants, seal raster and order, unaltered Arch path, tab, menu title)');
 }

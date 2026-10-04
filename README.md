@@ -124,7 +124,7 @@ starts or the option switches to it), then still – no hover effect, no loop.
 
 - `arch` (`modules/ArchLogo.qml`): the first path of
   `/usr/share/pixmaps/archlinux-logo.svg` (package filesystem) without the ™,
-  one even-odd fill in the bar's strong ink, 1.18 × the 18 px field (the
+  one fill in the bar's strong ink, 1.18 × the 18 px field (the
   triangle reads lighter than a square glyph), centred like the Omarchy
   glyph. Arrival: one fade, 0.22 s (reduced motion 0.12 s). The tab inverts
   it. Arch's trademark policy (terms.archlinux.org/docs/trademark-policy)

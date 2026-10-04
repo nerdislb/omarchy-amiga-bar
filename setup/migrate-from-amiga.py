@@ -12,7 +12,8 @@ This carries an existing setup across, so the bar looks the same afterwards:
   nerdibeard.amiga-island -> nerdibeard.tusche-island; the bar's options keep
   the ones that still exist (removed variants map to their nearest one);
   bar.layout: amiga.* modules -> tusche.* with their sources in the new plugin
-  folder, the island's entry -> nerdibeard.tusche-island (its settings kept,
+  folder (a drawer or A500 status strip becomes the groups, and the widgets
+  the groups do not fold, such as the battery, go back into the bar), the island's entry -> nerdibeard.tusche-island (its settings kept,
   noteTopaz dropped, noteStyle "workbench" -> "window");
 - ~/.local/state/amiga-bar: base.json (rewritten the same way), presets.json
   (options cleaned) and the boot-logo record go to ~/.local/state/tusche-bar;
@@ -69,6 +70,11 @@ NEAREST = {
 }
 # module id -> the option its "variant" carries
 MODULE_OPTION = {'workspaces': 'workspaces', 'quota': 'ai', 'status': 'right'}
+# What the status module's groups fold (Presets.js GROUPED). The drawer and the
+# A500 strips folded more (the battery): those widgets go back into the bar.
+GROUPED = {'omarchy.network', 'io.github.iamfitsum.omarchy-proton-vpn', 'omarchy.tailscale', 'omarchy.bluetooth',
+           'flux', 'io.github.nerdislb.buds-control',
+           'bitr0t.system-monitor', 'nerdibeard.monitor', 'nerdibeard.googledrive', 'com.omastorm.radar', 'community.plugin-manager'}
 
 
 def value(key, v):
@@ -114,7 +120,27 @@ def entry(e):
 def layout(lay):
     if not isinstance(lay, dict):
         return lay
-    return {sec: [entry(e) for e in items] if isinstance(items, list) else items for sec, items in lay.items()}
+    out = {}
+    for sec, items in lay.items():
+        if not isinstance(items, list):
+            out[sec] = items
+            continue
+        new = []
+        for e in items:
+            was = e.get('variant') if isinstance(e, dict) else None
+            e = entry(e)
+            new.append(e)
+            # a status module that was a drawer or an A500 strip: what the groups
+            # do not show comes back next to it, with its own settings
+            if isinstance(e, dict) and e.get('id') == 'tusche.status' and was in NEAREST['right'] \
+                    and isinstance(e.get('embeds'), dict):
+                embeds = e['embeds']
+                e['embeds'] = {k: v for k, v in embeds.items() if k in GROUPED}
+                for k, v in embeds.items():
+                    if k not in GROUPED:
+                        new.append({'id': k, **v} if isinstance(v, dict) and v else k)
+        out[sec] = new
+    return out
 
 
 def ids(lst):

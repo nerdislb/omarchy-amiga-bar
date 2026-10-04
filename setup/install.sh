@@ -146,18 +146,38 @@ for r in "${repos[@]}"; do
   fi
 done
 
+# The checkouts must be the Tusche ones before anything old is touched: an older
+# checkout (still the Amiga Bar / Island) would install the old plugins.
+for r in "${repos[@]}"; do
+  want="$(plugin_id "$r")"
+  if $dry && [[ ! -d "$SRC/$r" ]]; then continue; fi
+  got="$(jq -r .id "$SRC/$r/manifest.json" 2>/dev/null || true)"
+  [[ $got == "$want" ]] || die "$SRC/$r is not $want (its manifest says '${got:-nothing}') – update that checkout, then run this again"
+done
+
 # ---------------------------------------------------------------- 3 · from the Amiga Bar (only if found)
 if $amiga; then
   step "Carry the Amiga Bar / Island over"
   old="$plugins_dir/nerdibeard.amiga-bar/bin"
   # what the old bar put outside its own folder: fastfetch's logo, the desktop
-  # font profile, the A500 form's block in shell.toml – each script undoes its own
-  if [[ -f $old/fastfetch-logo.py ]]; then run python3 "$old/fastfetch-logo.py" restore && note "fastfetch: previous logo back"; fi
-  if [[ -f $old/system-font.py ]]; then
-    profile="$(python3 "$old/system-font.py" status 2>/dev/null | jq -r '.profile // "normal"' 2>/dev/null || echo normal)"
-    if [[ $profile != normal ]]; then run python3 "$old/system-font.py" restore && note "desktop font profile removed"; fi
+  # font profile, the A500 form's block in shell.toml – each script undoes its
+  # own, and a failure stops here, while the old scripts are still in place
+  if [[ -f $old/fastfetch-logo.py ]]; then
+    run python3 "$old/fastfetch-logo.py" restore || die "could not put fastfetch's previous logo back ($old/fastfetch-logo.py restore)"
+    note "fastfetch: previous logo back"
   fi
-  if [[ -f $old/bar-form.py ]]; then run python3 "$old/bar-form.py" disable >/dev/null && note "bar form: the full bar"; fi
+  if [[ -f $old/system-font.py ]]; then
+    profile="$(python3 "$old/system-font.py" status 2>/dev/null | jq -r '.profile // empty' 2>/dev/null || true)"
+    [[ -n $profile ]] || die "could not read the desktop font profile ($old/system-font.py status)"
+    if [[ $profile != normal ]]; then
+      run python3 "$old/system-font.py" restore || die "could not remove the desktop font profile ($old/system-font.py restore)"
+      note "desktop font profile removed"
+    fi
+  fi
+  if [[ -f $old/bar-form.py ]]; then
+    run python3 "$old/bar-form.py" disable >/dev/null || die "could not give the bar its fill back ($old/bar-form.py disable)"
+    note "bar form: the full bar"
+  fi
   if $dry; then python3 "$here/migrate-from-amiga.py" --dry-run; else python3 "$here/migrate-from-amiga.py"; fi
   for id in "${old_ids[@]}"; do
     [[ -d "$plugins_dir/$id" ]] && run rm -rf "$plugins_dir/$id" && note "$id: old plugin folder removed (kept in the backup)"

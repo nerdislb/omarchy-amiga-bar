@@ -37,13 +37,15 @@ while read -r t; do
 done <"$backup/themes.installed"
 
 echo "==> plugins"
+# every folder that existed before comes back (the Amiga Bar / Island the
+# install carried over and removed included); the ones it added go
 while read -r id; do
   [[ -n $id ]] || continue
-  if grep -qx "$id" "$backup/plugins.list"; then
-    rm -rf "$HOME/.config/omarchy/plugins/$id" && cp -a "$backup/plugins/$id" "$HOME/.config/omarchy/plugins/$id" && echo "    restored $id"
-  else
-    rm -rf "$HOME/.config/omarchy/plugins/$id" && echo "    removed $id"
-  fi
+  rm -rf "$HOME/.config/omarchy/plugins/$id" && cp -a "$backup/plugins/$id" "$HOME/.config/omarchy/plugins/$id" && echo "    restored $id"
+done <"$backup/plugins.list"
+while read -r id; do
+  [[ -n $id ]] || continue
+  grep -qx "$id" "$backup/plugins.list" || { rm -rf "$HOME/.config/omarchy/plugins/$id" && echo "    removed $id"; }
 done <"$backup/plugins.installed"
 
 echo "==> restart the shell"

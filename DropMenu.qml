@@ -74,6 +74,11 @@ KeyboardPanel {
     ? menu.fittedContentWidth(Style.space(levelRequest.width))
     : Math.round(Math.max(Style.space(300), Math.min(Style.space(460), widest * labelPx * 0.62 + Style.space(120))))
   readonly property real headerH: Style.space(32) + 1 + Style.space(6)
+  // the top level's title follows the logo it folds out of
+  readonly property string rootTitle: {
+    var logo = owner ? String(owner.logo || "") : ""
+    return logo === "arch" ? "Arch Linux" : logo === "nerdibeard" ? "Nerdibeard" : "Omarchy"
+  }
   readonly property real listHeight: rows.reduce(function(h, r) { return h + (r.separator ? menu.separatorH : menu.rowH) }, 0)
   // Long lists (Apps, a question's options) stop at three quarters of the
   // screen, or at the height a question asks for (`maxHeight`), and scroll.
@@ -548,7 +553,7 @@ KeyboardPanel {
           width: closeGlyph.x - x - Style.space(8)
           anchors.verticalCenter: parent.verticalCenter
           elide: Text.ElideRight
-          text: menu.searching ? "⌕  " + menu.query + "▏" : (menu.level ? menu.level.title : "Omarchy").toUpperCase()
+          text: menu.searching ? "⌕  " + menu.query + "▏" : (menu.level ? menu.level.title : menu.rootTitle).toUpperCase()
           font.letterSpacing: menu.searching ? 0 : Style.space(2.5)
           font.pixelSize: menu.searching ? menu.labelPx : Bridge.ModuleBus.momentPx(Math.max(10, Style.font.body - 2))
           color: Util.alpha(menu.ink, menu.searching ? 1 : 0.72)

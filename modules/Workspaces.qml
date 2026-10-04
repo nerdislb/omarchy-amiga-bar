@@ -10,7 +10,7 @@ import qs.Ui
 //   { "id": "amiga.workspaces", "source": ".../modules/Workspaces.qml",
 //     "variant": "pips" | "stack" | "logo" | "minimap" | "cli" | "boing"
 //                | "none" (menu logo only, next to the native workspaces),
-//     "menu": true, "logo": "omarchy" | "amiga" | "boing" }
+//     "menu": true, "logo": "omarchy" | "amiga" | "boing" | "arch" | "nerdibeard" }
 // Left click on a workspace focuses it. On the logo, with the "menu" option
 // "drop" (default): left click folds out the drop-down menu (DropMenu.qml),
 // right click opens Omarchy's own centred menu; with "strip": left click the
@@ -167,18 +167,63 @@ Item {
     // until the card is back in the bar.
     readonly property var source: Bridge.ModuleBus.material ? Bridge.ModuleBus.material.source || null : null
     readonly property bool inverted: !!source && (root.dropOpen || (!!dropLoader.item && dropLoader.item.cardPresence > 0.01))
+    readonly property real tabY: Math.round(root.barSize * 0.17)
     Rectangle {
-      visible: menuSlot.inverted
-      y: Math.round(root.barSize * 0.17)
+      visible: menuSlot.inverted && root.logo !== "nerdibeard"
+      y: menuSlot.tabY
       width: parent.width
       height: parent.height - y
       color: menuSlot.source ? menuSlot.source.fill : "transparent"
     }
 
+    // The seal's tab: the ink runs out of the seal into the tab once (0.24 s,
+    // OutCubic) – the seal's footprint grown by r with corner radius r,
+    // clipped to the tab; the nb stays readable throughout. Closing: the tab
+    // stays until the card is back, then the rest state returns at once.
+    // Reduced motion: the tab cross-fades around the seal (0.12 s).
+    Item {
+      id: sealTab
+      readonly property bool reduced: Style.reduceMotion
+      readonly property bool on: root.logo === "nerdibeard" && root.variant !== "logo" && menuSlot.inverted
+      readonly property bool shown: visible
+      visible: opacity > 0
+      opacity: reduced ? (on && root.dropOpen ? 1 : 0) : (on ? 1 : 0)
+      Behavior on opacity { enabled: sealTab.reduced; NumberAnimation { duration: 120 } }
+      y: menuSlot.tabY
+      width: parent.width
+      height: parent.height - y
+      clip: true
+
+      // the seal's footprint in tab coordinates, and the farthest tab corner from it
+      readonly property real fx: sealSpot.x
+      readonly property real fy: sealSpot.y - y
+      function reach(cx, cy) {
+        var dx = Math.max(fx - cx, 0, cx - fx - 16), dy = Math.max(fy - cy, 0, cy - fy - 16)
+        return Math.sqrt(dx * dx + dy * dy)
+      }
+      readonly property real rMax: Math.max(reach(0, 0), reach(width, 0), reach(0, height), reach(width, height)) + 0.5
+      property real bleed: 0
+      onOnChanged: {
+        if (on && !reduced) { bleed = 0; bleedRun.restart() }
+        else if (!on) { bleedRun.stop(); bleed = 0 }
+      }
+      NumberAnimation { id: bleedRun; target: sealTab; property: "bleed"; from: 0; to: 1; duration: 240; easing.type: Easing.OutCubic }
+
+      Rectangle {
+        readonly property real r: sealTab.reduced ? sealTab.rMax : sealTab.bleed * sealTab.rMax
+        x: sealTab.fx - r
+        y: sealTab.fy - r
+        width: 16 + 2 * r
+        height: 16 + 2 * r
+        radius: r
+        color: menuSlot.source ? menuSlot.source.fill : "transparent"
+      }
+    }
+
     Text { renderType: Text.NativeRendering;
       anchors.centerIn: parent
       anchors.verticalCenterOffset: menuSlot.inverted ? Math.round(root.barSize * 0.08) : 0
-      visible: root.variant !== "logo" && root.logo === "omarchy"
+      visible: root.variant !== "logo" && ["amiga", "boing", "arch", "nerdibeard"].indexOf(root.logo) === -1
       text: ""
       font.family: Bridge.ModuleBus.pixelAll ? Bridge.ModuleBus.pixelFamily : "omarchy"
       font.pixelSize: Bridge.ModuleBus.px(Style.font.icon + 2)
@@ -187,11 +232,48 @@ Item {
 
     // Amiga tick or Boing ball in the pixel brick grid, on whole pixels.
     PixelLogo {
-      visible: root.variant !== "logo" && root.logo !== "omarchy"
+      visible: root.variant !== "logo" && (root.logo === "amiga" || root.logo === "boing")
       kind: root.logo
       x: Math.round((parent.width - implicitWidth) / 2)
       y: Math.round((parent.height - implicitHeight) / 2)
       width: implicitWidth; height: implicitHeight
+    }
+
+    // Arch (the official mark, unaltered) and the Nerdibeard seal (logo
+    // design round 04.10.). Loaded only when chosen, so each arrives with
+    // its own motion when the bar starts or the option switches to it.
+    // Arch is centred like the Omarchy glyph (x 18–35 at 30 px), ½ px up;
+    // the seal's 16 × 16 sit 1 px low, its top line on the workspace frame's.
+    Item {
+      id: sealSpot
+      x: Math.round((parent.width - 16) / 2)
+      y: Math.round((root.barSize - 16) / 2) + 1
+      width: 16; height: 16
+    }
+    Loader {
+      active: root.variant !== "logo" && root.logo === "arch"
+      sourceComponent: Component {
+        ArchLogo {
+          size: 18 * 1.18
+          x: Math.round(menuSlot.width / 2) - width / 2
+          y: root.barSize / 2 - 0.5 - height / 2
+          color: menuSlot.inverted ? menuSlot.source.text : root.strong
+        }
+      }
+    }
+    Loader {
+      active: root.variant !== "logo" && root.logo === "nerdibeard"
+      x: sealSpot.x; y: sealSpot.y
+      sourceComponent: Component {
+        SealLogo {
+          ink: root.strong
+          pressInk: menuSlot.source ? menuSlot.source.fill : root.strong
+          pressed: menuMouse.pressed && !root.dropOpen && !Style.reduceMotion
+          tab: sealTab.shown
+          tabInk: menuSlot.source ? menuSlot.source.fill : root.strong
+          cutInk: menuSlot.source ? menuSlot.source.text : "transparent"
+        }
+      }
     }
 
     // "logo": the frame carries the active workspace number.
@@ -210,6 +292,7 @@ Item {
     }
 
     MouseArea {
+      id: menuMouse
       anchors.fill: parent
       acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
       cursorShape: Qt.PointingHandCursor

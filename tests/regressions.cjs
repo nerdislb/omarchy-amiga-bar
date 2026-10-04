@@ -821,3 +821,52 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert(nm.includes('o.activeItem !== undefined && o.region !== undefined'), 'bar slots recognised by their API');
   console.log('PASS: native popups take the theme material');
 }
+
+// Logos from the logo design round (04.10.): Arch (the official mark,
+// unaltered) and the Nerdibeard seal, each with the reviewed motion.
+{
+  const logoIds = ctx.ELEMENTS.logo.variants.map(v => v.id);
+  for (const id of ['omarchy', 'arch', 'nerdibeard', 'amiga', 'boing']) assert(logoIds.includes(id), id);
+  const layoutBase = {left: ['omarchy.menu', 'omarchy.workspaces'], center: [], right: []};
+  for (const logo of ['arch', 'nerdibeard']) {
+    const built = ctx.build(layoutBase, Object.assign({}, ctx.presetById('heute').options, {logo}), '/plugin/modules');
+    assert.equal(built.left[0].id, 'amiga.workspaces');
+    assert.equal(built.left[0].variant, 'none');
+    assert.equal(built.left[0].logo, logo);
+  }
+  // the seal: 16 × 16, 169 ink pixels; rank 0 = the letters' edges (80), 1…89 the rest, each once
+  const seal = fs.readFileSync(path.join(root, 'modules/SealLogo.qml'), 'utf8');
+  const rows = JSON.parse(seal.match(/readonly property var rows: (\[[\s\S]*?\])\n/)[1]);
+  const ranks = JSON.parse(seal.match(/readonly property var ranks: (\[[\s\S]*?\])\n/)[1]);
+  assert.equal(rows.length, 16);
+  assert(rows.every(r => r.length === 16 && /^[.#x]+$/.test(r)));
+  assert.equal(ranks.length, 256);
+  const cells = rows.join('');
+  assert(ranks.every((r, i) => (cells[i] === '#') === (r >= 0)), 'a rank exactly for every ink pixel');
+  assert.equal(ranks.filter(r => r === 0).length, 80);
+  const rest = ranks.filter(r => r > 0).sort((a, b) => a - b);
+  assert.deepEqual(rest, Array.from({length: 89}, (_, i) => i + 1));
+  assert(seal.includes('readonly property int restCount: 89'));
+  assert(/duration: 320/.test(seal) && /1 - Math\.pow\(1 - p, 1\.6\)/.test(seal), 'one impression in 0.32 s');
+  assert(/if \(Style\.reduceMotion\) \{ p = 1; opacity = 0; fadeIn\.start\(\) \}/.test(seal), 'reduced motion: a cross-fade');
+  // Arch: the first path of the filesystem package's archlinux-logo.svg, one even-odd fill, a fade only
+  const arch = fs.readFileSync(path.join(root, 'modules/ArchLogo.qml'), 'utf8');
+  const archPath = arch.match(/PathSvg \{ path: "([^"]+)" \}/)[1];
+  const svgFile = '/usr/share/pixmaps/archlinux-logo.svg';
+  if (fs.existsSync(svgFile)) assert.equal(archPath, fs.readFileSync(svgFile, 'utf8').match(/ d="([^"]+)"/)[1], 'the mark unaltered');
+  assert(arch.includes('fillRule: ShapePath.OddEvenFill'));
+  assert(/duration: Style\.reduceMotion \? 120 : 220/.test(arch));
+  assert(!/Behavior on (x|y|scale)/.test(arch), 'motion only as a whole: no movement');
+  // Workspaces: only the chosen logo is loaded; the seal's tab bleeds once; the menu title follows
+  const ws = fs.readFileSync(path.join(root, 'modules/Workspaces.qml'), 'utf8');
+  assert(ws.includes('active: root.variant !== "logo" && root.logo === "arch"'));
+  assert(ws.includes('active: root.variant !== "logo" && root.logo === "nerdibeard"'));
+  assert(ws.includes('visible: menuSlot.inverted && root.logo !== "nerdibeard"'), 'the seal brings its own tab');
+  assert(/property: "bleed"; from: 0; to: 1; duration: 240; easing\.type: Easing\.OutCubic/.test(ws));
+  assert(ws.includes('pressed: menuMouse.pressed && !root.dropOpen && !Style.reduceMotion'));
+  assert(ws.includes('tab: sealTab.shown'));
+  const dm = fs.readFileSync(path.join(root, 'DropMenu.qml'), 'utf8');
+  assert(dm.includes('logo === "arch" ? "Arch Linux" : logo === "nerdibeard" ? "Nerdibeard" : "Omarchy"'));
+  assert(dm.includes('(menu.level ? menu.level.title : menu.rootTitle).toUpperCase()'));
+  console.log('PASS: logos Arch and Nerdibeard seal (variants, seal raster and order, unaltered Arch path, tab, menu title)');
+}

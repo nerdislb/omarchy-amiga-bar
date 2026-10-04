@@ -58,6 +58,8 @@ var ELEMENTS = {
     label: "Logo",
     variants: [
       { id: "omarchy", label: "Omarchy" },
+      { id: "arch", label: "Arch Linux" },
+      { id: "nerdibeard", label: "Nerdibeard seal" },
       { id: "amiga", label: "Amiga tick" },
       { id: "boing", label: "Boing ball" }
     ]

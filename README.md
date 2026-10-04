@@ -19,7 +19,7 @@ Presets and compact Amiga-style modules for the **native** Omarchy bar. See `ROA
 | Bar form (`A500Case.qml`) | full (default), a500 (A500 case edge) — kept by presets |
 | Fog look (test) (`FogEdge.qml`, `FogPanel.qml`, `FogLayer.qml`) | off (default), on — kept by presets |
 | Logo menu (`DropMenu.qml`, `IntuitionMenu.qml`) | drop (default, drop-down under the logo), strip (menu strip) — kept by presets |
-| Logo (`PixelLogo.qml`) | omarchy, amiga (rainbow double tick), boing (Boing ball) — drawn in the pixel font's brick grid with theme colours; with native workspaces only the menu logo is replaced |
+| Logo (`PixelLogo.qml`, `ArchLogo.qml`, `SealLogo.qml`) | omarchy, arch (the official Arch Linux mark, unaltered, in the bar's ink), nerdibeard (the seal: nb cut out of a 16 px ink block), amiga (rainbow double tick), boing (Boing ball) — amiga/boing drawn in the pixel font's brick grid with theme colours; with native workspaces only the menu logo is replaced; the drop-down's title follows the logo (ARCH LINUX, NERDIBEARD) |
 | Centre (`Centre.qml`) | today, calm (temperature at the weather glyph) |
 | Pixel font (NerdWorkbench) | theme · topaz = Amiga moments (menu strip, status screen, Workbench window title, requester, Guru strip, title line) · bar = all Amiga Bar and Island text and icons · desktop = bar + the reversible desktop profile |
 | Events | plain, amiga (Boing ball, copper progress; read by the island) |
@@ -114,6 +114,33 @@ widget's interval and disabled providers (retrying advised limits after 30 s),
 and fetches limits when the quota popup or status screen opens. A limit past
 its reset time always counts as reset (0 %), in the bar, status screen and
 island, even before a fresh record arrives.
+
+## Logos: Arch and the Nerdibeard seal
+
+From the logo design round of 04.10. (concept in the OpenClaw workspace,
+`output/logo-runde-2026-10-04` and `output/logo-bewegung-2026-10-04`), in
+the reviewed version: expressive only once, when the logo arrives (the bar
+starts or the option switches to it), then still – no hover effect, no loop.
+
+- `arch` (`modules/ArchLogo.qml`): the first path of
+  `/usr/share/pixmaps/archlinux-logo.svg` (package filesystem) without the ™,
+  one even-odd fill in the bar's strong ink, 1.18 × the 18 px field (the
+  triangle reads lighter than a square glyph), centred like the Omarchy
+  glyph. Arrival: one fade, 0.22 s (reduced motion 0.12 s). The tab inverts
+  it. Arch's trademark policy (terms.archlinux.org/docs/trademark-policy)
+  allows unaltered, non-commercial use that implies no endorsement: never
+  alter its shape; check the policy again before any public release.
+- `nerdibeard` (`modules/SealLogo.qml`): a 16 × 16 block with a 1 px rim and
+  the initials nb cut out in squared seal script, whole pixels, its top line
+  on the workspace frame's. Arrival: one impression, 0.32 s – the ink at the
+  letters' edges prints at once, the rest soaks out to the rim in a fixed
+  order (from the design's own code). Press: the ink takes the tab's tone.
+  Drop-down (theme material): the ink runs out of the seal into the tab once
+  (0.24 s, a rounded front, the nb readable throughout); closing restores the
+  rest state once the card is back. Reduced motion: 0.12 s cross-fades.
+
+Switch: Control Center → Logo, or `omarchy-shell amiga-bar set logo
+omarchy|arch|nerdibeard|amiga|boing`.
 
 ## fastfetch logo
 

@@ -197,5 +197,5 @@ if $boot_logo; then
 fi
 
 step "Done"
-$dry && note "dry run – nothing was changed" || note "backup: $backup  ·  undo: $here/revert.sh $backup"
+$dry && note "dry run – nothing was changed" || note "backup: $backup  ·  undo: $SRC/omarchy-amiga-bar/setup/revert.sh $backup"
 note "switch logo/bar: middle click on the logo (Control Center) · themes and backgrounds: Style menu (card picker)"

@@ -130,6 +130,7 @@ run omarchy-shell shell rescanPlugins
 
 # ---------------------------------------------------------------- 4 · themes
 step "Themes: ${themes[*]}"
+run mkdir -p "$HOME/.config/omarchy/themes"
 for t in "${themes[@]}"; do
   run rsync -a --delete "$bar_repo/themes/$t/" "$HOME/.config/omarchy/themes/$t/"
 done

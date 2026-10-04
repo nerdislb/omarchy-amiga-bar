@@ -116,9 +116,22 @@ for r in "${repos[@]}"; do
   elif [[ -d "$dest/.git" ]]; then
     [[ -z $(git -C "$dest" status --porcelain) ]] || die "$dest has local changes – commit or stash them first"
     note "$r: update $dest from $src ($br, fast-forward)"
-    run git -C "$dest" fetch -q "$src" "$br"
-    run git -C "$dest" checkout -q "$br"
-    run git -C "$dest" merge -q --ff-only FETCH_HEAD
+    if $dry; then
+      note "[dry-run] git -C $dest fetch $src $br, then $br fast-forward (or create $br)"
+    else
+      git -C "$dest" fetch -q "$src" "$br"
+      if git -C "$dest" rev-parse -q --verify HEAD >/dev/null && ! git -C "$dest" merge-base HEAD FETCH_HEAD >/dev/null; then
+        die "$dest is a different repository (no shared history) – move it aside (mv $dest $dest.old) or use --src DIR, then run this again"
+      elif git -C "$dest" show-ref --verify --quiet "refs/heads/$br"; then
+        git -C "$dest" checkout -q "$br"
+        git -C "$dest" merge -q --ff-only FETCH_HEAD ||
+          die "$dest: its $br has commits of its own – merge them by hand, or move the folder aside (mv $dest $dest.old) and run this again"
+      else
+        # an older or partial clone without this branch: start it at the fetched one (other branches stay)
+        note "$r: $dest has no branch $br yet – creating it"
+        git -C "$dest" checkout -q -b "$br" FETCH_HEAD
+      fi
+    fi
   else
     note "$r: clone $src -> $dest ($br)"
     run git clone -q --branch "$br" "$src" "$dest"

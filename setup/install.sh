@@ -106,7 +106,14 @@ for r in "${repos[@]}"; do
   elif [[ -d "$(dirname "$bar_repo")/$r/.git" ]]; then src="$(dirname "$bar_repo")/$r"
   else src="https://github.com/nerdislb/$r.git"; fi
   if [[ $(cd "$dest" 2>/dev/null && pwd -P) == $(cd "$src" 2>/dev/null && pwd -P) ]]; then
-    note "$r: in place ($dest)"
+    if [[ $r == omarchy-amiga-bar ]]; then
+      note "$r: in place ($dest) – to update it, git pull there before running this"
+    else
+      [[ -z $(git -C "$dest" status --porcelain) ]] || die "$dest has local changes – commit or stash them first"
+      note "$r: in place ($dest), pull $br from origin"
+      run git -C "$dest" checkout -q "$br"
+      if ! $dry; then git -C "$dest" pull -q --ff-only origin "$br" || note "$r: pull failed (offline or no access?) – kept as it is"; fi
+    fi
   elif [[ -d "$dest/.git" ]]; then
     [[ -z $(git -C "$dest" status --porcelain) ]] || die "$dest has local changes – commit or stash them first"
     note "$r: update $dest from $src ($br, fast-forward)"

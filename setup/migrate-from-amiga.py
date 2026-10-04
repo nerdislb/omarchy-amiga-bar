@@ -154,7 +154,7 @@ def ids(lst):
         if xid in IDS and IDS[xid] in present:
             continue
         if isinstance(x, dict) and xid in IDS:
-            x = {**x, 'id': IDS[xid]}
+            x = entry(x) if xid == OLD_ISLAND else {**x, 'id': IDS[xid]}
             if xid == OLD_BAR and 'options' in x:
                 x['options'] = options(x['options'])
         elif isinstance(x, str):

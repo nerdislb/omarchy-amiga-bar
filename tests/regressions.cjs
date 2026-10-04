@@ -3,36 +3,38 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
+// The Tusche Island next to the bar (its folder before the rename as the fallback).
+const islandDir = ['../omarchy-tusche-island', '../omarchy-amiga-island'].map(d => path.resolve(root, d)).find(d => fs.existsSync(d));
+assert(islandDir, 'the Tusche Island repository next to the bar (../omarchy-tusche-island)');
 const ctx = {};
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(root, 'Presets.js'), 'utf8').replace('.pragma library', ''), ctx);
 const plain = value => JSON.parse(JSON.stringify(value));
-const base = {left: ['omarchy.menu', 'omarchy.workspaces', 'nerdibeard.ai-usage'], center: ['nerdibeard.amiga-island', 'omarchy.weather'], right: [{id:'omarchy.tailscale', recentMullvadRegions:['old']}, 'omarchy.network', 'flux', 'omamail', 'io.github.moizibnyousaf.omawhatsapp', 'omarchy.audio']};
+const base = {left: ['omarchy.menu', 'omarchy.workspaces', 'nerdibeard.ai-usage'], center: ['nerdibeard.tusche-island', 'omarchy.weather'], right: [{id:'omarchy.tailscale', recentMullvadRegions:['old']}, 'omarchy.network', 'flux', 'omamail', 'io.github.moizibnyousaf.omawhatsapp', 'omarchy.audio']};
 for (const preset of ctx.PRESETS) {
  const original = JSON.stringify(base);
  const built = ctx.build(base, preset.options, '/plugin/modules');
  assert.equal(JSON.stringify(base), original);
  assert(built.right.some(e => ctx.entryId(e) === 'omamail'));
  assert(built.right.some(e => ctx.entryId(e) === 'io.github.moizibnyousaf.omawhatsapp'));
- if (preset.id === 'heute') assert.deepEqual(plain(built), base);
+ if (preset.id === 'today') assert.deepEqual(plain(built), base);
  else assert(ctx.hasOwn(built));
 }
-const current = ctx.build(base, ctx.presetById('k1').options, '/plugin/modules');
-current.right.find(e => e.id === 'amiga.status').embeds['omarchy.tailscale'].recentMullvadRegions = ['new'];
+const current = ctx.build(base, ctx.presetById('tidy').options, '/plugin/modules');
+current.right.find(e => e.id === 'tusche.status').embeds['omarchy.tailscale'].recentMullvadRegions = ['new'];
 const merged = ctx.mergeEmbeddedSettings(base, current);
-assert.deepEqual(plain(ctx.build(merged, ctx.presetById('heute').options, '/plugin/modules')).right[0].recentMullvadRegions, ['new']);
+assert.deepEqual(plain(ctx.build(merged, ctx.presetById('today').options, '/plugin/modules')).right[0].recentMullvadRegions, ['new']);
 assert.deepEqual(base.right[0].recentMullvadRegions, ['old']);
 // Actual QML functions in isolation: each scope gets an independent startup baseline.
-function functionSource(text, name) {
- const from=text.indexOf('  function '+name+'(');
+function functionSource(text, name, indent = '  ') {
+ const from=text.indexOf(indent+'function '+name+'(');
  assert(from >= 0, name);
- const to=text.indexOf('\n  }', from)+4;
+ const to=text.indexOf('\n'+indent+'}', from)+indent.length+2;
  return text.slice(from,to);
 }
-const failuresPath = path.resolve(root, '../omarchy-amiga-island/sources/Failures.qml');
-const failures=fs.readFileSync(failuresPath,'utf8');
+const failures=fs.readFileSync(path.join(islandDir, 'sources/Failures.qml'),'utf8');
 const alarms=[];
-const failureCtx={initializedScopes:{},knownUnits:null,island:{showGuru:e=>alarms.push(e)}};
+const failureCtx={initializedScopes:{},knownUnits:null,island:{announceFailure:e=>alarms.push(e)}};
 vm.createContext(failureCtx);
 vm.runInContext(functionSource(failures,'quote')+'\n'+functionSource(failures,'scanned'),failureCtx);
 failureCtx.scanned('user','old-user.service failed');
@@ -40,6 +42,7 @@ failureCtx.scanned('system','old-system.service failed');
 assert.equal(alarms.length,0);
 failureCtx.scanned('system','old-system.service failed\nfoo\\x2dbar.service failed');
 assert.equal(alarms.length,1);
+assert.deepEqual([alarms[0].kind, alarms[0].scope, alarms[0].name], ['unit', 'system', 'foo\\x2dbar.service']);
 assert(alarms[0].command.includes("'foo\\x2dbar.service'"));
 const cp=require('node:child_process');
 for (const value of ["foo\\x2dbar.service", "strange'name.service", '$(echo nope).service']) {
@@ -57,144 +60,183 @@ b.QsWindow.window.visible=false;
 assert.equal(bc.pick('status'),a);
 console.log('PASS: presets, native-widget preservation, embedded settings round-trip, startup alarms, shell quoting, focused-output routing');
 // Layout-induced hover events at a stationary global position must not take
-// selection away from keyboard navigation. Local coordinates may change.
-const menuSource = fs.readFileSync(path.join(root, 'IntuitionMenu.qml'), 'utf8');
-const pointerCtx = {pointerKnown:false, pointerX:0, pointerY:0, win:{contentItem:{}}};
+// selection away from keyboard navigation in the drop-down. Local coordinates may change.
+const menuSource = fs.readFileSync(path.join(root, 'DropMenu.qml'), 'utf8');
+const pointerCtx = {pointerKnown:false, pointerX:0, pointerY:0, keyboard:true, keys:{}};
 vm.createContext(pointerCtx);
-vm.runInContext(functionSource(menuSource, 'pointerMoved'), pointerCtx);
+vm.runInContext(functionSource(menuSource, 'pointerMoved', '    '), pointerCtx);
 const areaAt = (x,y) => ({mapToItem:(_,mx,my)=>({x:x+mx,y:y+my})});
 assert.equal(pointerCtx.pointerMoved(areaAt(0,0), {x:55,y:15}), false);
 assert.equal(pointerCtx.pointerMoved(areaAt(40,0), {x:15,y:15}), false);
+assert.equal(pointerCtx.keyboard, true);
 assert.equal(pointerCtx.pointerMoved(areaAt(40,0), {x:16,y:15}), true);
+assert.equal(pointerCtx.keyboard, false, 'real motion hands selection back to the pointer');
 assert.equal(pointerCtx.pointerMoved(areaAt(40,0), {x:16,y:15}), false);
 console.log('PASS: stationary/recreated hover ignored; physical pointer motion accepted');
+
+// Preset ids of the Amiga Bar this grew out of: heute/k1/k3 still resolve, k2 is gone.
+{
+  assert.deepEqual(plain(ctx.PRESETS.map(p => p.id)), ['today', 'tidy', 'focus']);
+  assert.equal(ctx.presetById('heute').id, 'today');
+  assert.equal(ctx.presetById('k1').id, 'tidy');
+  assert.equal(ctx.presetById('k3').id, 'focus');
+  assert.equal(ctx.presetById('k2'), null);
+  assert.equal(ctx.presetById('nope'), null);
+  // Own module ids: tusche.*, and the Amiga Bar's amiga.* (a layout it built is recognised and replaced).
+  assert(ctx.isOwn('tusche.status') && ctx.isOwn('amiga.status'));
+  assert(!ctx.isOwn('omarchy.workspaces') && !ctx.isOwn('nerdibeard.tusche-island') && !ctx.isOwn(undefined));
+  assert.equal(ctx.ownName('tusche.quota'), 'quota');
+  assert.equal(ctx.ownName('amiga.quota'), 'quota');
+  assert.equal(ctx.ownName('omarchy.audio'), 'omarchy.audio');
+  const old = {left: [{id: 'amiga.workspaces', variant: 'pips', logo: 'omarchy'}, {id: 'amiga.quota', variant: 'gauge'}],
+               center: ['omarchy.weather', {id: 'amiga.centre'}],
+               right: [{id: 'amiga.status', variant: 'groups', embeds: {'omarchy.network': {keep: 2}}}, 'omarchy.audio']};
+  assert(ctx.hasOwn(old));
+  assert.deepEqual(plain(ctx.stripOwn(old)), {left: [], center: ['omarchy.weather'], right: ['omarchy.audio']});
+  assert.deepEqual(plain(ctx.reconstructBase(old)), {left: ['omarchy.menu', 'omarchy.workspaces', 'nerdibeard.ai-usage', 'omarchy.agents'],
+    center: ['omarchy.weather'], right: [{id: 'omarchy.network', keep: 2}, 'omarchy.audio']});
+  const native = {left: ['omarchy.menu', 'omarchy.workspaces'], center: [], right: ['omarchy.network', 'omarchy.audio']};
+  assert.deepEqual(plain(ctx.mergeEmbeddedSettings(native, old)).right[0], {id: 'omarchy.network', keep: 2}, 'embeds of an amiga.status entry survive');
+  const rebuilt = ctx.build(ctx.reconstructBase(old), ctx.presetById('tidy').options, '/plugin/modules');
+  assert(['left', 'center', 'right'].every(s => rebuilt[s].every(e => !ctx.entryId(e).startsWith('amiga.'))));
+  console.log('PASS: legacy preset ids (k1 → tidy, no k2) and legacy module ids (amiga.*)');
+}
 
 // Lost base.json: every preset's layout turns back into the same native widgets.
 {
   const ids = o => ['left', 'center', 'right'].flatMap(s => o[s].map(e => ctx.entryId(e))).sort();
   const full = {left: ['omarchy.menu', 'omarchy.workspaces', 'nerdibeard.ai-usage', 'omarchy.agents'], center: ['omarchy.weather'],
                 right: [{id: 'omarchy.tailscale', keep: 1}, 'omarchy.network', 'flux', 'omamail', 'omarchy.bluetooth', 'omarchy.audio', 'omarchy.power']};
-  for (const preset of ctx.PRESETS.concat(['hardware', 'compact'].map(right => ({options: {workspaces: 'cli', ai: 'ondemand', right, centre: 'calm'}})))) {
+  for (const preset of ctx.PRESETS.concat(['groups', 'deviations'].map(right => ({options: {workspaces: 'minimap', ai: 'ondemand', right, centre: 'calm', logo: 'arch'}})))) {
     const rebuilt = ctx.reconstructBase(ctx.build(full, preset.options, '/plugin/modules'));
     assert.deepEqual(ids(rebuilt), ids(full));
     assert(!ctx.hasOwn(rebuilt));
     const ts = ['left', 'center', 'right'].flatMap(s => rebuilt[s]).find(e => ctx.entryId(e) === 'omarchy.tailscale');
     assert.equal(ts.keep, 1);
   }
-  // The desktop font profile is never switched by presets or combinations.
-  assert.equal(ctx.keepDesktopFont({font: 'theme'}, {font: 'desktop'}).font, 'desktop');
-  assert.equal(ctx.keepDesktopFont({font: 'desktop'}, {font: 'theme'}).font, 'bar');
-  assert.equal(ctx.matchPreset(Object.assign({}, ctx.presetById('k1').options, {font: 'desktop'})), 'k1');
-  console.log('PASS: base reconstruction, desktop font kept out of presets');
+  console.log('PASS: base reconstruction');
 }
 
-// Compact keeps hardware's members/settings; the edge never consumes a bar slot.
+// The edge is a look option: presets keep it, preset matching ignores it.
 {
-  assert.equal(ctx.ELEMENTS.right.variants.find(v => v.id === 'compact').label, 'A500 strip, compact');
-  assert.equal(ctx.ELEMENTS.edge.variants.find(v => v.id === 'workbench').label, 'Workbench edge');
+  assert.deepEqual(plain(ctx.LOOK), ['edge']);
+  const tidy = ctx.presetById('tidy').options;
+  assert.equal(tidy.edge, undefined);
+  assert.equal(ctx.keepLook(tidy, {edge: 'theme'}).edge, 'theme', 'a preset without an edge keeps the current one');
+  assert.equal(ctx.keepLook(tidy, {edge: 'theme'}).workspaces, 'pips');
+  assert.equal(ctx.keepLook(null, {edge: 'theme'}).edge, 'theme');
+  assert.equal(ctx.keepLook(Object.assign({}, tidy, {edge: 'none'}), {edge: 'theme'}).edge, 'none', 'a combination saved with an edge brings it');
+  assert.equal(ctx.matchPreset(Object.assign({}, tidy, {edge: 'theme'})), 'tidy');
+  console.log('PASS: keepLook keeps the edge out of presets');
+}
+
+// Status variants: normalisation, folding, build/restoration; the edge never consumes a bar slot.
+{
+  assert.deepEqual(plain(ctx.ELEMENTS.right.variants.map(v => v.id)), ['today', 'groups', 'deviations']);
+  assert.deepEqual(plain(ctx.ELEMENTS.edge.variants.map(v => v.id)), ['none', 'theme']);
   assert.equal(ctx.normalizeOptions({}).edge, 'none');
   assert.equal(ctx.normalizeOptions({edge: 'unknown'}).edge, 'none');
-  assert.equal(ctx.normalizeOptions({right: 'compact', edge: 'workbench'}).right, 'compact');
-  assert.equal(ctx.normalizeOptions({right: 'compact', edge: 'workbench'}).edge, 'workbench');
+  assert.equal(ctx.normalizeOptions({right: 'deviations', edge: 'theme'}).right, 'deviations');
   assert.equal(ctx.normalizeOptions({right: 'unknown'}).right, 'today');
   for (const preset of ctx.PRESETS) {
     assert.equal(ctx.normalizeOptions(preset.options).edge, 'none');
     assert.equal(ctx.matchPreset(preset.options), preset.id);
   }
   for (const ai of ctx.ELEMENTS.ai.variants.map(v => v.id)) {
-    assert.deepEqual(plain(ctx.foldedIds({right: 'compact', ai})), plain(ctx.foldedIds({right: 'hardware', ai})));
+    assert.deepEqual(plain(ctx.foldedIds({right: 'groups', ai})), plain(ctx.foldedIds({right: 'deviations', ai})));
   }
+  const grouped = plain(ctx.groupedIds());
   const full = {left: ['omarchy.menu', 'omarchy.workspaces', 'omarchy.agents'], center: ['omarchy.weather'],
-    right: plain(ctx.DRAWER).map(id => ({id, keep: id})).concat([{id: 'omarchy.power', keep: 'battery'},
-      'omarchy.network', 'omamail', 'io.github.moizibnyousaf.omawhatsapp', 'omarchy.audio'])};
+    right: grouped.map(id => ({id, keep: id})).concat([{id: 'omarchy.power', keep: 'battery'},
+      'omamail', 'io.github.moizibnyousaf.omawhatsapp', 'omarchy.audio'])};
   const original = JSON.stringify(full);
-  const compact = ctx.build(full, {right: 'compact', edge: 'workbench'}, '/plugin/modules');
-  const hardware = ctx.build(full, {right: 'hardware'}, '/plugin/modules');
-  const status = compact.right.find(e => e.id === 'amiga.status');
-  assert.equal(status.variant, 'compact');
+  const groups = ctx.build(full, {right: 'groups', edge: 'theme'}, '/plugin/modules');
+  const deviations = ctx.build(full, {right: 'deviations'}, '/plugin/modules');
+  const status = groups.right.find(e => e.id === 'tusche.status');
+  assert.equal(status.variant, 'groups');
   assert.equal(status.source, '/plugin/modules/Status.qml');
-  assert.deepEqual(plain(status.embeds), plain(hardware.right.find(e => e.id === 'amiga.status').embeds));
-  assert.equal(status.embeds['omarchy.power'].keep, 'battery');
-  assert.deepEqual(plain(compact.right.map(ctx.entryId)),
-    ['omarchy.network', 'omamail', 'io.github.moizibnyousaf.omawhatsapp', 'amiga.status', 'omarchy.audio']);
+  assert.deepEqual(plain(status.embeds), plain(deviations.right.find(e => e.id === 'tusche.status').embeds));
+  assert.deepEqual(Object.keys(status.embeds).sort(), grouped.slice().sort());
+  assert.equal(status.embeds['omarchy.tailscale'].keep, 'omarchy.tailscale');
+  assert.deepEqual(plain(groups.right.map(ctx.entryId)),
+    ['omarchy.power', 'omamail', 'io.github.moizibnyousaf.omawhatsapp', 'tusche.status', 'omarchy.audio']);
   assert.equal(JSON.stringify(full), original);
-  assert.deepEqual(plain(ctx.build(full, {edge: 'workbench'}, '/plugin/modules')), full);
-  assert.deepEqual(plain(ctx.build(full, {right: 'compact', edge: 'none'}, '/plugin/modules')), plain(compact));
-  status.embeds['omarchy.power'].keep = 'edited';
-  const restored = ctx.build(ctx.mergeEmbeddedSettings(full, compact), {}, '/plugin/modules');
-  assert.equal(restored.right.find(e => e.id === 'omarchy.power').keep, 'edited');
-  assert.equal(ctx.keepDesktopFont({right: 'compact', edge: 'workbench'}, {}).edge, 'workbench');
-  console.log('PASS: compact normalisation, folding, build/restoration and default-off slot-free edge');
+  assert.deepEqual(plain(ctx.build(full, {edge: 'theme'}, '/plugin/modules')), full);
+  assert.deepEqual(plain(ctx.build(full, {right: 'groups', edge: 'none'}, '/plugin/modules')), plain(groups));
+  status.embeds['omarchy.tailscale'].keep = 'edited';
+  const restored = ctx.build(ctx.mergeEmbeddedSettings(full, groups), {}, '/plugin/modules');
+  assert.equal(restored.right.find(e => e.id === 'omarchy.tailscale').keep, 'edited');
+  assert.equal(restored.right.find(e => e.id === 'omarchy.power').keep, 'battery');
+  console.log('PASS: status variants (normalisation, folding, build/restoration) and the slot-free edge');
 }
 
 // Edge "theme": light and shadow from the theme's bar-material.json (Tusche & Papier, 03.10.2026).
 {
   assert.equal(ctx.ELEMENTS.edge.variants.find(v => v.id === 'theme').label, 'From the theme (light & shadow)');
   assert.equal(ctx.normalizeOptions({edge: 'theme'}).edge, 'theme');
-  assert.ok(plain(ctx.LOOK).includes('edge'), 'the edge is a look option, kept by presets');
-  assert.equal(ctx.matchPreset(Object.assign({}, ctx.presetById('k1').options, {edge: 'theme'})), 'k1');
+  assert.equal(ctx.matchPreset(Object.assign({}, ctx.presetById('tidy').options, {edge: 'theme'})), 'tidy');
   const te = fs.readFileSync(path.join(root, 'ThemeEdge.qml'), 'utf8');
   assert.match(te, /bottom - px - 1/, 'the line surface keeps a transparent device pixel (1 px surfaces are never drawn)');
   assert.match(te, /WlrLayershell\.layer: WlrLayer\.Overlay/, 'the line sits over the bar');
   assert.match(te, /WlrLayershell\.layer: WlrLayer\.Top/, 'shadow/haze on Top: Bottom blends additively here');
   assert.doesNotMatch(te, /WlrLayer\.Bottom/);
   assert.match(te, /Math\.min\(depth \+ top, root\.gap\)/, 'with windows on the workspace only the gap above them');
-  const fp = fs.readFileSync(path.join(root, 'FogPanel.qml'), 'utf8');
-  assert.match(fp, /matOn: !fog && !!mat/, 'material only without fog');
-  assert.match(fp, /if \(!rolls\) \{ rollOut\.stop\(\); rollIn\.stop\(\); return \}/, 'never write roll through a releasing Binding');
-  assert.match(fp, /property: "gap"; value: 0; when: fp\.rolls/, 'the rolling card hangs flush from the bar');
-  assert.match(fp, /rolling: rolls && roll < 0\.999 && \(panel\.open \|\| roll > 0\.001 \|\| \(!!card && card\.opacity > 0\.001\)\)/,
+  const mc = fs.readFileSync(path.join(root, 'MaterialCard.qml'), 'utf8');
+  assert.match(mc, /matOn: !!mat && mat\.bloom !== true/, 'a material card rolls; a bloom never rolls');
+  assert.match(mc, /if \(!rolls\) \{ rollOut\.stop\(\); rollIn\.stop\(\); return \}/, 'never write roll through a releasing Binding');
+  assert.match(mc, /property: "gap"; value: 0; when: fp\.rolls/, 'the rolling card hangs flush from the bar');
+  assert.match(mc, /rolling: rolls && roll < 0\.999 && \(panel\.open \|\| roll > 0\.001 \|\| \(!!card && card\.opacity > 0\.001\)\)/,
     'the roll mask stays until the rolled-in card has faded (no full-height flash on closing)');
-  assert.match(fp, /height: parent\.height \* fp\.roll; color: "white"/, 'a rolled-in card shows nothing (no 1 px rest)');
-  assert.match(fp, /presence: rolls \? roll : active \? grow : \(card \? card\.opacity : 0\)/, 'how far the card is out');
+  assert.match(mc, /height: parent\.height \* fp\.roll; color: "white"/, 'a rolled-in card shows nothing (no 1 px rest)');
+  assert.match(mc, /presence: rolls \? roll : active \? grow : \(card \? card\.opacity : 0\)/, 'how far the card is out');
   // a panel that drops content on closing (Omarchy's audio panel) rolls in as it was while open
-  assert.match(fp, /rollingIn: rolls && !panel\.open && roll > 0\.001/);
-  assert.match(fp, /function keepSnap\(\) \{ Qt\.callLater\(fp\.takeSnap\) \}/, 'the snapshot geometry settles before it is taken');
-  assert.match(fp, /live: !!fp\.panel && fp\.panel\.open\n\s*hideSource: fp\.rollingIn/, 'the snapshot freezes on closing and stands in for the card');
-  assert.match(fp, /height: fp\.rollingIn \? fp\.snapH \* fp\.roll : 0\n\s*clip: true/, 'cut to the part that is still out');
-  assert.match(fp, /x: fp\.frameX - spread/, 'the shadow follows the frozen frame');
+  assert.match(mc, /rollingIn: rolls && !panel\.open && roll > 0\.001/);
+  assert.match(mc, /function keepSnap\(\) \{ Qt\.callLater\(fp\.takeSnap\) \}/, 'the snapshot geometry settles before it is taken');
+  assert.match(mc, /live: !!fp\.panel && fp\.panel\.open\n\s*hideSource: fp\.rollingIn/, 'the snapshot freezes on closing and stands in for the card');
+  assert.match(mc, /height: fp\.rollingIn \? fp\.snapH \* fp\.roll : 0\n\s*clip: true/, 'cut to the part that is still out');
+  assert.match(mc, /x: fp\.frameX - spread/, 'the shadow follows the frozen frame');
   const wsTab = fs.readFileSync(path.join(root, 'modules/Workspaces.qml'), 'utf8');
   assert.match(wsTab, /inverted: !!source && \(root\.dropOpen \|\| \(!!dropLoader\.item && dropLoader\.item\.cardPresence > 0\.01\)\)/,
     'the logo stays the menu\'s tab until the card is back in the bar');
-  assert.match(fs.readFileSync(path.join(root, 'DropMenu.qml'), 'utf8'), /readonly property real cardPresence: fogPanel\.presence/);
-  const island = path.resolve(root, '../omarchy-amiga-island/views/FogPanel.qml');
-  if (fs.existsSync(island)) {
-    const strip = t => t.replace(/^\/\/ \(Same component in the Amiga (Island|Bar): keep both copies alike\.\)$/m, '');
-    assert.equal(strip(fs.readFileSync(island, 'utf8')), strip(fp), 'both FogPanel copies alike');
-  }
+  assert.match(fs.readFileSync(path.join(root, 'DropMenu.qml'), 'utf8'), /readonly property real cardPresence: materialCard\.presence/);
+  // one MaterialCard for both repos (the island's copy differs only in its pointer line)
+  const strip = t => t.replace(/^\/\/ \(Same component in the Tusche (Island|Bar): keep both copies alike\.\)$/m, '');
+  const islandCard = path.join(islandDir, 'views/MaterialCard.qml');
+  if (fs.existsSync(islandCard)) assert.equal(strip(fs.readFileSync(islandCard, 'utf8')), strip(mc), 'both MaterialCard copies alike');
+  // callers hand over the panel and the material only
+  for (const [file, re] of [['DropMenu.qml', /MaterialCard \{ id: materialCard; panel: menu; material: Bridge\.ModuleBus\.material \}/],
+                            ['modules/Status.qml', /Root\.MaterialCard \{ panel: popup; material: Bridge\.ModuleBus\.material \}/],
+                            ['modules/Quota.qml', /Root\.MaterialCard \{ panel: popup; material: Bridge\.ModuleBus\.material \}/]])
+    assert.match(fs.readFileSync(path.join(root, file), 'utf8'), re, file);
   const engine = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
   assert.match(engine, /current\/theme\.name/, 'reloads the material on theme switch');
-  assert.match(engine, /materialOn: options\.edge === "theme" && !fogOn && !!material/);
-  assert.match(engine, /themeEdgeVisible: materialOn && !!material\.edge && options\.form !== "a500" && barReady/);
+  assert.match(engine, /materialOn: options\.edge === "theme" && !!material\n/);
+  assert.match(engine, /themeEdgeVisible: materialOn && !!material\.edge && barReady\n/);
   assert.match(engine, /property: "material"; value: root\.materialOn \? root\.material : null/);
-  assert.match(fp, /bloomWanted: !fog && !!material && !!material\.card && material\.card\.bloom === true/, 'Lavur cards bloom');
-  assert.match(fp, /matOn: !fog && !!mat && mat\.bloom !== true/, 'a bloom never rolls');
-  assert.doesNotMatch(fp, /scallop/, 'no scallops: the dried rim replaced them (frame round, recommendation 6)');
-  assert.match(fp, /InkSheet \{\n\s*visible: fp\.bloom\n/, 'a bloom is one sheet of wet paper');
-  assert.match(fp, /FogLayer \{\n\s*visible: fp\.edge && !fp\.bloom\n/, 'the fog keeps its rim line, a bloom has none');
+  assert.match(mc, /bloomWanted: !!material && !!material\.card && material\.card\.bloom === true/, 'Lavur cards bloom');
+  assert.match(mc, /readonly property bool bloom: active\n/);
+  assert.doesNotMatch(mc, /scallop/, 'no scallops: the dried rim replaced them (frame round, recommendation 6)');
+  assert.match(mc, /InkSheet \{\n\s*y: -fp\.margin\n/, 'a bloom is one sheet of wet paper');
   const dm = fs.readFileSync(path.join(root, 'DropMenu.qml'), 'utf8');
   assert.match(dm, /visible: row\.hot && menu\.inverting && \(!menu\.brushFile \|\| brushImage\.status !== Image\.Ready\)/, 'hard inversion (Tusche/Papier, or while the brush is missing)');
-  assert.match(fp, /if \(active && \(opening\.running \|\| closing\.running\)\) \{ opening\.stop\(\); closing\.stop\(\); follow\(\) \}/, 'reduced motion mid-bloom jumps to the end');
+  assert.match(mc, /if \(active && \(opening\.running \|\| closing\.running\)\) \{ opening\.stop\(\); closing\.stop\(\); follow\(\) \}/, 'reduced motion mid-bloom jumps to the end');
   assert.match(dm, /themeStamp/, 'the brush reloads on a theme switch');
   const ws = fs.readFileSync(path.join(root, 'modules/Workspaces.qml'), 'utf8');
   assert.match(ws, /tones\.strong/, 'logo and active number in the strong tone');
-  // wet bloom: the shader and its compiled form ship next to FogPanel in both repos
-  for (const dir of [root, path.resolve(root, '../omarchy-amiga-island/views')]) {
+  // wet bloom: the shader and its compiled form ship next to MaterialCard in both repos
+  for (const dir of [root, path.join(islandDir, 'views')]) {
     if (!fs.existsSync(dir)) continue;
     assert.ok(fs.existsSync(path.join(dir, 'shaders/wetink.frag.qsb')), `compiled wet-ink shader in ${dir}`);
     const frag = fs.readFileSync(path.join(dir, 'shaders/wetink.frag'), 'utf8');
     for (const u of ['size', 'center', 'region', 'ink', 'front', 'band', 'body', 'ridge', 'resid', 'jitter', 'seed'])
       assert.match(frag, new RegExp(`\\b${u};`), `uniform ${u}`);
   }
-  assert.match(fp, /if \(bloom\) \{ wetting\.stop\(\); clearing = 0; wet = 1; phase = 0; wetting\.start\(\) \}/, 'all ink from the first frame');
-  assert.match(fp, /if \(wetting\.running\) settle\(\)/, 'reduced motion dries at once');
+  assert.match(mc, /else \{\n\s*ink = 0; opening\.start\(\)\n[^\n]*\n\s*wetting\.stop\(\); clearing = 0; wet = 1; phase = 0; wetting\.start\(\)/, 'all ink from the first frame');
+  assert.match(mc, /if \(wetting\.running\) settle\(\)/, 'reduced motion dries at once');
   // the dried rim (frame round 03.10.2026, recommendation 6): InkSheet and its shaders, alike in both repos
   const ink = fs.readFileSync(path.join(root, 'InkSheet.qml'), 'utf8');
-  const islandInk = path.resolve(root, '../omarchy-amiga-island/views/InkSheet.qml');
-  if (fs.existsSync(islandInk)) {
-    const strip = t => t.replace(/^\/\/ \(Same component in the Amiga (Island|Bar): keep both copies alike\.\)$/m, '');
-    assert.equal(strip(fs.readFileSync(islandInk, 'utf8')), strip(ink), 'both InkSheet copies alike');
-  }
+  const islandInk = path.join(islandDir, 'views/InkSheet.qml');
+  if (fs.existsSync(islandInk)) assert.equal(strip(fs.readFileSync(islandInk, 'utf8')), strip(ink), 'both InkSheet copies alike');
   for (const s of ['wetink', 'gauss', 'bloomcut', 'restink', 'halo'])
     assert.match(ink, new RegExp(`fragmentShader: Qt\\.resolvedUrl\\("shaders/${s}\\.frag\\.qsb"\\)`), `InkSheet uses ${s}`);
   assert.doesNotMatch(ink, /function smooth\(/, 'no method named like the Item property `smooth`');
@@ -208,7 +250,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     restink: ['size', 'origin', 'ink', 'ridge', 'pool', 'echo', 'resid', 'show', 'dry', 'barY'],
     halo: ['size', 'box', 'radius', 'sigma', 'tint', 'alpha'],
   };
-  for (const dir of [root, path.resolve(root, '../omarchy-amiga-island/views')]) {
+  for (const dir of [root, path.join(islandDir, 'views')]) {
     if (!fs.existsSync(dir)) continue;
     for (const [s, list] of Object.entries(uniforms)) {
       const file = path.join(dir, `shaders/${s}.frag`);
@@ -227,56 +269,38 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   console.log('PASS: theme edge option, material wiring, rolling cards, blooms, hover, tones, wet ink, dried rim');
 }
 
-// The thin integer surface encloses two physical pixel rows at fractional scale.
+// The theme edge hangs under the native bar only: on top, shown, not replaced,
+// and only for a theme whose material has an edge.
 {
-  const edge = fs.readFileSync(path.join(root, 'WorkbenchEdge.qml'), 'utf8');
-  const edgeCtx = {};
-  vm.createContext(edgeCtx);
-  vm.runInContext(functionSource(edge, 'edgeGeometry'), edgeCtx);
-  for (const scale of [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5]) {
-    for (const height of [25, 26, 27, 32, 39]) {
-      const g = edgeCtx.edgeGeometry(height, scale);
-      assert(Number.isInteger(g.top) && Number.isInteger(g.height));
-      assert(g.highlightY >= 0 && g.highlightY + 2 / scale <= g.height + 1e-9);
-      const firstPixel = Math.round(g.top * scale) + g.highlightY * scale;
-      assert(Math.abs(firstPixel - (Math.round(height * scale) - 2)) < 1e-9);
-      assert(g.height <= Math.ceil(2 / scale) + 1);
-    }
-  }
   const engine = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
   const readyExpr = engine.match(/readonly property bool barReady: ([\s\S]*?)\n  \/\//)[1];
-  const fogExpr = engine.match(/readonly property bool fogVisible: ([^\n]*)/)[1];
-  const expression = engine.match(/readonly property bool edgeVisible: ([^\n]*)/)[1];
-  const evalEdge = (expr, edge, bar, id, fog) => {
-    const c = {options: {edge, fog}, edgeBar: bar, shell: {barConfig: {id}}};
+  const materialExpr = engine.match(/readonly property bool materialOn: ([^\n]*)/)[1];
+  const expression = engine.match(/readonly property bool themeEdgeVisible: ([^\n]*)/)[1];
+  const edgeVisible = (edge, bar, id, material = {edge: {kind: 'dry'}}) => {
+    const c = {options: {edge}, edgeBar: bar, shell: {barConfig: {id}}, material};
     c.barReady = !!vm.runInNewContext(readyExpr, c);
-    c.fogOn = fog === 'on';
-    return !!vm.runInNewContext(expr, c);
+    c.materialOn = !!vm.runInNewContext(materialExpr, c);
+    return !!vm.runInNewContext(expression, c);
   };
-  const edgeVisible = (edge, bar, id) => evalEdge(expression, edge, bar, id, 'off');
-  // fog on: fog edge instead of the Workbench edge; never over a transparent bar
-  assert(!evalEdge(expression, 'workbench', {barSize: 26, position: 'top', barHidden: false}, undefined, 'on'));
-  assert(evalEdge(fogExpr, 'workbench', {barSize: 26, position: 'top', barHidden: false}, undefined, 'on'));
-  assert(!evalEdge(fogExpr, 'none', {barSize: 26, position: 'top', barHidden: false, transparent: true}, undefined, 'on'));
-  assert(!evalEdge(fogExpr, 'none', {barSize: 26, position: 'bottom', barHidden: false}, undefined, 'on'));
-  assert(!evalEdge(fogExpr, 'none', {barSize: 26, position: 'top', barHidden: false}, undefined, 'off'));
   const bar = {barSize: 26, position: 'top', barHidden: false};
-  assert(edgeVisible('workbench', bar));
-  assert(edgeVisible('workbench', bar, 'omarchy.bar'));
+  assert(edgeVisible('theme', bar));
+  assert(edgeVisible('theme', bar, 'omarchy.bar'));
   assert(!edgeVisible('none', bar));
-  assert(!edgeVisible('workbench', null));
-  assert(!edgeVisible('workbench', {...bar, barSize: 0}));
-  assert(!edgeVisible('workbench', {...bar, barHidden: true}));
-  assert(!edgeVisible('workbench', bar, 'another.bar'));
-  for (const position of ['bottom', 'left', 'right']) assert(!edgeVisible('workbench', {...bar, position}));
-  console.log('PASS: edge visibility and two device-pixel rows at seven scales');
+  assert(!edgeVisible('theme', bar, undefined, null), 'a theme without bar-material.json: no edge');
+  assert(!edgeVisible('theme', bar, undefined, {card: {}}), 'a material without an edge object: no edge');
+  assert(!edgeVisible('theme', null));
+  assert(!edgeVisible('theme', {...bar, barSize: 0}));
+  assert(!edgeVisible('theme', {...bar, barHidden: true}));
+  assert(!edgeVisible('theme', bar, 'another.bar'));
+  for (const position of ['bottom', 'left', 'right']) assert(!edgeVisible('theme', {...bar, position}));
+  console.log('PASS: theme edge visibility');
 }
 
 // Stale usage records: a limit past its reset time counts as 0 %, not its last value.
 {
   const modelCtx = {};
   vm.createContext(modelCtx);
-  vm.runInContext(fs.readFileSync(path.resolve(root, '../omarchy-amiga-island/IslandModel.js'), 'utf8').replace('.pragma library', ''), modelCtx);
+  vm.runInContext(fs.readFileSync(path.join(islandDir, 'IslandModel.js'), 'utf8').replace('.pragma library', ''), modelCtx);
   const past = new Date(Date.now() - 2 * 3600e3).toISOString(), future = new Date(Date.now() + 3600e3).toISOString();
   const record = JSON.stringify({id: 'claude', limits: [
     {label: 'Session (5-hour)', percent: 1.0, resetsAt: past},
@@ -285,32 +309,25 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.equal(limits[0].percent, 0);
   assert.equal(limits[1].percent, 0.07);
   assert.equal(modelCtx.limitPercent({percent: 1, resetsAt: future}, Date.now() + 2 * 3600e3), 0);
-  console.log('PASS: expired usage limits read as reset');
+  // the island follows the bar's options (its edge): the new id first, the former one as a fallback
+  assert.deepEqual(plain(modelCtx.barOptions({plugins: [{id: 'nerdibeard.amiga-bar', options: {edge: 'none'}}, {id: 'nerdibeard.tusche-bar', options: {edge: 'theme'}}]})), {edge: 'theme'});
+  assert.deepEqual(plain(modelCtx.barOptions({plugins: [{id: 'nerdibeard.amiga-bar', options: {edge: 'theme'}}]})), {edge: 'theme'});
+  assert.deepEqual(plain(modelCtx.barOptions({})), {});
+  console.log('PASS: expired usage limits read as reset; the island reads the bar options');
 }
 
 // Logo option: with native workspaces only the menu logo becomes ours.
 {
   const layoutBase = {left: ['omarchy.menu', 'omarchy.workspaces', 'nerdibeard.ai-usage'], center: [], right: ['omarchy.audio']};
-  const opts = Object.assign({}, ctx.presetById('heute').options, {logo: 'amiga'});
+  const opts = Object.assign({}, ctx.presetById('today').options, {logo: 'arch'});
   const built = ctx.build(layoutBase, opts, '/plugin/modules');
-  assert.deepEqual(plain(built.left.map(ctx.entryId)), ['amiga.workspaces', 'omarchy.workspaces', 'nerdibeard.ai-usage']);
+  assert.deepEqual(plain(built.left.map(ctx.entryId)), ['tusche.workspaces', 'omarchy.workspaces', 'nerdibeard.ai-usage']);
   assert.equal(built.left[0].variant, 'none');
-  assert.equal(built.left[0].logo, 'amiga');
+  assert.equal(built.left[0].logo, 'arch');
+  assert.equal(built.left[0].source, '/plugin/modules/Workspaces.qml');
   assert.deepEqual(plain(ctx.reconstructBase(built).left), layoutBase.left);
-  const k2 = ctx.build(layoutBase, ctx.presetById('k2').options, '/plugin/modules');
-  assert.equal(k2.left[0].logo, 'amiga');
-  assert.equal(ctx.build(layoutBase, ctx.presetById('heute').options, '/plugin/modules').left[0], 'omarchy.menu');
+  assert.equal(ctx.build(layoutBase, ctx.presetById('today').options, '/plugin/modules').left[0], 'omarchy.menu');
   console.log('PASS: logo option (menu-only module with native workspaces)');
-}
-// Look options (form, fog) sit on top of presets.
-{
- const now = ctx.normalizeOptions({ fog: 'on', form: 'a500', font: 'bar' });
- assert.equal(ctx.keepDesktopFont(ctx.presetById('k1').options, now).fog, 'on');
- assert.equal(ctx.keepDesktopFont(ctx.presetById('k1').options, now).form, 'a500');
- assert.equal(ctx.keepDesktopFont({ fog: 'off' }, now).fog, 'off');
- assert.equal(ctx.matchPreset(Object.assign({}, ctx.normalizeOptions(ctx.presetById('k1').options), { fog: 'on', form: 'a500' })), 'k1');
- assert.equal(ctx.normalizeOptions({}).fog, 'off');
- assert.equal(ctx.normalizeOptions({}).form, 'full');
 }
 
 // Control Center model: staging, Save · Use · Cancel plans, search, health.
@@ -320,104 +337,96 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   vm.runInContext(fs.readFileSync(path.join(root, 'ControlCenter.js'), 'utf8')
     .replace('.pragma library', '').replace(/^\.import .*$/m, ''), cc);
   const config = {
-    bar: {layout: {left: [], center: [{id: 'nerdibeard.amiga-island', notifications: true, noteStyle: 'workbench'}], right: []}},
-    plugins: [{id: 'nerdibeard.amiga-bar', options: {}}, {id: 'nerdibeard.card-picker'}, {id: 'nerdibeard.amiga-island', noteStyle: 'bubble'}]
+    bar: {layout: {left: [], center: [{id: 'nerdibeard.tusche-island', notifications: true, noteStyle: 'window'}], right: []}},
+    plugins: [{id: 'nerdibeard.tusche-bar', options: {}}, {id: 'nerdibeard.card-picker'}, {id: 'nerdibeard.tusche-island', noteStyle: 'bubble'}]
   };
-  const live = cc.liveState({fog: 'off', form: 'full', font: 'theme'}, config, 'enabled');
+  const live = cc.liveState({edge: 'none'}, config, 'enabled');
   // The island's bar.layout entry wins over its plugins[] entry; defaults fill the rest.
-  assert.deepEqual(plain(live.island), {notifications: 'true', noteStyle: 'workbench', noteTopaz: 'true'});
-  assert.deepEqual(plain(cc.islandValues(cc.islandEntry({plugins: [{id: 'nerdibeard.amiga-island', noteTopaz: false}]}))),
-    {notifications: 'false', noteStyle: 'workbench', noteTopaz: 'false'});
-  assert.equal(cc.islandEntry({bar: {layout: {center: ['nerdibeard.amiga-island']}}}), null);
+  assert.deepEqual(plain(live.island), {notifications: 'true', noteStyle: 'window'});
+  assert.deepEqual(plain(cc.islandValues(cc.islandEntry({plugins: [{id: 'nerdibeard.tusche-island', noteStyle: 'bubble'}]}))),
+    {notifications: 'false', noteStyle: 'bubble'});
+  assert.equal(cc.islandEntry({bar: {layout: {center: ['nerdibeard.tusche-island']}}}), null);
   assert.equal(cc.liveState({}, {}, '').island, null);
   assert.equal(cc.liveState({}, {}, 'missing').cards, null);
   assert(cc.listed(config, 'nerdibeard.card-picker'));
   // Registry follows Presets.ELEMENTS (new rows appear automatically).
   assert.deepEqual(plain(cc.barIds()), Object.keys(ctx.ELEMENTS).map(k => 'bar.' + k));
+  assert.deepEqual(plain(cc.settings().map(s => s.id)), Object.keys(ctx.ELEMENTS).map(k => 'bar.' + k)
+    .concat(['island.notifications', 'island.noteStyle', 'cards.override']));
+  assert.deepEqual(plain(cc.QUICK), ['bar.edge', 'bar.logo', 'island.notifications', 'island.noteStyle']);
   for (const id of cc.QUICK) assert(cc.setting(id), id);
-  assert(cc.setting('bar.font').immediate);
   // Staging is an overlay; staging the live value removes the edit.
-  let edits = cc.stage({}, live, 'bar.fog', 'on');
+  let edits = cc.stage({}, live, 'bar.edge', 'theme');
   edits = cc.stage(edits, live, 'island.noteStyle', 'bubble');
   edits = cc.stage(edits, live, 'cards.override', 'disabled');
-  assert.deepEqual(plain(edits), {'bar.fog': 'on', 'island.noteStyle': 'bubble', 'cards.override': 'disabled'});
-  assert.deepEqual(plain(cc.stage(edits, live, 'bar.fog', 'off')), {'island.noteStyle': 'bubble', 'cards.override': 'disabled'});
+  assert.deepEqual(plain(edits), {'bar.edge': 'theme', 'island.noteStyle': 'bubble', 'cards.override': 'disabled'});
+  assert.deepEqual(plain(cc.stage(edits, live, 'bar.edge', 'none')), {'island.noteStyle': 'bubble', 'cards.override': 'disabled'});
   assert.deepEqual(plain(cc.stage({}, cc.liveState({}, {}, ''), 'island.noteStyle', 'bubble')), {});
-  assert.equal(cc.pendingState(live, edits).bar.fog, 'on');
-  assert.equal(live.bar.fog, 'off');
-  assert.deepEqual(plain(cc.changes(edits, live).map(c => c.id)), ['bar.fog', 'island.noteStyle', 'cards.override']);
+  assert.equal(cc.pendingState(live, edits).bar.edge, 'theme');
+  assert.equal(live.bar.edge, 'none');
+  assert.deepEqual(plain(cc.changes(edits, live).map(c => c.id)), ['bar.edge', 'island.noteStyle', 'cards.override']);
   // Use/Save plan: island first, card picker next, the bar last as ONE apply.
-  edits = cc.stage(edits, live, 'bar.form', 'a500');
+  edits = cc.stage(edits, live, 'bar.logo', 'arch');
   const steps = cc.plan(edits, live);
   assert.deepEqual(plain(steps.map(s => s.domain)), ['island', 'cards', 'bar']);
   assert.deepEqual(plain(steps[0]), {domain: 'island', key: 'noteStyle', value: 'bubble'});
-  assert.equal(cc.barOptions(steps[2], live.bar).fog, 'on');
-  assert.equal(cc.barOptions(steps[2], live.bar).form, 'a500');
-  assert.deepEqual(plain(steps[2].keys), ['form', 'fog']);
-  // Computed when the step runs: a font change applied in between survives.
-  assert.equal(cc.barOptions(steps[2], Object.assign({}, live.bar, {font: 'topaz'})).font, 'topaz');
+  assert.equal(cc.barOptions(steps[2], live.bar).edge, 'theme');
+  assert.equal(cc.barOptions(steps[2], live.bar).logo, 'arch');
+  assert.deepEqual(plain(steps[2].keys), ['edge', 'logo']);
+  // Computed when the step runs: a change applied in between survives.
+  assert.equal(cc.barOptions(steps[2], Object.assign({}, live.bar, {workspaces: 'stack'})).workspaces, 'stack');
   assert.deepEqual(plain(cc.plan({}, live)), []);
-  // Presets stage all bar keys, keep look options and never touch the desktop profile.
-  const k2 = cc.stageBar({}, live, ctx.keepDesktopFont(ctx.presetById('k2').options, cc.pendingState(live, {'bar.fog': 'on'}).bar));
-  assert.equal(cc.pendingState(live, k2).bar.workspaces, 'logo');
-  assert.equal(cc.pendingState(live, k2).bar.font, 'bar');
-  const desktopLive = cc.liveState({font: 'desktop'}, config, '');
-  assert.equal(cc.stage({}, desktopLive, 'bar.font', 'theme')['bar.font'], undefined);
-  assert.equal(cc.commitBar({font: 'theme'}, {font: 'desktop'}).font, 'desktop');
-  assert.equal(cc.commitBar({font: 'desktop'}, {font: 'topaz'}).font, 'topaz');
+  // Presets stage all bar keys and keep the look options.
+  const tidy = cc.stageBar({}, live, ctx.keepLook(ctx.presetById('tidy').options, cc.pendingState(live, {'bar.edge': 'theme'}).bar));
+  assert.equal(cc.pendingState(live, tidy).bar.workspaces, 'pips');
+  assert.equal(cc.pendingState(live, tidy).bar.edge, 'theme');
+  assert.deepEqual(plain(cc.commitBar({edge: 'theme', nonsense: 'x'})), plain(ctx.normalizeOptions({edge: 'theme'})));
   // Cancel after Use: back to the snapshot, only in the domains Use touched.
   const snapshot = cc.copy(live);
-  const after = cc.liveState({fog: 'on', form: 'a500', font: 'theme'},
-    {bar: {layout: {center: [{id: 'nerdibeard.amiga-island', notifications: true, noteStyle: 'bubble'}]}}}, 'disabled');
+  const after = cc.liveState({edge: 'theme', logo: 'arch'},
+    {bar: {layout: {center: [{id: 'nerdibeard.tusche-island', notifications: true, noteStyle: 'bubble'}]}}}, 'disabled');
   assert.deepEqual(plain(cc.revertPlan(snapshot, after, {})), []);
   const back = cc.revertPlan(snapshot, after, {island: true, cards: true, bar: true});
   assert.deepEqual(plain(back.map(s => s.domain + ':' + (s.key || ''))), ['island:noteStyle', 'cards:override', 'bar:']);
-  assert.equal(back[0].value, 'workbench');
+  assert.equal(back[0].value, 'window');
   assert.equal(back[1].value, 'enabled');
-  assert.equal(cc.barOptions(back[2], after.bar).fog, 'off');
-  assert.equal(cc.barOptions(back[2], after.bar).form, 'full');
-  // The font row is outside staging: the snapshot follows it, so Cancel keeps it.
-  const fontMoved = cc.withValue(snapshot, 'bar.font', 'topaz');
-  const liveTopaz = cc.liveState(Object.assign({}, after.bar, {font: 'topaz'}), {}, '');
-  assert.equal(cc.barOptions(cc.revertPlan(fontMoved, liveTopaz, {bar: true})[0], liveTopaz.bar).font, 'topaz');
-  assert.equal(cc.revertPlan(cc.withValue(snapshot, 'bar.font', 'theme'), cc.liveState({font: 'desktop'}, {}, ''), {bar: true}).length, 0);
+  assert.equal(cc.barOptions(back[2], after.bar).edge, 'none');
+  assert.equal(cc.barOptions(back[2], after.bar).logo, 'omarchy');
   // After Use: applied edits drop out.
   assert.deepEqual(plain(cc.prune(edits, after)), {});
   // Island IPC state confirms what was set.
-  assert(cc.islandReports({wants: true, style: 'bubble', topaz: true}, 'notifications', 'true'));
-  assert(cc.islandReports({wants: true, style: 'bubble', topaz: true}, 'noteStyle', 'bubble'));
-  assert(!cc.islandReports({wants: true, style: 'bubble', topaz: true}, 'noteTopaz', 'false'));
+  assert(cc.islandReports({wants: true, style: 'bubble'}, 'notifications', 'true'));
+  assert(cc.islandReports({wants: true, style: 'bubble'}, 'noteStyle', 'bubble'));
+  assert(!cc.islandReports({wants: true, style: 'bubble'}, 'noteStyle', 'window'));
+  assert(cc.islandReports({wants: false, style: 'workbench'}, 'noteStyle', 'window'), 'an island from before the rename');
   assert(!cc.islandReports(null, 'noteStyle', 'bubble'));
   // Search: label, value and area matches; every token must match.
-  const index = cc.searchIndex(live, {'bar.form': 'a500'}, [{id: 'bar.presets', area: 'bar', label: 'Presets', values: ['Today', 'K1 · Tidy'], current: ''}]);
-  assert.equal(cc.search(index, 'fog')[0].id, 'bar.fog');
-  const caseHit = cc.search(index, 'case edge')[0];
-  assert.equal(caseHit.id, 'bar.form');
-  assert.equal(caseHit.value, 'A500 case edge');
-  assert(caseHit.matchedValue);
-  assert.equal(cc.search(index, 'form')[0].value, 'A500 case edge');   // current = pending value
+  const index = cc.searchIndex(live, {'bar.logo': 'arch'}, [{id: 'bar.presets', area: 'bar', label: 'Presets', values: ['Today', 'Tidy', 'Focus'], current: ''}]);
+  assert.equal(cc.search(index, 'edge')[0].id, 'bar.edge');
+  const valueHit = cc.search(index, 'light shadow')[0];
+  assert.equal(valueHit.id, 'bar.edge');
+  assert.equal(valueHit.value, 'From the theme (light & shadow)');
+  assert(valueHit.matchedValue);
+  assert.equal(cc.search(index, 'logo')[0].value, 'Arch Linux');   // current = pending value
   assert.equal(cc.search(index, 'bubble')[0].id, 'island.noteStyle');
   {
     const hits = cc.search(index, 'island');
-    for (const id of ['island.notifications', 'island.noteStyle', 'island.noteTopaz']) assert(hits.some(h => h.id === id), id);
-    assert.equal(hits.find(h => h.id === 'bar.font').value, 'Bar, island & menus');   // value matches count too
+    for (const id of ['island.notifications', 'island.noteStyle']) assert(hits.some(h => h.id === id), id);
+    assert.equal(hits.find(h => h.id === 'island.notifications').value, 'Island, in the bar');   // value matches count too
   }
   assert.equal(cc.search(index, 'tidy')[0].id, 'bar.presets');
-  assert.deepEqual(plain(cc.search(index, 'fog nonsense')), []);
+  assert.deepEqual(plain(cc.search(index, 'edge nonsense')), []);
   assert.deepEqual(plain(cc.search(index, '  ')), []);
   assert(cc.search(index, 'a', 3).length <= 3);
   assert(cc.searchIndex(cc.liveState({}, {}, ''), {}, []).every(e => e.area === 'bar'));
   // Health: only real facts; unknown facts are not counted as issues.
-  const good = {hasBase: true, profile: 'normal', font: 'theme', usageFolded: true, usageIntervalSec: 900, usageAgeSec: 120,
+  const good = {hasBase: true, usageFolded: true, usageIntervalSec: 900, usageAgeSec: 120,
                 islandConfigured: true, islandWants: true, islandState: {serving: true, omarchyDisabled: true}, marker: true,
                 cards: 'enabled', cardsConfigured: true, lastResult: 'ok', savedCount: 2};
   assert.deepEqual(plain(cc.healthSummary(cc.healthChecks(good))), {issues: 0, unknown: 0, label: 'OK'});
+  assert.deepEqual(plain(cc.healthChecks(good).map(c => c.id)), ['base', 'usage', 'notes', 'cards', 'apply', 'saved']);
   const issues = f => cc.healthChecks(Object.assign({}, good, f)).filter(c => c.state === 'issue').map(c => c.id);
   assert.deepEqual(plain(issues({hasBase: false})), ['base']);
-  assert.deepEqual(plain(issues({profile: 'partial'})), ['font']);
-  assert.deepEqual(plain(issues({font: 'desktop'})), ['font']);
-  assert.deepEqual(plain(issues({profile: 'amiga'})), ['font']);
-  assert.deepEqual(plain(issues({profile: 'amiga', font: 'desktop'})), []);
   assert.deepEqual(plain(issues({usageAgeSec: 3 * 900})), ['usage']);
   assert.deepEqual(plain(issues({usageAgeSec: -1})), ['usage']);
   assert.deepEqual(plain(issues({usageFolded: false, usageAgeSec: -1})), []);
@@ -432,13 +441,13 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.deepEqual(plain(issues({lastResult: 'error: boom'})), ['apply']);
   assert.deepEqual(plain(issues({savedError: 'Cannot read saved combinations'})), ['saved']);
   assert.equal(cc.healthSummary(cc.healthChecks(Object.assign({}, good, {hasBase: false, lastResult: 'error: x'}))).label, '2 issues');
-  assert.equal(cc.healthSummary(cc.healthChecks(Object.assign({}, good, {marker: null, profile: 'unknown'}))).label, '…');
+  assert.equal(cc.healthSummary(cc.healthChecks(Object.assign({}, good, {marker: null}))).label, '…');
   assert(cc.isArea('health') && !cc.isArea('nope'));
   console.log('PASS: control center staging, Save/Use/Cancel plans, search, health');
 }
 
 // Control Center wiring: replaces the options window, argv-only processes,
-// IPC for areas, fog hook.
+// IPC for areas, a plain fade.
 {
   const engine = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
   const qml = fs.readFileSync(path.join(root, 'ControlCenter.qml'), 'utf8');
@@ -446,21 +455,53 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert(/function cc\(area: string\): string/.test(engine));
   assert(engine.includes('cc: controlCenter.stateObject()'));
   assert(engine.includes('label: "Control Center …"'));
-  assert(qml.includes('["omarchy-shell", "amiga-island", "set", step.key, String(step.value)]'));
+  assert(qml.includes('["omarchy-shell", "tusche-island", "set", step.key, String(step.value)]'));
+  assert(qml.includes('["omarchy-shell", "tusche-island", "state"]'));
+  assert(qml.includes('/.local/state/omarchy/tusche-island/notifications-takeover"'));
   assert(!/"sh",\s*"-c"/.test(qml), 'no shell strings in the Control Center');
-  // reveal shows the card: a plain fade, or after the fog has grown (fog look)
-  assert(qml.includes('id: fogOpening') && qml.includes('opacity: reveal'));
-  assert(fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8').includes('fog: root.fogOn'));
-  // All text goes through the Body/Caption/Moment components (native
+  // reveal shows the card: a plain fade
+  assert(/property real reveal: 0\n\s*opacity: reveal/.test(qml));
+  // All text goes through the Body/Caption/Strong components (native
   // rendering, plain text); no stray Text items.
   const rawText = [...qml.matchAll(/^(.*)\bText \{/gm)].filter(m => !/component \w+: $/.test(m[1]));
   assert.deepEqual(rawText.map(m => m[0]), []);
-  for (const c of ['Body', 'Moment']) {
+  for (const c of ['Body', 'Strong']) {
     const body = qml.slice(qml.indexOf('component ' + c + ': Text {'));
     const block = body.slice(0, body.indexOf('\n  }'));
     assert(block.includes('renderType: Text.NativeRendering') && block.includes('textFormat: Text.PlainText'), c);
   }
-  console.log('PASS: control center wiring (engine, IPC, argv processes, fog hook)');
+  console.log('PASS: control center wiring (engine, IPC, argv processes, fade)');
+}
+
+// IPC and logo clicks: the targets and functions the menus, shims and keys call.
+{
+  const en = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
+  const handlers = {};
+  for (const m of en.matchAll(/IpcHandler \{\n    target: "([^"]+)"\n([\s\S]*?)\n  \}/g))
+    handlers[m[1]] = [...m[2].matchAll(/^    function (\w+)\(/gm)].map(f => f[1]);
+  assert.deepEqual(handlers, {
+    'tusche-status': ['group', 'member', 'close', 'state'],
+    'tusche-quota': ['toggle', 'state'],
+    'tusche-bar': ['options', 'cc', 'save', 'load', 'ask', 'menu', 'preset', 'set', 'recaptureBase', 'state']});
+  assert(en.includes('Quickshell.env("HOME") + "/.local/state/tusche-bar"'));
+  assert(en.includes('"nerdibeard.tusche-bar"'));
+  // logo: left = the drop-down, right = Omarchy's own menu, middle = the Control Center
+  const ws = fs.readFileSync(path.join(root, 'modules/Workspaces.qml'), 'utf8');
+  const runs = [];
+  let toggles = 0;
+  const wc = {Qt: {LeftButton: 1, RightButton: 2, MiddleButton: 4}, bar: {run: c => runs.push(c)}, toggleDrop: () => toggles++};
+  vm.createContext(wc);
+  vm.runInContext(functionSource(ws, 'openMenu'), wc);
+  wc.openMenu(1);
+  assert.equal(toggles, 1);
+  wc.openMenu(4);
+  wc.openMenu(2);
+  assert.deepEqual(runs, ['omarchy-shell tusche-bar options', 'omarchy-shell shell toggle omarchy.menu \'{"menu":"root"}\'']);
+  assert.equal(toggles, 1);
+  wc.bar = null;
+  wc.openMenu(1);
+  assert.equal(toggles, 1, 'no bar, no menu');
+  console.log('PASS: IPC targets and functions, state dir, logo clicks');
 }
 
 // Nested drop-down menu (0.7.0): Apps, fonts and the questions of the actions
@@ -470,6 +511,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   const os = require('node:os');
   const shellQuote = v => "'" + String(v || '').replace(/'/g, "'\\''") + "'";   // qs.Commons Util.shellQuote
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
+  assert.equal(manifest.id, 'nerdibeard.tusche-bar');
   const [major, minor] = manifest.version.split(/[.-]/).map(Number);
   assert.ok(major > 0 || minor >= 7, `nested drop-down since 0.7.0 (version ${manifest.version})`);
   assert.deepEqual(manifest.kinds, ['panel', 'menu'], '"menu" brings the app-library facade; "panel" keeps the loader');
@@ -527,8 +569,8 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   vm.runInContext(['choiceRow', 'makeRequest', 'listRows'].map(n => functionSource(dm, n)).join('\n'), dc);
   assert.deepEqual(plain(dc.choiceRow('Berlin', 0)), {kind: 'choice', id: 'choice.0', icon: '', label: 'Berlin', note: '', answer: 'Berlin'});
   assert.deepEqual(plain(dc.choiceRow('G\tOnly', 1)), {kind: 'choice', id: 'choice.1', icon: 'G', label: 'Only', note: '', answer: 'Only'});
-  assert.deepEqual(plain(dc.choiceRow('\u{f0431}\tAmiga Bar\tnerdibeard.amiga-bar', 2)),
-    {kind: 'choice', id: 'choice.2', icon: '\u{f0431}', label: 'Amiga Bar', note: 'nerdibeard.amiga-bar', answer: 'Amiga Bar\tnerdibeard.amiga-bar'});
+  assert.deepEqual(plain(dc.choiceRow('\u{f0431}\tTusche Bar\tnerdibeard.tusche-bar', 2)),
+    {kind: 'choice', id: 'choice.2', icon: '\u{f0431}', label: 'Tusche Bar', note: 'nerdibeard.tusche-bar', answer: 'Tusche Bar\tnerdibeard.tusche-bar'});
   assert.equal(dc.choiceRow('G\tL\tsub\tmore', 3).answer, 'L\tsub\tmore');
   const rq = dc.makeRequest({mode: 'select', prompt: 'Set timezone', options: ['A', 'B'], selectionFile: '/t/s', doneFile: '/t/d', width: 520, maxHeight: '400', token: 'tok'});
   assert.deepEqual([rq.id, rq.mode, rq.rows.length, rq.width, rq.maxHeight, rq.token], [1, 'select', 2, 520, 400, 'tok']);
@@ -634,7 +676,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.match(dm, /Component\.onDestruction: cancelAll\(\)/);
   assert.match(dm, /visible: row\.isApp && status === Image\.Ready/, "an app's own icon, the glyph until it is there");
 
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'amiga-bar-test-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tusche-bar-test-'));
   try {
     const put = (dir, name, text, mode = 0o755) => {
       fs.mkdirSync(dir, {recursive: true});
@@ -650,15 +692,15 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     vm.createContext(lc);
     vm.runInContext(functionSource(dm, 'prefixed') + '\n' + functionSource(dm, 'launchCommand'), lc);
     const sh = (cmd, env) => cp.execFileSync('bash', ['-c', cmd], {encoding: 'utf8', env: Object.assign({PATH: '/usr/bin:/bin'}, clean, env)});
-    assert.equal(sh(lc.prefixed('printf "%s|%s" "${PATH%%:*}" "${AMIGA_BAR_ASK_TOKEN-unset}"', 'tok')), "/x/it's dir|tok");
-    assert.equal(sh(lc.prefixed('printf "%s" "${AMIGA_BAR_ASK_TOKEN-unset}"', '')), 'unset');
+    assert.equal(sh(lc.prefixed('printf "%s|%s" "${PATH%%:*}" "${TUSCHE_BAR_ASK_TOKEN-unset}"', 'tok')), "/x/it's dir|tok");
+    assert.equal(sh(lc.prefixed('printf "%s" "${TUSCHE_BAR_ASK_TOKEN-unset}"', '')), 'unset');
     lc.shimDir = shimDir;
     const timed = Date.now();
     const waited = cp.spawnSync(...(a => [a[0], a.slice(1)])(lc.launchCommand('sleep 0.3; exit 7', 't')), {env: Object.assign({PATH: '/usr/bin:/bin'}, clean)});
     assert.equal(waited.status, 7, 'the waiter ends with the action');
     assert(Date.now() - timed >= 300);
     const marker = path.join(tmp, 'marker');
-    const argv = lc.launchCommand('sleep 0.6; printf "%s|%s" "$(command -v omarchy-menu-select)" "$AMIGA_BAR_ASK_TOKEN" > ' + shellQuote(marker), 'tok9');
+    const argv = lc.launchCommand('sleep 0.6; printf "%s|%s" "$(command -v omarchy-menu-select)" "$TUSCHE_BAR_ASK_TOKEN" > ' + shellQuote(marker), 'tok9');
     const survived = cp.execFileSync('bash', ['-c', '"$@" & w=$!; sleep 0.2; kill -9 $w; wait $w 2>/dev/null; sleep 1; cat ' + shellQuote(marker), 'bash', ...argv],
       {encoding: 'utf8', env: Object.assign({PATH: '/usr/bin:/bin'}, clean)});
     assert.equal(survived, path.join(shimDir, 'omarchy-menu-select') + '|tok9', 'the action outlives its waiter');
@@ -707,7 +749,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     const tmpdir = path.join(tmp, 't'), log = path.join(tmp, 'payload.json');
     fs.mkdirSync(tmpdir);
     const fakeOk = '#!/bin/bash\n'
-      + '[[ ${1:-} == amiga-bar && ${2:-} == ask ]] || { echo "Function not found." >&2; exit 1; }\n'
+      + '[[ ${1:-} == tusche-bar && ${2:-} == ask ]] || { echo "Function not found." >&2; exit 1; }\n'
       + 'printf "%s" "$3" > "$FAKE_LOG"\n'
       + 'sel=$(perl -MJSON::PP -e \'print decode_json($ARGV[0])->{selectionFile}\' "$3")\n'
       + 'done=$(perl -MJSON::PP -e \'print decode_json($ARGV[0])->{doneFile}\' "$3")\n'
@@ -747,18 +789,18 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     }
     // select, answered in the drop-down (options as arguments, menu arguments, token)
     let r = shim('omarchy-menu-select', ['Set timezone', 'Europe/Berlin', 'Asia/Tokyo', '--', '--width', '520', '--height', '400'], 'ok',
-      {env: {FAKE_ANSWER: 'Asia/Tokyo', AMIGA_BAR_ASK_TOKEN: 'tok1'}});
+      {env: {FAKE_ANSWER: 'Asia/Tokyo', TUSCHE_BAR_ASK_TOKEN: 'tok1'}});
     assert.equal(r.status, 0, r.stderr);
     assert.equal(r.stdout, 'Asia/Tokyo\n');
     let p = sent();
     assert.deepEqual([p.mode, p.prompt, p.options, p.width, p.maxHeight, p.token], ['select', 'Set timezone', ['Europe/Berlin', 'Asia/Tokyo'], 520, 400, 'tok1']);
     assert(path.isAbsolute(p.selectionFile) && path.isAbsolute(p.doneFile) && !fs.existsSync(p.selectionFile));
     // options from stdin, with glyph and subtext; the answer keeps the subtext
-    r = shim('omarchy-menu-select', ['Enable plugin'], 'ok', {input: '\u{f0431}\tAmiga Bar\tnerdibeard.amiga-bar\nplain\n', env: {FAKE_ANSWER: 'Amiga Bar\tnerdibeard.amiga-bar'}});
+    r = shim('omarchy-menu-select', ['Enable plugin'], 'ok', {input: '\u{f0431}\tTusche Bar\tnerdibeard.tusche-bar\nplain\n', env: {FAKE_ANSWER: 'Tusche Bar\tnerdibeard.tusche-bar'}});
     assert.equal(r.status, 0, r.stderr);
-    assert.equal(r.stdout, 'Amiga Bar\tnerdibeard.amiga-bar\n');
+    assert.equal(r.stdout, 'Tusche Bar\tnerdibeard.tusche-bar\n');
     p = sent();
-    assert.deepEqual(p.options, ['\u{f0431}\tAmiga Bar\tnerdibeard.amiga-bar', 'plain']);
+    assert.deepEqual(p.options, ['\u{f0431}\tTusche Bar\tnerdibeard.tusche-bar', 'plain']);
     assert(!('token' in p) && !('width' in p) && !('maxHeight' in p));
     // cancelled in the drop-down: exit 1, nothing printed (as the original)
     r = shim('omarchy-menu-select', ['Pick'], 'ok', {input: 'a\nb\n'});
@@ -803,16 +845,16 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
 
 // Omarchy's own popups (native widgets folded into the status groups) take
 // the theme material: NativeMaterial finds their KeyboardPanel and hangs a
-// FogPanel into its content holder; without material/fog nothing changes.
+// MaterialCard into its content holder; without material nothing changes.
 {
   const nm = fs.readFileSync(path.join(root, 'NativeMaterial.qml'), 'utf8');
   const st = fs.readFileSync(path.join(root, 'modules/Status.qml'), 'utf8');
-  assert(nm.includes('readonly property Component fogComponent: Component { FogPanel {} }'));
-  assert(nm.includes('fogComponent.createObject(holder, {'));
+  assert(nm.includes('readonly property Component cardComponent: Component { MaterialCard {} }'));
+  assert(nm.includes('cardComponent.createObject(holder, {'));
   assert(nm.includes('edge: false'), 'no extra line or shadow on Omarchy popups without material');
   assert(/o\.borderSpec !== undefined && o\.anchorItem !== undefined/.test(nm));
-  assert(nm.includes('h.parent.borderSpec !== undefined'), 'the holder sits in the card, as FogPanel expects');
-  assert(nm.includes('dressed.indexOf(p) !== -1'), 'never two FogPanels in one popup');
+  assert(nm.includes('h.parent.borderSpec !== undefined'), 'the holder sits in the card, as MaterialCard expects');
+  assert(nm.includes('dressed.indexOf(p) !== -1'), 'never two MaterialCards in one popup');
   assert(st.includes('Root.NativeMaterial { id: nativeMaterial }'));
   assert(st.includes('Qt.callLater(function() { nativeMaterial.attach(it) })'));
   // Omarchy's widgets in its own bar keep their trusted bar; only their popups are dressed
@@ -825,12 +867,11 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
 // Logos from the logo design round (04.10.): Arch (the official mark,
 // unaltered) and the Nerdibeard seal, each with the reviewed motion.
 {
-  const logoIds = ctx.ELEMENTS.logo.variants.map(v => v.id);
-  for (const id of ['omarchy', 'arch', 'nerdibeard', 'amiga', 'boing']) assert(logoIds.includes(id), id);
+  assert.deepEqual(plain(ctx.ELEMENTS.logo.variants.map(v => v.id)), ['omarchy', 'arch', 'nerdibeard']);
   const layoutBase = {left: ['omarchy.menu', 'omarchy.workspaces'], center: [], right: []};
   for (const logo of ['arch', 'nerdibeard']) {
-    const built = ctx.build(layoutBase, Object.assign({}, ctx.presetById('heute').options, {logo}), '/plugin/modules');
-    assert.equal(built.left[0].id, 'amiga.workspaces');
+    const built = ctx.build(layoutBase, Object.assign({}, ctx.presetById('today').options, {logo}), '/plugin/modules');
+    assert.equal(built.left[0].id, 'tusche.workspaces');
     assert.equal(built.left[0].variant, 'none');
     assert.equal(built.left[0].logo, logo);
   }
@@ -862,6 +903,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   const ws = fs.readFileSync(path.join(root, 'modules/Workspaces.qml'), 'utf8');
   assert(ws.includes('active: root.variant !== "logo" && root.logo === "arch"'));
   assert(ws.includes('active: root.variant !== "logo" && root.logo === "nerdibeard"'));
+  assert(ws.includes('visible: root.variant !== "logo" && ["arch", "nerdibeard"].indexOf(root.logo) === -1'), 'the Omarchy glyph otherwise');
   assert(ws.includes('visible: menuSlot.inverted && (root.logo !== "nerdibeard" || root.variant === "logo")'), 'the seal brings its own tab; the numbered frame keeps the plain one');
   assert(/property: "bleed"; from: 0; to: 1; duration: 240; easing\.type: Easing\.OutCubic/.test(ws));
   assert(ws.includes('pressed: menuMouse.pressed && !root.dropOpen'), 'press feedback in both motion modes');
@@ -874,7 +916,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.equal(rootTitle({logo: 'arch', variant: 'none'}), 'Arch Linux');
   assert.equal(rootTitle({logo: 'nerdibeard', variant: 'stack'}), 'Nerdibeard');
   assert.equal(rootTitle({logo: 'nerdibeard', variant: 'logo'}), 'Omarchy', 'the numbered frame shows no mark');
-  assert.equal(rootTitle({logo: 'amiga', variant: 'pips'}), 'Omarchy');
+  assert.equal(rootTitle({logo: 'omarchy', variant: 'pips'}), 'Omarchy');
   assert.equal(rootTitle(null), 'Omarchy');
   assert(dm.includes('(menu.level ? menu.level.title : menu.rootTitle).toUpperCase()'));
   console.log('PASS: logos Arch and Nerdibeard seal (variants, seal raster and order, unaltered Arch path, tab, menu title)');
@@ -905,7 +947,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
 
 // Omarchy's own popups stay dressed when its widgets appear late (seen after
 // the 04.10. Omarchy bar startup change): the dress timer keeps watching, and
-// `amiga-bar state` reports what the search sees.
+// `tusche-bar state` reports what the search sees.
 {
   const st = fs.readFileSync(path.join(root, 'modules/Status.qml'), 'utf8');
   const nm = fs.readFileSync(path.join(root, 'NativeMaterial.qml'), 'utf8');
@@ -918,30 +960,101 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   console.log('PASS: native popups dressed late too (slow watch, state report)');
 }
 
-// A switch for Omarchy's bar transparency in our menus (strip: Omarchy; drop-down: Amiga),
+// A switch for Omarchy's bar transparency in our menus (the drop-down's Tusche group),
 // checked from shell.json bar.transparent.
 {
   const en = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
   assert(en.includes('readonly property bool barTransparent: !!(config && config.bar && config.bar.transparent === true)'));
   assert(en.includes('{ label: "Transparent bar", checked: root.barTransparent, action: function() { root.run("omarchy-bar transparent toggle") } }'));
-  assert(en.includes('pick("Omarchy", ["Terminal", "Do not disturb", "Stay awake", "Transparent bar"])'), 'in the drop-down\'s Amiga group');
+  assert(en.includes('pick("Omarchy", ["Terminal", "Do not disturb", "Stay awake", "Transparent bar"])'), 'in the drop-down\'s Tusche group');
   console.log('PASS: transparent bar switch in the menus');
 }
 
 
-// Portable menus and status groups: entries of absent plugins (and the local
-// concept gallery) stay hidden, empty groups go, the phone group needs Flux or Buds.
+// Portable menus and status groups: entries of absent plugins stay hidden,
+// empty groups go, the phone group needs Flux or Buds; deviations end in "more".
 {
   const en = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
   const st = fs.readFileSync(path.join(root, 'modules/Status.qml'), 'utf8');
   const has = (id, installed) => String(id).indexOf('omarchy.') === 0 || installed.indexOf(String(id)) !== -1;
   assert(en.includes('function hasPlugin(id) { return String(id).indexOf("omarchy.") === 0 || installedPlugins.indexOf(String(id)) !== -1 }'));
   for (const id of ['bitr0t.system-monitor', 'nerdibeard.monitor', 'nerdibeard.googledrive', 'com.omastorm.radar', 'community.plugin-manager',
-                    'io.github.iamfitsum.omarchy-proton-vpn', 'flux', 'io.github.nerdislb.buds-control', 'io.github.moizibnyousaf.omawhatsapp', 'omamail', '@gallery'])
+                    'io.github.iamfitsum.omarchy-proton-vpn', 'flux', 'io.github.nerdislb.buds-control', 'io.github.moizibnyousaf.omawhatsapp', 'omamail',
+                    'nerdibeard.tusche-island'])
     assert(en.includes(`requires: "${id}"`), id);
   assert(has('omarchy.network', []) && !has('flux', []) && has('flux', ['flux']));
   assert(en.includes('}).filter(function(g) { return g.items.length > 0 })'), 'empty groups go');
   assert(st.includes('model: root.variant === "groups" ? root.shownGroups : []'));
+  assert(st.includes('model: root.variant === "deviations" ? root.deviations : []'));
   assert(st.includes('return g.id !== "phone" || !!root.phone || root.embedIds.indexOf("io.github.nerdislb.buds-control") !== -1'));
-  console.log('PASS: portable menus and status groups (absent plugins hidden)');
+  // "more": every embedded widget, in deviations mode only
+  const more = st.slice(st.indexOf('id: moreCell'), st.indexOf('component Cell'));
+  assert(more.includes('visible: root.variant === "deviations"') && more.includes('onClicked: root.openGroup("all", moreCell)'));
+  assert(st.includes('if (popupGroup === "all") return embedIds'));
+  console.log('PASS: portable menus and status groups (absent plugins hidden, "more" in deviations)');
+}
+
+// Moving an Amiga Bar / Island setup over (setup/migrate-from-amiga.py), in a
+// fake HOME: ids, sources and options rewritten, state carried over, a second
+// run changes nothing.
+{
+  const os = require('node:os');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tusche-migrate-'));
+  try {
+    const put = (rel, data) => {
+      const file = path.join(home, rel);
+      fs.mkdirSync(path.dirname(file), {recursive: true});
+      fs.writeFileSync(file, typeof data === 'string' ? data : JSON.stringify(data, null, 2) + '\n');
+      return file;
+    };
+    const read = rel => JSON.parse(fs.readFileSync(path.join(home, rel), 'utf8'));
+    const oldDir = '/home/u/.config/omarchy/plugins/nerdibeard.amiga-bar/modules';
+    const newDir = '/home/u/.config/omarchy/plugins/nerdibeard.tusche-bar/modules';
+    const oldIsland = {id: 'nerdibeard.amiga-island', notifications: true, noteStyle: 'workbench', noteTopaz: true};
+    const shellFile = put('.config/omarchy/shell.json', {
+      plugins: [{id: 'nerdibeard.amiga-bar', options: {workspaces: 'cli', ai: 'gauge', right: 'compact', edge: 'workbench', logo: 'amiga', centre: 'calm',
+                                                      effects: 'on', font: 'topaz', fog: 'on', menu: 'strip', form: 'a500'}},
+                {id: 'nerdibeard.amiga-island'}, 'nerdibeard.card-picker'],
+      bar: {transparent: true, layout: {
+        left: [{id: 'amiga.workspaces', source: oldDir + '/Workspaces.qml', variant: 'cli', menu: true, logo: 'amiga'},
+               {id: 'amiga.quota', source: oldDir + '/Quota.qml', variant: 'gauge'}],
+        center: [oldIsland, 'omarchy.weather'],
+        right: ['omamail', {id: 'amiga.status', source: oldDir + '/Status.qml', variant: 'compact', embeds: {'omarchy.network': {keep: 1}}}, 'omarchy.audio']}}
+    });
+    fs.chmodSync(shellFile, 0o600);
+    put('.local/state/amiga-bar/base.json', {version: 1, layout: {left: ['omarchy.menu', 'omarchy.workspaces'], center: [oldIsland], right: ['omarchy.network', 'omarchy.audio']}});
+    put('.local/state/amiga-bar/presets.json', [{name: 'Mine', options: {workspaces: 'boing', right: 'drawer', edge: 'theme', font: 'topaz', fog: 'on'}}, {options: {}}]);
+    put('.local/state/omarchy/amiga-island/notifications-takeover', '');
+    put('.local/state/omarchy/amiga-island/bar-span.json', '{}');
+    put('.config/hypr/bindings.lua', 'o.bind("SUPER + A", "x", "y")\n-- BEGIN Amiga Bar (managed)\no.bind("SUPER + M", "Status", "omarchy-shell amiga-bar status")\n-- END Amiga Bar (managed)\n-- after\n');
+    const run = () => cp.execFileSync('python3', [path.join(root, 'setup/migrate-from-amiga.py')],
+      {encoding: 'utf8', env: Object.assign({}, process.env, {HOME: home})});
+    assert.match(run(), /^shell\.json: ids, bar options and layout entries moved/m);
+    const shell = read('.config/omarchy/shell.json');
+    assert.deepEqual(shell.plugins, [{id: 'nerdibeard.tusche-bar', options: {workspaces: 'pips', ai: 'gauge', right: 'groups', edge: 'none', logo: 'omarchy', centre: 'calm'}},
+      {id: 'nerdibeard.tusche-island'}, 'nerdibeard.card-picker']);
+    const newIsland = {id: 'nerdibeard.tusche-island', notifications: true, noteStyle: 'window'};
+    assert.deepEqual(shell.bar, {transparent: true, layout: {
+      left: [{id: 'tusche.workspaces', source: newDir + '/Workspaces.qml', variant: 'pips', menu: true, logo: 'omarchy'},
+             {id: 'tusche.quota', source: newDir + '/Quota.qml', variant: 'gauge'}],
+      center: [newIsland, 'omarchy.weather'],
+      right: ['omamail', {id: 'tusche.status', source: newDir + '/Status.qml', variant: 'groups', embeds: {'omarchy.network': {keep: 1}}}, 'omarchy.audio']}});
+    assert.equal(fs.statSync(shellFile).mode & 0o777, 0o600, 'file mode kept');
+    assert.deepEqual(read('.local/state/tusche-bar/base.json'), {version: 1, layout: {left: ['omarchy.menu', 'omarchy.workspaces'], center: [newIsland], right: ['omarchy.network', 'omarchy.audio']}});
+    assert.deepEqual(read('.local/state/tusche-bar/presets.json'), [{name: 'Mine', options: {workspaces: 'pips', right: 'groups', edge: 'theme'}}]);
+    assert(fs.existsSync(path.join(home, '.local/state/amiga-bar/base.json')), 'the old state stays');
+    assert(fs.existsSync(path.join(home, '.local/state/omarchy/tusche-island/notifications-takeover')));
+    assert(!fs.existsSync(path.join(home, '.local/state/omarchy/tusche-island/bar-span.json')), 'a file of the A500 form stays behind');
+    const bindings = fs.readFileSync(path.join(home, '.config/hypr/bindings.lua'), 'utf8');
+    assert(bindings.startsWith('o.bind("SUPER + A", "x", "y")\n-- BEGIN Tusche Bar (managed)\n') && bindings.endsWith('-- END Tusche Bar (managed)\n-- after\n'));
+    assert(bindings.includes('"omarchy-shell tusche-bar menu"') && !bindings.includes('Amiga Bar'));
+    // nothing left to do
+    const before = fs.readFileSync(shellFile, 'utf8');
+    const second = run();
+    assert(second.trim().split('\n').every(l => /nothing/.test(l)), second);
+    assert.equal(fs.readFileSync(shellFile, 'utf8'), before);
+  } finally {
+    fs.rmSync(home, {recursive: true, force: true});
+  }
+  console.log('PASS: migration from the Amiga Bar / Island (ids, sources, options, state, bindings; idempotent)');
 }

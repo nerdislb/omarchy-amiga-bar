@@ -30,7 +30,6 @@ Item {
   property bool edge: true
   readonly property bool lightTheme: 0.2126 * Color.popups.background.r + 0.7152 * Color.popups.background.g + 0.0722 * Color.popups.background.b > 0.55
   readonly property color rimColor: Util.alpha(Color.popups.text, lightTheme ? 0.24 : 0.22)
-  readonly property real rim: 1.5
   // the bloom's pigment: the tide colour
   readonly property var tide: bloom && material && material.card ? material.card.tide || null : null
 

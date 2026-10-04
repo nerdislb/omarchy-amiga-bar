@@ -265,7 +265,7 @@ KeyboardPanel {
   }
   function launchAsking(r) {
     if (!shimDir) return false
-    var token = "ab" + Date.now().toString(36) + Math.floor(Math.random() * 1679616).toString(36)
+    var token = "tb" + Date.now().toString(36) + Math.floor(Math.random() * 1679616).toString(36)
     var proc = launchComponent.createObject(plumbing, { token: token })
     if (!proc) return false
     proc.command = launchCommand(r.action, token)

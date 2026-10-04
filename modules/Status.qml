@@ -443,7 +443,7 @@ Item {
     for (var i = 0; i < groups.length; i++) if (groups[i].id === popupGroup) return groups[i].members.filter(function(m) { return root.embedIds.indexOf(m) !== -1 })
     return []
   }
-  readonly property string popupTitle: popupGroup === "all" ? "System" : (function() { for (var i = 0; i < groups.length; i++) if (groups[i].id === popupGroup) return groups[i].name; return "" })()
+  readonly property string popupTitle: popupGroup === "all" ? "All widgets" : (function() { for (var i = 0; i < groups.length; i++) if (groups[i].id === popupGroup) return groups[i].name; return "" })()
 
   function stateJson() {
     return JSON.stringify({variant: variant, mounted: Object.keys(mounted), wifi: wifiName,

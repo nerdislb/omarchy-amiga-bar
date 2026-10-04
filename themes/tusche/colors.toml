@@ -1,0 +1,36 @@
+# Tusche – Tusche & Papier (design round 02.10.2026). One signal colour: red.
+mode = "dark"
+accent = "#ffffff"
+selection = "#2e2e2e"
+muted = "#767676"
+
+background = "#000000"
+dark_background = "#0a0a0a"
+darker_background = "#050505"
+lighter_background = "#121212"
+
+foreground = "#e0e0e0"
+dark_foreground = "#a6a6a6"
+light_foreground = "#ececec"
+bright_foreground = "#ffffff"
+
+red = "#ff4a2b"
+orange = "#bdbdbd"
+yellow = "#ffffff"
+green = "#ffffff"
+blue = "#b0b0b0"
+cyan = "#949494"
+magenta = "#c4c4c4"
+purple = "#c4c4c4"
+brown = "#5c5c5c"
+
+bright_red = "#ff6b50"
+bright_orange = "#d0d0d0"
+bright_yellow = "#ffffff"
+bright_green = "#ffffff"
+bright_blue = "#c8c8c8"
+bright_cyan = "#acacac"
+bright_magenta = "#d8d8d8"
+
+hyprland_active_border = "rgba(ffffffff) rgba(8a8a8aff) 90deg"
+hyprland_inactive_border = "rgba(2e2e2eff)"

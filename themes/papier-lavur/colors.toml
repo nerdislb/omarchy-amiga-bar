@@ -1,0 +1,36 @@
+# Papier Lavur – Tusche & Papier (design round 02.10.2026). One signal colour: red.
+mode = "light"
+accent = "#111111"
+selection = "#c4bda9"
+muted = "#6b6558"
+
+background = "#dfdacb"
+dark_background = "#d0cab7"
+darker_background = "#c4bda9"
+lighter_background = "#ebe7dc"
+
+foreground = "#2b2924"
+dark_foreground = "#47433b"
+light_foreground = "#1a1916"
+bright_foreground = "#000000"
+
+red = "#a3220f"
+orange = "#3a372f"
+yellow = "#000000"
+green = "#000000"
+blue = "#3a372f"
+cyan = "#59544a"
+magenta = "#47433a"
+purple = "#47433a"
+brown = "#8a8476"
+
+bright_red = "#a3220f"
+bright_orange = "#332f28"
+bright_yellow = "#000000"
+bright_green = "#000000"
+bright_blue = "#332f28"
+bright_cyan = "#4f4a40"
+bright_magenta = "#3e3a32"
+
+hyprland_active_border = "rgba(111111ff) rgba(aaa38fff) 90deg"
+hyprland_inactive_border = "rgba(aaa38f80)"

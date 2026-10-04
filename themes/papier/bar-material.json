@@ -1,0 +1,50 @@
+{
+  "family": "empfehlung",
+  "edge": {
+    "kind": "dry",
+    "line": {
+      "color": "#111111",
+      "alpha": 1,
+      "width": 1.5
+    },
+    "shadow": {
+      "color": "#111111",
+      "alpha": 0.5,
+      "height": 3
+    },
+    "haze": {
+      "color": "#f2eee3",
+      "height": 26,
+      "stops": [
+        [
+          0,
+          0.7
+        ],
+        [
+          0.5,
+          0.28
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    }
+  },
+  "card": {
+    "shadow": {
+      "color": "#111111",
+      "alpha": 1,
+      "dx": 6,
+      "dy": 6
+    },
+    "roll": true
+  },
+  "source": {
+    "fill": "#111111",
+    "text": "#dfdacb"
+  },
+  "tones": {
+    "strong": "#2b2924"
+  }
+}

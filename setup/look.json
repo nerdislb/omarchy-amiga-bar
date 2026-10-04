@@ -1,0 +1,96 @@
+{
+  "source": "nerdbase2 (laptop), 04.10.2026",
+  "theme": "papier",
+  "barCombination": "paper",
+  "barCombinations": [
+    {
+      "name": "Amiga (vor Tusche)",
+      "options": {
+        "workspaces": "stack",
+        "ai": "vu",
+        "right": "compact",
+        "edge": "none",
+        "logo": "amiga",
+        "centre": "calm",
+        "effects": "amiga",
+        "font": "theme",
+        "form": "full",
+        "fog": "off",
+        "menu": "drop"
+      }
+    },
+    {
+      "name": "My focus",
+      "options": {
+        "workspaces": "stack",
+        "ai": "ondemand",
+        "right": "deviations",
+        "centre": "calm",
+        "effects": "plain",
+        "font": "theme"
+      }
+    },
+    {
+      "name": "paper",
+      "options": {
+        "workspaces": "pips",
+        "ai": "rings",
+        "right": "groups",
+        "edge": "theme",
+        "logo": "nerdibeard",
+        "centre": "calm",
+        "effects": "plain",
+        "font": "theme",
+        "form": "full",
+        "fog": "off",
+        "menu": "drop"
+      }
+    }
+  ],
+  "island": {
+    "format": "HH:mm",
+    "idle": "auto",
+    "idleFace": "ticker",
+    "scale": 1,
+    "reserveSpace": false,
+    "keybind": false,
+    "monitor": "primary",
+    "layer": "top",
+    "expandOnHover": false,
+    "clockFormat": "HH:mm",
+    "mediaLingerSeconds": 30,
+    "visualizerColor": "accent",
+    "textFont": "theme",
+    "calendars": [],
+    "calendarLeadMinutes": 15,
+    "holidays": "off",
+    "timerSound": true,
+    "bluetooth": true,
+    "camera": true,
+    "calendar": true,
+    "notifications": true,
+    "inbox": true,
+    "osd": false,
+    "volume": false,
+    "brightness": false,
+    "charging": true,
+    "trackChange": true,
+    "recording": true,
+    "mic": true,
+    "omamail": true,
+    "flux": true,
+    "agents": true,
+    "agentDone": true,
+    "phone": true,
+    "aiLimits": true,
+    "aiProviders": [
+      "claude",
+      "codex",
+      "antigravity"
+    ],
+    "barMode": true,
+    "weekStart": "monday",
+    "noteStyle": "bubble",
+    "noteTopaz": false
+  }
+}

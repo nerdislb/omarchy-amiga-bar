@@ -142,6 +142,16 @@ starts or the option switches to it), then still – no hover effect, no loop.
 Switch: Control Center → Logo, or `omarchy-shell amiga-bar set logo
 omarchy|arch|nerdibeard|amiga|boing`.
 
+## Another machine
+
+`setup/install.sh` brings the whole look to another Omarchy machine:
+
+- the Tusche & Papier themes (`themes/`);
+- this plugin, the Amiga Island and the card picker (cloned into `~/src`);
+- the saved bar combinations and the island settings (`setup/look.json`).
+
+Backup first, `setup/revert.sh` undoes it, `setup/make-bundle.sh` makes an offline tar.gz. See `setup/README.md`.
+
 ## Boot screen logo (Plymouth)
 
 `bin/boot-logo.py set nerdibeard|arch [--theme NAME]` puts the seal (a

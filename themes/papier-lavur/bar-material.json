@@ -1,0 +1,77 @@
+{
+  "family": "lavur",
+  "edge": {
+    "kind": "lavur",
+    "texture": "bar-lavur.png",
+    "top": -4,
+    "fallback": {
+      "kind": "dry",
+      "line": {
+        "color": "#111111",
+        "alpha": 1,
+        "width": 1.5
+      },
+      "shadow": {
+        "color": "#111111",
+        "alpha": 0.5,
+        "height": 3
+      },
+      "haze": {
+        "color": "#f2eee3",
+        "height": 26,
+        "stops": [
+          [
+            0,
+            0.7
+          ],
+          [
+            0.5,
+            0.28
+          ],
+          [
+            1,
+            0
+          ]
+        ]
+      }
+    }
+  },
+  "card": {
+    "bloom": true,
+    "roll": false,
+    "halo": {
+      "color": "#111111",
+      "alpha": 0.22,
+      "blur": 40
+    },
+    "tide": {
+      "color": "#111111",
+      "alpha": 0.55,
+      "width": 2.5
+    },
+    "rest": {
+      "ridge": 0.86,
+      "pool": 0.3,
+      "echo": 0.24,
+      "residue": 0.07,
+      "halo": {
+        "wash": {
+          "color": "#111111",
+          "alpha": 0.187,
+          "blur": 9,
+          "dx": 1,
+          "dy": 5,
+          "dh": -1
+        }
+      }
+    },
+    "brush": "menu-brush.png"
+  },
+  "source": {
+    "fill": "#111111",
+    "text": "#dfdacb"
+  },
+  "tones": {
+    "strong": "#2b2924"
+  }
+}

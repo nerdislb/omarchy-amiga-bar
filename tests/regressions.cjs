@@ -918,3 +918,13 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   console.log('PASS: native popups dressed late too (slow watch, state report)');
 }
 
+// A switch for Omarchy's bar transparency in our menus (strip: Omarchy; drop-down: Amiga),
+// checked from shell.json bar.transparent.
+{
+  const en = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
+  assert(en.includes('readonly property bool barTransparent: !!(config && config.bar && config.bar.transparent === true)'));
+  assert(en.includes('{ label: "Transparent bar", checked: root.barTransparent, action: function() { root.run("omarchy-bar transparent toggle") } }'));
+  assert(en.includes('pick("Omarchy", ["Terminal", "Do not disturb", "Stay awake", "Transparent bar"])'), 'in the drop-down\'s Amiga group');
+  console.log('PASS: transparent bar switch in the menus');
+}
+

@@ -46,6 +46,9 @@ Item {
   readonly property var options: Presets.normalizeOptions(entry.options || {})
   readonly property string presetId: Presets.matchPreset(options)
   readonly property var currentLayout: config && config.bar ? config.bar.layout : null
+  // Omarchy's own bar transparency (shell.json bar.transparent; a double click on
+  // an empty bar spot toggles it too) – shown as a switch in our menus.
+  readonly property bool barTransparent: !!(config && config.bar && config.bar.transparent === true)
 
   readonly property var edgeBar: shell ? shell.bar : null
   // Edges hang under the native bar only: on top, shown, not replaced.
@@ -620,6 +623,7 @@ Item {
         sep,
         { label: "Do not disturb", checked: s.dnd, action: function() { root.run("omarchy-shell notifications toggleDnd") } },
         { label: "Stay awake", checked: s.stayAwake, action: function() { root.run("omarchy-toggle-idle") } },
+        { label: "Transparent bar", checked: root.barTransparent, action: function() { root.run("omarchy-bar transparent toggle") } },
         sep,
         { label: "Lock", action: function() { root.run("loginctl lock-session") } }
       ] },
@@ -672,7 +676,7 @@ Item {
       { id: "widgets", title: "Widgets", icon: "\u{f056e}", items: items("System") },
       { id: "amiga", title: "Amiga", icon: "\u{f02ca}",
         items: pick("Tools", ["Status screen", "Open island", "Control Center …"]).concat([sep],
-               pick("Omarchy", ["Terminal", "Do not disturb", "Stay awake"]), [sep], pick("Tools", ["Concept gallery"])) }
+               pick("Omarchy", ["Terminal", "Do not disturb", "Stay awake", "Transparent bar"]), [sep], pick("Tools", ["Concept gallery"])) }
     ]
   }
 

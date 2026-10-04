@@ -101,7 +101,8 @@ Item {
   function close() { dropOpen = false }
   function closeForPopoutSwitch() { popoutSwitchClosing = true; dropOpen = false; Qt.callLater(function() { root.popoutSwitchClosing = false }) }
   function toggleDrop() { if (dropOpen) close(); else open() }
-  function syncDrop() { if (Bridge.ModuleBus.engine) Bridge.ModuleBus.engine.syncDropMenu() }
+  // (during a plugin reload the engine may already be gone while this module is torn down)
+  function syncDrop() { var e = Bridge.ModuleBus.engine; if (e && typeof e.syncDropMenu === "function") e.syncDropMenu() }
   onDropOpenChanged: syncDrop()
   // Close (and so release the bar's popout) before the panel goes away.
   onDropAvailableChanged: if (!dropAvailable) close()

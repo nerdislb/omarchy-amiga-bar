@@ -38,7 +38,7 @@ tusche-look/omarchy-tusche-bar/setup/install.sh
 | Option | Effect |
 |---|---|
 | `--theme papier\|tusche\|papier-lavur\|tusche-lavur` | Theme to switch to (default `papier`). |
-| `--combination NAME` | Saved bar combination to load (default `paper`). |
+| `--combination NAME` | Saved bar combination to load (default `paper`; after a carry-over from the Amiga Bar only when given, so the bar keeps its arrangement). |
 | `--no-card-picker` | Leave the card picker out. |
 | `--boot-logo` | Also put the seal on the boot screen (asks for sudo, rebuilds the initramfs). |
 | `--src DIR` | Repository folder (default `~/src`). |
@@ -56,7 +56,7 @@ tusche-look/omarchy-tusche-bar/setup/install.sh
    - puts the island in the place of Omarchy's clock (it is the clock), or merges the settings into its entry;
    - then enables the plugins.
 7. **Extras:** the card picker's Style menu entries.
-8. **Apply:** restarts the shell, loads the bar combination and sets the theme.
+8. **Apply:** restarts the shell, loads the bar combination (not after a carry-over, unless `--combination` is given) and sets the theme.
 9. **Boot screen** (optional): the seal.
 
 Re-running it updates and reinstalls.

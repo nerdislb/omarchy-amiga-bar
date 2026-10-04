@@ -8,7 +8,8 @@
 #
 #   setup/install.sh [options]
 #     --theme NAME         theme to switch to (default from look.json: papier)
-#     --combination NAME   saved bar combination to load (default: paper)
+#     --combination NAME   saved bar combination to load (default: paper; after
+#                          a carry-over from the Amiga Bar only when given)
 #     --no-card-picker     leave the card picker out
 #     --boot-logo          also put the seal on the boot screen (asks for sudo)
 #     --src DIR            where the repositories live (default ~/src)
@@ -27,6 +28,7 @@ look="$here/look.json"
 SRC="$HOME/src"
 theme=""
 combo=""
+combo_given=false
 card_picker=true
 boot_logo=false
 dry=false
@@ -34,13 +36,13 @@ dry=false
 while (( $# )); do
   case "$1" in
     --theme) theme="$2"; shift 2 ;;
-    --combination) combo="$2"; shift 2 ;;
+    --combination) combo="$2"; combo_given=true; shift 2 ;;
     --no-card-picker) card_picker=false; shift ;;
     --no-fastfetch) shift ;;   # accepted for older instructions; there is no fastfetch logo any more
     --boot-logo) boot_logo=true; shift ;;
     --src) SRC="$2"; shift 2 ;;
     --dry-run) dry=true; shift ;;
-    -h|--help) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "install: unknown option $1 (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -228,7 +230,12 @@ if $card_picker; then
 fi
 
 # ---------------------------------------------------------------- 8 · restart, bar, theme
-step "Restart the shell, load the bar combination '$combo', theme $theme"
+# A carried-over bar keeps its arrangement: loading a combination rebuilds the
+# bar from the saved base layout, which would undo later moves in the bar.
+load=true
+$amiga && ! $combo_given && load=false
+if $load; then step "Restart the shell, load the bar combination '$combo', theme $theme"
+else step "Restart the shell (the carried-over bar stays as it was arranged), theme $theme"; fi
 if ! $dry; then
   if pgrep -x quickshell >/dev/null; then
     # omarchy restart shell gives the notification service only 2 s after the shell answers; on a
@@ -245,21 +252,26 @@ if ! $dry; then
     sleep 0.5
   done
   $ok || die "the Tusche Bar does not answer – check 'omarchy plugin list', then run: omarchy-shell tusche-bar load $combo"
-  result="busy"
-  for _ in $(seq 1 20); do
-    result="$(omarchy-shell tusche-bar load "$combo" 2>&1 || true)"
-    [[ $result == busy ]] || break
-    sleep 0.5
-  done
-  note "bar: $result"
-  for _ in $(seq 1 20); do
-    omarchy-shell tusche-bar state 2>/dev/null | jq -e --arg c "$combo" --slurpfile l "$look" \
-      '.options.logo == ($l[0].barCombinations[] | select(.name == $c) | .options.logo)' >/dev/null && break
-    sleep 0.5
-  done
+  if $load; then
+    result="busy"
+    for _ in $(seq 1 20); do
+      result="$(omarchy-shell tusche-bar load "$combo" 2>&1 || true)"
+      [[ $result == busy ]] || break
+      sleep 0.5
+    done
+    note "bar: $result"
+    for _ in $(seq 1 20); do
+      omarchy-shell tusche-bar state 2>/dev/null | jq -e --arg c "$combo" --slurpfile l "$look" \
+        '.options.logo == ($l[0].barCombinations[] | select(.name == $c) | .options.logo)' >/dev/null && break
+      sleep 0.5
+    done
+  else
+    note "bar: kept as it was (to load '$combo': omarchy-shell tusche-bar load $combo)"
+  fi
   omarchy theme set "$theme" >/dev/null 2>&1 || note "theme: run 'omarchy theme set $theme' yourself"
 else
-  note "[dry-run] omarchy restart shell; omarchy-shell tusche-bar load $combo; omarchy theme set $theme"
+  if $load; then note "[dry-run] omarchy restart shell; omarchy-shell tusche-bar load $combo; omarchy theme set $theme"
+  else note "[dry-run] omarchy restart shell; omarchy theme set $theme"; fi
 fi
 
 # ---------------------------------------------------------------- 9 · boot screen (optional)

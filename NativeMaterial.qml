@@ -84,6 +84,24 @@ QtObject {
       if (nativeIds.indexOf(String(slots[j].moduleName)) !== -1 && slots[j].activeItem) n += attach(slots[j].activeItem)
     return n
   }
+  // What the search sees, for `amiga-bar state` (natives): each Omarchy slot
+  // it found, whether it has a widget, the KeyboardPanels in it, whether their
+  // content holder was recognised and whether they carry a FogPanel.
+  function report(from) {
+    if (!from) return null
+    var top = from
+    for (var i = 0; i < 24 && top.parent; i++) top = top.parent
+    var slots = slotsIn(top, 0, []), out = []
+    for (var j = 0; j < slots.length; j++) {
+      var id = String(slots[j].moduleName)
+      if (nativeIds.indexOf(id) === -1) continue
+      var item = slots[j].activeItem, panels = item ? panelsIn(item, 0, []) : []
+      out.push({ id: id, widget: !!item, panels: panels.length,
+                 holders: panels.filter(function(p) { return !!holderOf(p) }).length,
+                 dressed: panels.filter(function(p) { return dressed.indexOf(p) !== -1 }).length })
+    }
+    return { slots: slots.length, natives: out, dressedTotal: dressed.length }
+  }
   // a destroyed widget takes its panels (and their FogPanels) along: forget them
   function forget() {
     dressed = dressed.filter(function(p) { return !!p && p.borderSpec !== undefined })

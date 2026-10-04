@@ -74,13 +74,19 @@ Item {
   // those of Omarchy's widgets that stay in its bar (audio, power, …): a
   // few passes after loading, as the bar's slots load one by one
   Root.NativeMaterial { id: nativeMaterial }
+  function nativeReport() { return nativeMaterial.report(root) }
+  // Quick passes while the bar starts, then a slow watch for good: Omarchy can
+  // create its widgets later than our module (after the 04.10. bar startup
+  // change its popups stayed undressed – no bloom on the volume popup) or
+  // recreate them after a reload or settings change. A pass walks the bar's
+  // slots only and skips panels that already carry a FogPanel.
   Timer {
     id: dressTimer
     property int pass: 0
-    interval: 1200
+    interval: pass < 4 ? 1200 : 5000
     repeat: true
     running: true
-    onTriggered: { nativeMaterial.dressBar(root); if (++pass >= 4) stop() }
+    onTriggered: { nativeMaterial.forget(); nativeMaterial.dressBar(root); pass++ }
   }
   // The bar forwards clicks to every registered click target by geometry,
   // whatever its container's visibility, so the mounts live far above the

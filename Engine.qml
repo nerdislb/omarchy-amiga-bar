@@ -743,6 +743,7 @@ Item {
                               edge: { option: root.options.edge, material: root.material ? (root.material.edge ? root.material.edge.kind : "no edge") : null, themeEdge: root.themeEdgeVisible, workbench: root.edgeVisible, barReady: root.barReady },
                               usage: { folded: root.usageFolded, intervalSec: root.usageIntervalSec, running: usageUpdate.running, command: usageUpdate.command },
                               ask: root.askState(),
+                              natives: (function() { var s = Bridge.ModuleBus.pick("status"); return s && s.nativeReport ? s.nativeReport() : null })(),
                               cc: controlCenter.stateObject() })
     }
   }

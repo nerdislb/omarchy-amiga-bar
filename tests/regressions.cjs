@@ -902,3 +902,19 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert(/border\.width: 2 \* chip\.u/.test(chip) && /model: 12/.test(chip), '2 px stroke, three pins per side');
   console.log('PASS: system face (chip outline, fill rows, warning, single cell)');
 }
+
+// Omarchy's own popups stay dressed when its widgets appear late (seen after
+// the 04.10. Omarchy bar startup change): the dress timer keeps watching, and
+// `amiga-bar state` reports what the search sees.
+{
+  const st = fs.readFileSync(path.join(root, 'modules/Status.qml'), 'utf8');
+  const nm = fs.readFileSync(path.join(root, 'NativeMaterial.qml'), 'utf8');
+  const en = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
+  assert(st.includes('interval: pass < 4 ? 1200 : 5000'), 'quick passes, then every 5 s');
+  assert(st.includes('onTriggered: { nativeMaterial.forget(); nativeMaterial.dressBar(root); pass++ }'));
+  assert(!/if \(\+\+pass >= 4\) stop\(\)/.test(st), 'the watch never stops');
+  assert(nm.includes('function report(from)') && st.includes('function nativeReport() { return nativeMaterial.report(root) }'));
+  assert(en.includes('natives: (function() { var s = Bridge.ModuleBus.pick("status")'));
+  console.log('PASS: native popups dressed late too (slow watch, state report)');
+}
+

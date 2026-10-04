@@ -68,6 +68,12 @@ Item {
     { id: "system", name: "System", members: ["bitr0t.system-monitor", "nerdibeard.monitor", "nerdibeard.googledrive", "com.omastorm.radar", "community.plugin-manager"] }
   ]
 
+  // The phone group only where there is a phone link (Flux answered) or Buds; network
+  // and system always (Omarchy's network widget, our own CPU/RAM reading).
+  readonly property var shownGroups: groups.filter(function(g) {
+    return g.id !== "phone" || !!root.phone || root.embedIds.indexOf("io.github.nerdislb.buds-control") !== -1
+  })
+
   // ---------------------------------------------------------------- embedded natives
   property var mounted: ({})    // id -> item
   // the theme material / fog look for their own (Omarchy) popups – and for
@@ -309,7 +315,7 @@ Item {
 
     // groups
     Repeater {
-      model: root.variant === "groups" ? root.groups : []
+      model: root.variant === "groups" ? root.shownGroups : []
       Cell {
         id: groupCell
         required property var modelData

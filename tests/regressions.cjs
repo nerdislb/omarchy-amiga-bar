@@ -928,3 +928,20 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   console.log('PASS: transparent bar switch in the menus');
 }
 
+
+// Portable menus and status groups: entries of absent plugins (and the local
+// concept gallery) stay hidden, empty groups go, the phone group needs Flux or Buds.
+{
+  const en = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
+  const st = fs.readFileSync(path.join(root, 'modules/Status.qml'), 'utf8');
+  const has = (id, installed) => String(id).indexOf('omarchy.') === 0 || installed.indexOf(String(id)) !== -1;
+  assert(en.includes('function hasPlugin(id) { return String(id).indexOf("omarchy.") === 0 || installedPlugins.indexOf(String(id)) !== -1 }'));
+  for (const id of ['bitr0t.system-monitor', 'nerdibeard.monitor', 'nerdibeard.googledrive', 'com.omastorm.radar', 'community.plugin-manager',
+                    'io.github.iamfitsum.omarchy-proton-vpn', 'flux', 'io.github.nerdislb.buds-control', 'io.github.moizibnyousaf.omawhatsapp', 'omamail', '@gallery'])
+    assert(en.includes(`requires: "${id}"`), id);
+  assert(has('omarchy.network', []) && !has('flux', []) && has('flux', ['flux']));
+  assert(en.includes('}).filter(function(g) { return g.items.length > 0 })'), 'empty groups go');
+  assert(st.includes('model: root.variant === "groups" ? root.shownGroups : []'));
+  assert(st.includes('return g.id !== "phone" || !!root.phone || root.embedIds.indexOf("io.github.nerdislb.buds-control") !== -1'));
+  console.log('PASS: portable menus and status groups (absent plugins hidden)');
+}

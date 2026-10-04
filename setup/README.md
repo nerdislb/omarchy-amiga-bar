@@ -1,6 +1,6 @@
 # Install the look on another machine
 
-Brings the Nerdibeard desktop look of nerdbase2 to another Omarchy machine:
+Brings the Nerdibeard desktop look (the author's setup) to an Omarchy machine:
 
 - the themes **Tusche, Papier, Tusche Lavur, Papier Lavur** (`themes/`, built
   by the Tusche & Papier design round's `build-themes.py`);
@@ -27,7 +27,7 @@ git clone https://github.com/nerdislb/omarchy-amiga-bar.git ~/src/omarchy-amiga-
 ~/src/omarchy-amiga-bar/setup/install.sh
 ```
 
-Offline: on nerdbase2 run `setup/make-bundle.sh`. Copy the tar.gz across and run:
+Offline: on a machine with the repositories run `setup/make-bundle.sh`. Copy the tar.gz across and run:
 
 ```sh
 tar xzf nerdibeard-look-*.tar.gz
@@ -73,4 +73,4 @@ It restores the backed-up files, themes and plugin folders and removes what the 
 ## Not included
 
 - Other plugins: OmaMail, WhatsApp, Flux, Buds, Drive and so on. Their bar widgets simply stay away.
-- The workspace overview, the system font profile (off on nerdbase2), and anything with accounts or credentials.
+- The workspace overview, the system font profile (off in the author's setup), and anything with accounts or credentials.

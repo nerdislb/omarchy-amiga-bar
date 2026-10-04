@@ -590,9 +590,22 @@ Item {
     ;(Bridge.ModuleBus.instances.workspaces || []).forEach(function(i) { i.close() })
   }
   onIsOpenChanged: if (isOpen) { closeModulePopups(); refreshSystemFont() }
-  Component.onCompleted: refreshSystemFont()
-  onMenuOpenChanged: if (menuOpen) { isOpen = false; screenOpen = false; closeModulePopups() }
-  onDropMenuOpenChanged: if (dropMenuOpen) { isOpen = false; screenOpen = false; menuOpen = false }
+  Component.onCompleted: { refreshSystemFont(); pluginScan.running = true }
+
+  // Which third-party plugins (and local extras) exist on this machine: menu
+  // entries for absent ones stay hidden, so the menus work on any setup.
+  // Omarchy's own widgets (omarchy.*) always count as present.
+  property var installedPlugins: []
+  readonly property string galleryPath: Quickshell.env("HOME") + "/.openclaw/workspace/output/amiga-bar-2026-09-30/index.html"
+  Process {
+    id: pluginScan
+    command: ["sh", "-c", "ls -1 \"$HOME/.config/omarchy/plugins\" 2>/dev/null; [ -f \"$1\" ] && echo @gallery; true", "sh", root.galleryPath]
+    stdout: StdioCollector { onStreamFinished: root.installedPlugins = String(text).split("\n").filter(function(l) { return l.length > 0 }) }
+  }
+  function hasPlugin(id) { return String(id).indexOf("omarchy.") === 0 || installedPlugins.indexOf(String(id)) !== -1 }
+  function present(items) { return items.filter(function(e) { return !e.requires || root.hasPlugin(e.requires) }) }
+  onMenuOpenChanged: if (menuOpen) { isOpen = false; screenOpen = false; closeModulePopups(); pluginScan.running = true }
+  onDropMenuOpenChanged: if (dropMenuOpen) { isOpen = false; screenOpen = false; menuOpen = false; pluginScan.running = true }
   onScreenOpenChanged: if (screenOpen) { isOpen = false; menuOpen = false; closeModulePopups(); refreshUsage("limits") }
   function openScreen() { menuOpen = false; screenOpen = true }
   // Super+Alt+M / logo: the drop-down menu under the logo of the focused
@@ -616,7 +629,7 @@ Item {
                action: function() { root.focusAgent(a) } }
     })
     if (!agents.length) agents = [{ label: "No agents reported", disabled: true }]
-    return [
+    var groups = [
       { title: "Omarchy", items: [
         { label: "Omarchy menu …", action: function() { root.run("omarchy-menu toggle root") } },
         { label: "Terminal", key: "↵", action: function() { root.run("xdg-terminal-exec") } },
@@ -631,35 +644,45 @@ Item {
         { label: "Quotas …", action: function() { root.run(root.options.ai !== "today" ? "omarchy-shell amiga-quota toggle" : "omarchy-shell shell summon nerdibeard.ai-usage") } },
         { label: "Status screen", key: "M", action: function() { root.openScreen() } }]) },
       { title: "System", items: [
-        { label: "System monitor …", note: "CPU " + Math.round(s.cpu * 100) + " %", action: function() { root.openWidget("bitr0t.system-monitor") } },
-        { label: "Display & brightness …", action: function() { root.openWidget("nerdibeard.monitor") } },
-        { label: "Google Drive …", action: function() { root.openWidget("nerdibeard.googledrive") } },
-        { label: "Rain radar …", action: function() { root.openWidget("com.omastorm.radar") } },
-        { label: "Manage plugins …", action: function() { root.openWidget("community.plugin-manager") } }
+        { label: "System monitor …", note: "CPU " + Math.round(s.cpu * 100) + " %", requires: "bitr0t.system-monitor", action: function() { root.openWidget("bitr0t.system-monitor") } },
+        { label: "Display & brightness …", requires: "nerdibeard.monitor", action: function() { root.openWidget("nerdibeard.monitor") } },
+        { label: "Google Drive …", requires: "nerdibeard.googledrive", action: function() { root.openWidget("nerdibeard.googledrive") } },
+        { label: "Rain radar …", requires: "com.omastorm.radar", action: function() { root.openWidget("com.omastorm.radar") } },
+        { label: "Manage plugins …", requires: "community.plugin-manager", action: function() { root.openWidget("community.plugin-manager") } }
       ] },
       { title: "Network", items: [
         { label: "Wi-Fi · " + (s.wifiUp ? s.wifiName : "disconnected"), action: function() { root.openWidget("omarchy.network") } },
-        { label: "Proton VPN", checked: s.vpnUp, note: s.vpnUp ? "disconnect" : "connect",
+        { label: "Proton VPN", checked: s.vpnUp, note: s.vpnUp ? "disconnect" : "connect", requires: "io.github.iamfitsum.omarchy-proton-vpn",
           action: function() { root.run(s.vpnUp ? "protonvpn disconnect" : "protonvpn connect") } },
         { label: "Tailscale", checked: s.tailscaleUp, note: s.tailscaleUp ? "disconnect" : "connect",
           action: function() { root.run(s.tailscaleUp ? "tailscale down" : "tailscale up") } },
         { label: "Bluetooth …", action: function() { root.openWidget("omarchy.bluetooth") } }
       ] },
       { title: "Phone", items: [
-        { label: "Flux · " + (s.phone ? s.phone.name : "Pixel"), note: s.phone && s.phone.charge >= 0 ? s.phone.charge + " %" : "", action: function() { root.run("omarchy-shell shell toggle flux") } },
-        { label: "Buds …", action: function() { root.openWidget("io.github.nerdislb.buds-control") } },
+        { label: "Flux · " + (s.phone ? s.phone.name : "Pixel"), note: s.phone && s.phone.charge >= 0 ? s.phone.charge + " %" : "", requires: "flux", action: function() { root.run("omarchy-shell shell toggle flux") } },
+        { label: "Buds …", requires: "io.github.nerdislb.buds-control", action: function() { root.openWidget("io.github.nerdislb.buds-control") } },
         sep,
-        { label: "WhatsApp …", action: function() { root.run("omarchy-shell io.github.moizibnyousaf.omawhatsapp toggleDropdown") } },
-        { label: "Mail …", action: function() { root.run("omarchy-shell shell toggle omamail") } }
+        { label: "WhatsApp …", requires: "io.github.moizibnyousaf.omawhatsapp", action: function() { root.run("omarchy-shell io.github.moizibnyousaf.omawhatsapp toggleDropdown") } },
+        { label: "Mail …", requires: "omamail", action: function() { root.run("omarchy-shell shell toggle omamail") } }
       ] },
       { title: "Tools", items: [
         { label: "Status screen", key: "M", action: function() { root.openScreen() } },
         { label: "Open island", action: function() { root.run("omarchy-shell amiga-island expand") } },
         { label: "Control Center …", action: function() { root.open("") } },
         sep,
-        { label: "Concept gallery", action: function() { Quickshell.execDetached(["xdg-open", Quickshell.env("HOME") + "/.openclaw/workspace/output/amiga-bar-2026-09-30/index.html"]) } }
+        { label: "Concept gallery", requires: "@gallery", action: function() { Quickshell.execDetached(["xdg-open", root.galleryPath]) } }
       ] }
     ]
+    // entries of absent plugins drop out; no doubled or dangling separators; empty groups go
+    return groups.map(function(g) {
+      var out = []
+      root.present(g.items).forEach(function(e) {
+        if (e.separator && (!out.length || out[out.length - 1].separator)) return
+        out.push(e)
+      })
+      while (out.length && out[out.length - 1].separator) out.pop()
+      return { title: g.title, items: out }
+    }).filter(function(g) { return g.items.length > 0 })
   }
 
   // The same menus for the drop-down: our groups under the Omarchy menu
@@ -669,7 +692,7 @@ Item {
     function items(title) { for (var i = 0; i < m.length; i++) if (m[i].title === title) return m[i].items; return [] }
     function pick(title, labels) { return items(title).filter(function(e) { return labels.indexOf(e.label) !== -1 }) }
     var sep = { separator: true }
-    return [
+    var groups = [
       { id: "agents", title: "Agents", icon: "\u{f06a9}", items: items("Agents") },
       { id: "network", title: "Network", icon: "\u{f05a9}", items: items("Network") },
       { id: "phone", title: "Phone", icon: "\u{f011c}", items: items("Phone") },
@@ -678,6 +701,11 @@ Item {
         items: pick("Tools", ["Status screen", "Open island", "Control Center …"]).concat([sep],
                pick("Omarchy", ["Terminal", "Do not disturb", "Stay awake", "Transparent bar"]), [sep], pick("Tools", ["Concept gallery"])) }
     ]
+    return groups.map(function(g) {
+      var it = g.items.slice()
+      while (it.length && it[it.length - 1].separator) it.pop()
+      return { id: g.id, title: g.title, icon: g.icon, items: it }
+    }).filter(function(g) { return g.items.length > 0 })
   }
 
   IntuitionMenu {

@@ -1,6 +1,93 @@
 # Amiga Bar
 
-Presets and compact Amiga-style modules for the **native** Omarchy bar. See `ROADMAP.md` for stages A–E.
+Presets, modules and motion for the **native** Omarchy bar. It adds:
+
+- **Logo:** a compact workspace row with your own logo (Omarchy, the Arch mark or the Nerdibeard seal);
+- **Status:** AI quota gauges and status groups;
+- **Menu:** a drop-down logo menu;
+- **Popups:** your popups and Omarchy's own ones (volume, battery …) in the theme's material: rolling cards on Papier and Tusche, an ink bloom with a dried rim on the Lavur themes.
+
+Everything is switchable in its own Control Center. It is made for the Tusche & Papier themes, which ship in this repository, and works with any Omarchy theme.
+
+![The bar in Tusche Lavur](docs/screenshots/bar-tusche-lavur.png)
+![The bar in Papier](docs/screenshots/bar-papier.png)
+
+| Logo menu, Tusche Lavur | Logo menu, Papier | Omarchy's volume popup, Tusche Lavur |
+|---|---|---|
+| ![Drop-down menu blooming open](docs/screenshots/menu-tusche-lavur.gif) | ![Drop-down menu in Papier](docs/screenshots/menu-papier.png) | ![Volume popup in the ink material](docs/screenshots/audio-tusche-lavur.png) |
+
+Companions: [Amiga Island](https://github.com/nerdislb/omarchy-amiga-island) (clock, live activities and notifications) and [Card Picker](https://github.com/nerdislb/omarchy-card-picker) (themes and wallpapers as a hand of cards).
+
+## Requirements
+
+- **Omarchy:** a recent version with the Quickshell shell (the dev line of early October 2026 or later). The plugin uses Omarchy's panel and menu plugin kinds; an older Omarchy refuses its manifest, and the setup script checks that first.
+- **Tools:** `git`, `jq`, `python3` and `rsync` (all present on Omarchy).
+- **Session:** run the commands as your user in the desktop session.
+
+## Install
+
+### The whole look
+
+Installs the four Tusche & Papier themes, this bar, the Amiga Island and the Card Picker, with the author's bar combination `paper`:
+
+```sh
+git clone https://github.com/nerdislb/omarchy-amiga-bar.git ~/src/omarchy-amiga-bar
+~/src/omarchy-amiga-bar/setup/install.sh --dry-run   # shows every step, changes nothing
+~/src/omarchy-amiga-bar/setup/install.sh
+```
+
+The script:
+
+- backs up everything it touches first;
+- clones the other two repositories into `~/src`;
+- puts the island in the place of Omarchy's clock;
+- restarts the shell and switches to Papier.
+
+Options: `--theme tusche|papier-lavur|tusche-lavur`, `--no-card-picker`, `--no-fastfetch`, and `--boot-logo` (the seal on the boot screen, asks for sudo). Details are in [setup/README.md](setup/README.md). Undo with `setup/revert.sh <backup folder>`, which the script names at the end.
+
+### Only the bar
+
+```sh
+git clone https://github.com/nerdislb/omarchy-amiga-bar.git ~/src/omarchy-amiga-bar
+cd ~/src/omarchy-amiga-bar && ./dev-install.sh
+omarchy-shell shell rescanPlugins
+omarchy plugin enable nerdibeard.amiga-bar
+omarchy restart shell
+```
+
+Then pick a look:
+
+- **Control Center:** middle click on the bar's logo.
+- **Preset:** `omarchy-shell amiga-bar preset k1` (K1 tidy, K2 Workbench, K3 focus).
+- **Single setting:** for example `omarchy-shell amiga-bar set logo arch`.
+
+Your own bar layout is saved the first time and comes back with `omarchy-shell amiga-bar preset heute`.
+
+Menu entries and status groups for optional plugins only appear when those plugins are installed: Flux, Buds, OmaMail, WhatsApp, Proton VPN, the system monitor and others.
+
+## Update
+
+```sh
+git -C ~/src/omarchy-amiga-bar pull
+~/src/omarchy-amiga-bar/dev-install.sh
+omarchy restart shell
+```
+
+Re-running `setup/install.sh` updates all three repositories.
+
+## Uninstall
+
+```sh
+omarchy-shell amiga-bar preset heute      # your own bar layout back
+omarchy plugin disable nerdibeard.amiga-bar
+rm -r ~/.config/omarchy/plugins/nerdibeard.amiga-bar
+```
+
+After a whole-look install, `setup/revert.sh <backup folder>` is the complete undo.
+
+---
+
+The sections below are the reference: how it is built, every option, IPC and tests. See `ROADMAP.md` for the build stages.
 
 ## Architecture
 - `Engine.qml` — keep-loaded panel plugin (`nerdibeard.amiga-bar`): Control Center, presets, IPC. It writes `bar.layout` through `bin/apply-layout.py` (atomic, keeps shell.json's 0600 mode). The bar itself stays `omarchy.bar`.

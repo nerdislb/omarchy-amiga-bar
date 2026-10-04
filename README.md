@@ -14,7 +14,7 @@ Presets and compact Amiga-style modules for the **native** Omarchy bar. See `ROA
 |---|---|
 | Workspaces (`Workspaces.qml`, incl. Omarchy logo) | today, pips, stack, logo, minimap, cli, boing |
 | AI quotas (`Quota.qml`) | today, gauge, vu, rings, ondemand, title (Workbench title line) |
-| Right side (`Status.qml`) | today, groups, deviations, drawer (Workbench window), hardware (A500 strip), compact (A500 strip, compact) |
+| Right side (`Status.qml`) | today, groups, deviations, drawer (Workbench window), hardware (A500 strip), compact (A500 strip, compact) — in groups/deviations the system group shows a chip outline (the phone glyph's 2 px stroke) that fills from below like the battery (CPU in 6 rows, one row from 2 %); CPU > 85 % or RAM > 90 % turns only the fill to the alarm tone |
 | Bar edge (`WorkbenchEdge.qml`, `ThemeEdge.qml`) | none (default), workbench (Workbench edge), theme (light & shadow from the theme's `bar-material.json`) — kept by presets |
 | Bar form (`A500Case.qml`) | full (default), a500 (A500 case edge) — kept by presets |
 | Fog look (test) (`FogEdge.qml`, `FogPanel.qml`, `FogLayer.qml`) | off (default), on — kept by presets |

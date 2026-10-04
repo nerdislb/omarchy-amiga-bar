@@ -234,8 +234,16 @@ Item {
   }
   function memberAlert(id) {
     if (id === "omarchy.network") return !wifiUp
-    if (id === "bitr0t.system-monitor") return cpu > 0.85
+    if (id === "bitr0t.system-monitor") return sysHot
     return false
+  }
+  // The system's warning: CPU near its limit or memory nearly full.
+  readonly property bool sysHot: cpu > 0.85 || mem > 0.9
+  // The chip's fill (system group face): CPU load in 6 rows; any load above 2 % shows at least one
+  // row, so a quiet machine does not read as switched off.
+  function chipLevel(load) {
+    var l = Math.min(1, Math.max(0, Number(load) || 0))
+    return l > 0.02 ? Math.max(1, Math.ceil(l * 6 - 1e-4)) : 0
   }
 
   // Deviations: what is worth showing right now.
@@ -246,7 +254,7 @@ Item {
     if (!tailscaleUp) out.push({ glyph: "\u{f0570}", color: Util.alpha(fg, 0.5), member: "omarchy.tailscale" })
     if (btConnected.length) out.push({ glyph: "\u{f02cb}", color: fg, member: "omarchy.bluetooth" })
     if (phone && phone.online && phone.charge >= 0 && phone.charge <= 20 && !phone.charging) out.push({ glyph: "\u{f011c}", color: Color.urgent, member: "flux" })
-    if (cpu > 0.85) out.push({ glyph: "\u{f061a}", color: Color.urgent, member: "bitr0t.system-monitor" })
+    if (sysHot) out.push({ chip: true, color: Color.urgent, member: "bitr0t.system-monitor" })
     return out
   }
 
@@ -302,7 +310,7 @@ Item {
         active: root.popupGroup === modelData.id && root.popupOpen
         onClicked: root.openGroup(modelData.id, groupCell)
         onRightClicked: { root.popupAnchor = groupCell; root.openMember(modelData.members[0]) }
-        width: modelData.id === "system" ? Style.space(58) : modelData.id === "phone" ? Style.space(58) : root.barSize + Style.space(2)
+        width: modelData.id === "phone" ? Style.space(58) : root.barSize + Style.space(2)
         GroupFace { anchors.fill: parent; group: modelData.id }
       }
     }
@@ -315,7 +323,8 @@ Item {
         required property var modelData
         onClicked: { root.popupAnchor = devCell; root.openMember(modelData.member) }
         width: root.barSize
-        Glyph { anchors.centerIn: parent; text: modelData.glyph; color: modelData.color }
+        Glyph { visible: !modelData.chip; anchors.centerIn: parent; text: modelData.glyph || ""; color: modelData.color }
+        ChipFace { visible: !!modelData.chip; anchors.centerIn: parent; level: root.cpu }
       }
     }
 
@@ -589,18 +598,48 @@ Item {
         color: root.phone && root.phone.charge >= 0 && root.phone.charge <= 20 && !root.phone.charging ? Color.urgent : Util.alpha(root.fg, 0.75)
       }
     }
-    Row {
+    ChipFace {
       visible: parent.group === "system"
       anchors.centerIn: parent
-      spacing: Style.space(4)
-      Glyph { text: "\u{f061a}"; color: root.cpu > 0.85 ? Color.urgent : root.fg }
-      Column {
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: Style.space(3)
-        Rectangle { width: Style.space(26); height: Math.max(2, Style.space(3)); color: Util.alpha(root.fg, 0.15)
-          Rectangle { width: parent.width * root.cpu; height: parent.height; color: root.cpu > 0.85 ? Color.urgent : Color.accent } }
-        Rectangle { width: Style.space(26); height: Math.max(2, Style.space(3)); color: Util.alpha(root.fg, 0.15)
-          Rectangle { width: parent.width * root.mem; height: parent.height; color: Util.alpha(root.fg, 0.8) } }
+      level: root.cpu
+    }
+  }
+
+  // The system group's face (design round 04.10., recommendation 6): a chip drawn as an outline on
+  // whole pixels – 12 × 12 with the phone glyph's 2 px stroke, three pins per side – that fills from
+  // below like the battery beside it (CPU, chipLevel). Under the warning (sysHot) only the fill takes
+  // the alarm tone; the outline stays the bar's ink, so it never becomes a red block. Scales by whole
+  // pixels with the icon size (16 px at the 18 px glyph).
+  component ChipFace: Item {
+    id: chip
+    property real level: 0
+    readonly property int u: Math.max(1, Math.round(Bridge.ModuleBus.px(Style.font.icon + 2) / 18))
+    readonly property color ink: root.fg
+    readonly property color fillInk: root.sysHot ? Color.urgent : root.fg
+    width: 16 * u; height: 16 * u
+    Repeater {
+      model: 12
+      Rectangle {
+        required property int index
+        readonly property int side: Math.floor(index / 3)
+        readonly property int k: index % 3
+        color: chip.ink
+        antialiasing: false
+        width: (side < 2 ? 2 : 1) * chip.u; height: (side < 2 ? 1 : 2) * chip.u
+        x: (side === 0 ? 0 : side === 1 ? 14 : 4 + k * 3) * chip.u
+        y: (side === 2 ? 0 : side === 3 ? 14 : 4 + k * 3) * chip.u
+      }
+    }
+    Rectangle {
+      x: 2 * chip.u; y: 2 * chip.u; width: 12 * chip.u; height: 12 * chip.u
+      color: "transparent"; border.width: 2 * chip.u; border.color: chip.ink; radius: chip.u
+      Rectangle {
+        readonly property int rows: root.chipLevel(chip.level)
+        x: 3 * chip.u; width: 6 * chip.u
+        height: rows * chip.u; y: (9 - rows) * chip.u
+        visible: rows > 0
+        color: chip.fillInk
+        antialiasing: false
       }
     }
   }

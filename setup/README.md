@@ -15,11 +15,11 @@ Brings the Nerdibeard desktop look of nerdbase2 to another Omarchy machine:
 - **Omarchy:** a recent version, from early October 2026 or later. The script first checks the Amiga Bar's manifest against the local Omarchy and stops if it is refused.
 - **Session:** run it as your user inside the desktop session (the shell must be running).
 - **Tools:** `git`, `jq`, `python3`, `rsync`.
-- **Access to the private repositories:** either GitHub (e.g. `gh auth login`) or the offline bundle.
+- **Network:** the repositories are public on GitHub; without network use the offline bundle.
 
 ## Install
 
-With GitHub access:
+From GitHub:
 
 ```sh
 git clone https://github.com/nerdislb/omarchy-amiga-bar.git ~/src/omarchy-amiga-bar

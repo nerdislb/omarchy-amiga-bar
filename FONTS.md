@@ -66,10 +66,12 @@ FreeType can keep an mmap reader, so an in-place truncation can crash consumers
 - Pixelated Nerd Font / Omarchy glyphs: derivatives of their original sets;
   `LICENSE-ICONS` part 2 lists each range and licence (OFL, CC BY, MIT,
   Apache/Pictogrammers, trademarked logos).
-- **Private build.** Before a public release, re-check those terms (OFL sets
-  may need a separate OFL font, CC BY sets need attribution, logos need
-  trademark review) or ship only the hand-drawn icons. The former GPL-FE
-  "Multi Platform Amiga Fonts" Topaz files are no longer used or shipped.
+- **Published 04.10.2026:** because the fonts contain glyphs from SIL OFL 1.1
+  sets (Pomicons, Weather Icons), the font files as a whole are distributed
+  under OFL 1.1 (`assets/fonts/nerdworkbench/LICENSE`), as Nerd Fonts does with
+  its patched fonts; the CC BY sets (Codicons, Font Awesome Free) are credited
+  in `LICENSE-ICONS`. The former GPL-FE "Multi Platform Amiga Fonts" Topaz
+  files are no longer used or shipped.
 - The Amiga tick and Boing ball logos (`modules/PixelLogo.qml`) are pixel
-  renditions of Amiga trademarks: fine for this private build, trademark
-  review needed before a release.
+  renditions of Amiga trademarks, shown as a fan reference with a trademark
+  notice (README); no affiliation or endorsement.

@@ -5,7 +5,7 @@
   "version": "0.9.1-local.1",
   "author": "Nerdibeard",
   "license": "MIT",
-  "description": "Presets and compact Amiga-style modules for the native Omarchy bar (workspaces, quotas, status, island). Private build.",
+  "description": "Presets and compact Amiga-style modules for the native Omarchy bar (workspaces, quotas, status, island).",
   "kinds": [
     "panel",
     "menu"

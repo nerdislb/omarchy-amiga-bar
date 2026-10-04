@@ -8,8 +8,8 @@ import qs.Commons
 //   amiga — the rainbow double tick (front tick in theme colours, the tick
 //           behind it darker, as the outline does in the original)
 //   boing — the Boing ball (theme red and white)
-// Trademarks: the Amiga tick and Boing ball belong to their owners; private
-// build, see FONTS.md before any release.
+// Trademarks: the Amiga tick and Boing ball belong to their owners; this is a
+// fan rendition, no affiliation or endorsement (README, Licences and trademarks).
 Item {
   id: logo
 

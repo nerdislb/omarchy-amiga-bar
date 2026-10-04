@@ -17,8 +17,7 @@
 # the repositories fast-forward and reinstalls). Everything it changes is
 # backed up first under ~/.local/state/nerdibeard-look/backup-<time>/;
 # setup/revert.sh <that folder> puts it back.
-# Repositories come from beside this one (offline bundle) or from GitHub
-# (private: needs access, e.g. `gh auth login`).
+# Repositories come from beside this one (offline bundle) or from GitHub.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"

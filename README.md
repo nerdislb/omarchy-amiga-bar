@@ -1,4 +1,4 @@
-# Amiga Bar (private build)
+# Amiga Bar
 
 Presets and compact Amiga-style modules for the **native** Omarchy bar. See `ROADMAP.md` for stages A–E.
 
@@ -301,3 +301,10 @@ Alacritty is not changed (its TOML cannot override a key from a later block).
 Tests: `python3 tests/system_font.py` (fake HOME, private fontconfig, real
 `fc-match`) and `node tests/regressions.cjs`.
 Never overwrite a live installed TTF in place: use the helper's atomic installer.
+
+## Licences and trademarks
+
+- **Code:** MIT (`LICENSE`).
+- **NerdWorkbench fonts:** SIL OFL 1.1 as a whole (they contain glyphs from OFL sets); the text glyphs derive from Topaz Unicode (ISC); credits for every icon set in `assets/fonts/nerdworkbench/LICENSE-ICONS`. See `FONTS.md`.
+- **`vendor/MenuModel.js`:** an unchanged copy of Omarchy's menu model library (Omarchy, MIT).
+- **Trademarks:** Amiga, the Amiga tick and the Boing ball (pixel renditions in `modules/PixelLogo.qml`), the Arch Linux logo (drawn unaltered in `modules/ArchLogo.qml`, used under the Arch Linux trademark policy for non-commercial community use), the Omarchy logo and the brand glyphs in the icon fonts belong to their owners. This is an independent fan project; no affiliation or endorsement is implied.

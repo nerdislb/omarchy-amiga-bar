@@ -45,7 +45,12 @@ NerdWorkbench pixel icons
    F400-F533      Octicons                   MIT
    F0001-F1AF0    Material Design Icons      Pictogrammers Free License / Apache 2.0
 
-PUBLICATION STATUS: private build. Before any public release, re-check each
-set's terms (OFL sets may require their derivatives to stay OFL and in a
-separate font; CC BY sets need attribution in the release; logos need
-trademark review), or ship only the hand-drawn icons.
+ATTRIBUTION AND STATUS (published 04.10.2026): the font files as a whole are
+under SIL OFL 1.1 (see LICENSE). Credits for the sets above, as listed by Nerd
+Fonts (https://github.com/ryanoasis/nerd-fonts#glyph-sets): Codicons by
+Microsoft (CC BY 4.0); Font Awesome Free by Fonticons, Inc. (icons CC BY 4.0);
+Weather Icons and Pomicons (SIL OFL 1.1); Seti UI, Devicons, Octicons and the
+Font Awesome Extension (MIT); Material Design Icons by Pictogrammers
+(Pictogrammers Free License / Apache 2.0); Font Logos (Unlicense). Brand logos
+among these glyphs (Font Logos, Devicons, the Omarchy font) are trademarks of
+their owners; their use here implies no affiliation or endorsement.

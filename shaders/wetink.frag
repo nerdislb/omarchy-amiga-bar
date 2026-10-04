@@ -1,14 +1,14 @@
 #version 440
-// Wet ink for the Lavur bloom (FogPanel, Amiga Island notes): the bloom's
+// Wet ink for the Lavur bloom (MaterialCard, Tusche Island notes): the bloom's
 // body in ink, cleared by the water from the source outward – the pigment
 // travels as a ridge into the tide line (bar round 03.10.2026, study 6).
-// `mask` is the bloom's fog layer (its alpha = inside the bloom).
+// `mask` is the bloom's sheet layer (its alpha = inside the bloom).
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;
 layout(std140, binding = 0) uniform buf {
     mat4 qt_Matrix;
     float qt_Opacity;
-    vec2 size;      // size of the mask (the fog layer), px
+    vec2 size;      // size of the mask (the sheet layer), px
     vec2 center;    // the source (where the water comes from), mask px
     vec4 region;    // this item's place on the mask: x, y, w, h, px
     vec4 ink;       // pigment colour

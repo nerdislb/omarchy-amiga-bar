@@ -4,17 +4,16 @@ import ".." as Root
 import Quickshell
 import Quickshell.Io
 import Quickshell.Bluetooth
-import Quickshell.Services.UPower
 import qs.Commons
 import qs.Ui
 
-// The right side, compact. Custom QML module of the Amiga Bar:
-//   { "id": "amiga.status", "source": ".../modules/Status.qml",
-//     "variant": "groups" | "deviations" | "drawer" | "hardware" | "compact", "embeds": { id: settings } }
+// The right side, compact. Custom QML module of the Tusche Bar:
+//   { "id": "tusche.status", "source": ".../modules/Status.qml",
+//     "variant": "groups" | "deviations", "embeds": { id: settings } }
 //
 // The widgets it replaces are mounted here, invisibly (`embeds`), so their
 // own native popups (Wi-Fi list, Bluetooth devices, VPN map …) still open —
-// from our group rows or the drawer. Flux and the mail/WhatsApp widgets need
+// from our group rows or the "more" list. Flux and the mail/WhatsApp widgets need
 // their own services and are not embedded; Flux is read from its socket CLI
 // and opened as its own window.
 Item {
@@ -23,7 +22,7 @@ Item {
   Component.onDestruction: Bridge.ModuleBus.unregister("status", root)
 
   property var bar: null
-  property string moduleName: "amiga.status"
+  property string moduleName: "tusche.status"
   property var settings: ({})
   function setting(key, fallback) { var v = settings ? settings[key] : undefined; return v === undefined || v === null ? fallback : v }
 
@@ -46,7 +45,7 @@ Item {
     "nerdibeard.googledrive": { name: "Google Drive", glyph: "\u{f02b6}", file: "~/.config/omarchy/plugins/nerdibeard.googledrive/Panel.qml" },
     "com.omastorm.radar": { name: "Rain radar", glyph: "\u{f0597}", file: "~/.config/omarchy/plugins/com.omastorm.radar/ui/RadarBar.qml" },
     "community.plugin-manager": { name: "Plugins", glyph: "\u{f03d7}", file: "~/.config/omarchy/plugins/community.plugin-manager/BarWidget.qml" },
-    "flux": { name: "Flux · Pixel", glyph: "\u{f011c}", command: "omarchy-shell shell toggle flux" },
+    "flux": { name: "Flux · phone", glyph: "\u{f011c}", command: "omarchy-shell shell toggle flux" },
     "omarchy.power": { name: "Battery & power", glyph: "\u{f0079}", file: "@/shell/plugins/panels/power/Panel.qml" }
   })
   function filePath(f) {
@@ -64,7 +63,7 @@ Item {
 
   readonly property var groups: [
     { id: "net", name: "Network", members: ["omarchy.network", "io.github.iamfitsum.omarchy-proton-vpn", "omarchy.tailscale", "omarchy.bluetooth"] },
-    { id: "phone", name: "Pixel", members: ["flux", "io.github.nerdislb.buds-control"] },
+    { id: "phone", name: "Phone", members: ["flux", "io.github.nerdislb.buds-control"] },
     { id: "system", name: "System", members: ["bitr0t.system-monitor", "nerdibeard.monitor", "nerdibeard.googledrive", "com.omastorm.radar", "community.plugin-manager"] }
   ]
 
@@ -76,7 +75,7 @@ Item {
 
   // ---------------------------------------------------------------- embedded natives
   property var mounted: ({})    // id -> item
-  // the theme material / fog look for their own (Omarchy) popups – and for
+  // the theme material for their own (Omarchy) popups – and for
   // those of Omarchy's widgets that stay in its bar (audio, power, …): a
   // few passes after loading, as the bar's slots load one by one
   Root.NativeMaterial { id: nativeMaterial }
@@ -85,7 +84,7 @@ Item {
   // create its widgets later than our module (after the 04.10. bar startup
   // change its popups stayed undressed – no bloom on the volume popup) or
   // recreate them after a reload or settings change. A pass walks the bar's
-  // slots only and skips panels that already carry a FogPanel.
+  // slots only and skips panels that already carry a MaterialCard.
   Timer {
     id: dressTimer
     property int pass: 0
@@ -270,40 +269,6 @@ Item {
     return out
   }
 
-  // ---------------------------------------------------------------- A500 hardware strip state
-  readonly property bool hardware: variant === "hardware" || variant === "compact"
-  readonly property bool onBattery: UPower.onBattery
-  readonly property real batteryLevel: UPower.displayDevice && UPower.displayDevice.isPresent ? Math.max(0, Math.min(1, UPower.displayDevice.percentage)) : 1
-  property bool driveActive: false
-  property var lastSectors: -1
-  FileView {
-    id: diskstats
-    path: "/proc/diskstats"
-    onLoaded: {
-      var total = 0
-      String(text()).split("\n").forEach(function(l) {
-        var f = l.trim().split(/\s+/)
-        if (f.length > 10 && /^(nvme\d+n\d+|sd[a-z]|mmcblk\d+)$/.test(f[2])) total += Number(f[5]) + Number(f[9])
-      })
-      root.driveActive = root.lastSectors >= 0 && total > root.lastSectors
-      root.lastSectors = total
-    }
-  }
-  Timer { interval: 250; running: root.hardware; repeat: true; onTriggered: diskstats.reload() }
-  // DF0: a phone plugged in over USB (product name from sysfs).
-  property string usbPhone: ""
-  Process {
-    id: usb
-    command: ["sh", "-c", "cat /sys/bus/usb/devices/*/product 2>/dev/null"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        var hit = String(text).split("\n").filter(function(l) { return /pixel|galaxy|android|phone/i.test(l) })
-        root.usbPhone = hit.length ? hit[0].trim() : ""
-      }
-    }
-  }
-  Timer { interval: 5000; running: root.hardware; repeat: true; triggeredOnStart: true; onTriggered: if (!usb.running) usb.running = true }
-
   // ---------------------------------------------------------------- bar row
   implicitHeight: barSize
   implicitWidth: row.implicitWidth + Style.space(4)
@@ -340,146 +305,14 @@ Item {
       }
     }
 
-    // A500 case strip: VU for CPU/RAM, POWER and DRIVE LEDs, DF0: slot.
-    Item {
-      id: caseStrip
-      visible: root.variant === "hardware"
-      width: visible ? caseRow.implicitWidth + Style.space(16) : 0
-      height: root.barSize
-      CaseWindow { anchors.fill: parent; anchors.topMargin: Style.space(3); anchors.bottomMargin: Style.space(3) }
-      Row {
-        id: caseRow
-        x: Style.space(8)
-        height: parent.height
-        spacing: Style.space(10)
-        Repeater {
-          model: [["CPU", root.cpu], ["RAM", root.mem]]
-          Row {
-            required property var modelData
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.space(3)
-            Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; text: modelData[0]; font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption - 1); color: Util.alpha(root.fg, 0.6) }
-            Column {
-              anchors.verticalCenter: parent.verticalCenter
-              spacing: 1
-              Repeater {
-                model: 8
-                Rectangle {
-                  required property int index
-                  readonly property int seg: 7 - index
-                  width: Style.space(7); height: Math.max(1, Math.round(root.barSize * 0.055))
-                  color: parent.parent.modelData[1] * 8 > seg + 0.01 ? (seg >= 7 ? Color.urgent : seg >= 5 ? Color.accent : (Color.popups.border || root.fg)) : Util.alpha(root.fg, 0.12)
-                }
-              }
-            }
-          }
-        }
-        Led {
-          caption: "POWER"
-          on: true
-          tone: !root.onBattery ? "#3ee05a" : root.batteryLevel <= 0.2 ? Color.urgent : "#ffae2b"
-          onClicked: { root.popupAnchor = caseStrip; root.openMember("omarchy.power") }
-        }
-        Led { caption: "DRIVE"; on: root.driveActive; tone: "#ffb000"; onClicked: root.openGroup("all", caseStrip) }
-        WidgetButton {
-          id: df0
-          bar: root.bar
-          hasVisualContent: true
-          labelVisible: false
-          useActiveColor: false
-          onPressed: function(button) { root.openMember("flux") }
-          anchors.verticalCenter: parent.verticalCenter
-          width: Style.space(128); height: root.barSize
-          Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width; height: Math.round(root.barSize * 0.56)
-            color: Qt.darker(Bridge.ModuleBus.barColor, 1.3)
-            border.width: 1; border.color: Util.alpha(root.fg, 0.15)
-            Text { id: df0Label; renderType: Text.NativeRendering; textFormat: Text.PlainText; x: Style.space(6); anchors.verticalCenter: parent.verticalCenter; text: "DF0:"; font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: Util.alpha(root.fg, 0.6) }
-            Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
-              x: df0Label.x + df0Label.implicitWidth + Style.space(6); width: parent.width - x - Style.space(4); anchors.verticalCenter: parent.verticalCenter
-              elide: Text.ElideRight
-              text: root.usbPhone || "—"
-              font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: root.usbPhone ? root.fg : Util.alpha(root.fg, 0.4)
-            }
-          }
-          MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openMember("flux") }
-        }
-      }
-    }
-
-    Item {
-      id: compactStrip
-      visible: root.variant === "compact"
-      width: visible ? compactRow.implicitWidth : 0
-      height: root.barSize
-      CaseWindow { anchors.fill: parent; anchors.topMargin: 1; anchors.bottomMargin: 1 }
-      Row {
-        id: compactRow
-        height: parent.height
-        spacing: 0
-        Repeater {
-          model: [["CPU", root.cpu], ["RAM", root.mem]]
-          CompactCell {
-            id: meterCell
-            required property var modelData
-            caption: modelData[0]
-            onPressed: function(button) { root.openGroup("all", compactStrip) }
-            Column {
-              anchors.horizontalCenter: parent.horizontalCenter
-              y: meterCell.faceY
-              spacing: 1
-              Repeater {
-                model: 4
-                Rectangle {
-                  required property int index
-                  readonly property int seg: 3 - index
-                  width: Style.space(7); height: 1
-                  color: meterCell.modelData[1] * 4 > seg + 0.01 ? (seg === 3 ? Color.urgent : seg === 2 ? Color.accent : (Color.popups.border || root.fg)) : Util.alpha(root.fg, 0.12)
-                }
-              }
-            }
-          }
-        }
-        CompactCell {
-          id: compactPower
-          caption: "POWER"
-          minimumWidth: Style.space(42)
-          onPressed: function(button) { root.popupAnchor = compactStrip; root.openMember("omarchy.power") }
-          Rectangle {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: compactPower.faceY + 1
-            width: Style.space(24); height: 4
-            color: !root.onBattery ? "#3ee05a" : root.batteryLevel <= 0.2 ? Color.urgent : "#ffae2b"
-          }
-        }
-        CompactCell {
-          id: compactDrive
-          caption: "DF0"
-          onPressed: function(button) { root.popupAnchor = compactStrip; root.openMember("flux") }
-          Rectangle {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: compactDrive.faceY + 1
-            width: Style.space(20); height: 4
-            // A500 form: DF0 also lights while a note comes out of the drive
-            // slot on this monitor.
-            readonly property bool noteHere: Bridge.ModuleBus.noteActive && (Bridge.ModuleBus.noteScreen === ""
-              || (!!root.QsWindow.window && !!root.QsWindow.window.screen && root.QsWindow.window.screen.name === Bridge.ModuleBus.noteScreen))
-            color: root.driveActive || root.usbPhone !== "" || noteHere ? "#ffb000" : Util.alpha("#ffb000", Bridge.ModuleBus.barLight ? 0.4 : 0.18)
-          }
-        }
-      }
-    }
-
-    // drawer (also the "more" entry of the deviations mode)
+    // "more": every embedded widget (deviations mode)
     Cell {
-      id: drawerCell
-      visible: root.variant === "drawer" || root.variant === "deviations" || root.hardware
+      id: moreCell
+      visible: root.variant === "deviations"
       active: root.popupGroup === "all" && root.popupOpen
       width: root.barSize + Style.space(2)
-      onClicked: root.openGroup("all", drawerCell)
-      Drawer { anchors.centerIn: parent; open: parent.active; visible: root.variant === "drawer" || root.hardware }
-      Glyph { anchors.centerIn: parent; visible: root.variant === "deviations"; text: "\u{f01d8}"; color: Util.alpha(root.fg, 0.7) }
+      onClicked: root.openGroup("all", moreCell)
+      Glyph { anchors.centerIn: parent; text: "\u{f01d8}"; color: Util.alpha(root.fg, 0.7) }
     }
   }
 
@@ -508,76 +341,9 @@ Item {
     }
   }
 
-  // LEDs and the DF0: slot are registered bar click targets like the cells,
-  // so clicks on the bar edge reach them too.
-  component Led: WidgetButton {
-    id: led
-    property string caption: ""
-    property bool on: false
-    property color tone: "#3ee05a"
-    signal clicked()
-    readonly property bool pixel: Bridge.ModuleBus.pixelAll
-    bar: root.bar
-    hasVisualContent: true
-    labelVisible: false
-    useActiveColor: false
-    onPressed: function(button) { led.clicked() }
-    // Theme font: caption above the LED. Pixel font: LED beside its caption,
-    // as on the A500 case (a 16 px caption leaves no room above).
-    // Both layouts derive from the caption only (no width <-> x loop).
-    readonly property real themeWidth: Math.max(Style.space(34), ledText.implicitWidth + Style.space(4))
-    readonly property real pixelTextX: Style.space(2) + 12 + 5
-    width: pixel ? pixelTextX + ledText.implicitWidth + Style.space(2) : themeWidth
-    height: root.barSize
-    Text { id: ledText; renderType: Text.NativeRendering; textFormat: Text.PlainText
-      x: led.pixel ? led.pixelTextX : Math.round((led.themeWidth - implicitWidth) / 2)
-      y: led.pixel ? Math.round((root.barSize - 16) / 2) : Style.space(4)
-      text: led.caption; font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Math.max(7, Style.font.caption - 3)); color: Util.alpha(root.fg, 0.6) }
-    Rectangle {
-      id: ledBar
-      x: led.pixel ? Style.space(2) : Math.round((led.themeWidth - width) / 2)
-      y: led.pixel ? Math.round((root.barSize - height) / 2) : root.barSize - Style.space(10)
-      width: led.pixel ? 12 : Style.space(28); height: led.pixel ? 6 : Math.max(3, Style.space(5))
-      color: led.on ? led.tone : Util.alpha(led.tone, 0.18)
-    }
-    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: led.clicked() }
-  }
-
-  component CompactCell: WidgetButton {
-    id: compactCell
-    property string caption: ""
-    property real minimumWidth: Style.space(30)
-    readonly property real faceY: legend.y + legend.implicitHeight + 1
-    bar: root.bar
-    hasVisualContent: true
-    labelVisible: false
-    useActiveColor: false
-    width: Math.max(minimumWidth, legend.implicitWidth)
-    height: root.barSize
-    Text {
-      id: legend
-      renderType: Text.NativeRendering; textFormat: Text.PlainText
-      anchors.horizontalCenter: parent.horizontalCenter
-      y: Math.max(0, Math.floor((root.barSize - implicitHeight - 8) / 2))
-      text: compactCell.caption
-      font.family: Bridge.ModuleBus.family; font.bold: true
-      font.pixelSize: Bridge.ModuleBus.px(Math.max(7, Style.font.caption - 3))
-      color: Util.alpha(root.fg, 0.6)
-    }
-  }
-
-  // The A500 strips' panel: raised on dark themes; on light ones a sunken
-  // window instead (Qt.lighter() would turn it into a white box there).
-  component CaseWindow: Rectangle {
-    readonly property bool light: Bridge.ModuleBus.barLight
-    color: light ? Qt.darker(Bridge.ModuleBus.barColor, 1.07) : Qt.lighter(Bridge.ModuleBus.barColor, 1.35)
-    Rectangle { width: parent.width; height: 1; color: parent.light ? Util.alpha("#000000", 0.22) : Util.alpha(root.fg, 0.25) }
-    Rectangle { y: parent.height - 1; width: parent.width; height: 1; color: parent.light ? Util.alpha("#ffffff", 0.75) : Qt.darker(Bridge.ModuleBus.barColor, 1.6) }
-  }
-
   component Glyph: Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
-    font.family: Bridge.ModuleBus.family
-    font.pixelSize: Bridge.ModuleBus.px(Style.font.icon + 2)
+    font.family: Style.font.family
+    font.pixelSize: Style.font.icon + 2
     color: root.fg
   }
 
@@ -606,7 +372,7 @@ Item {
       Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
         anchors.verticalCenter: parent.verticalCenter
         text: root.phone && root.phone.charge >= 0 ? root.phone.charge + "%" : "–"
-        font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.bodySmall)
+        font.family: Style.font.family; font.pixelSize: Style.font.bodySmall
         color: root.phone && root.phone.charge >= 0 && root.phone.charge <= 20 && !root.phone.charging ? Color.urgent : Util.alpha(root.fg, 0.75)
       }
     }
@@ -625,7 +391,7 @@ Item {
   component ChipFace: Item {
     id: chip
     property real level: 0
-    readonly property int u: Math.max(1, Math.round(Bridge.ModuleBus.px(Style.font.icon + 2) / 18))
+    readonly property int u: Math.max(1, Math.round((Style.font.icon + 2) / 18))
     readonly property color ink: root.fg
     readonly property color fillInk: root.sysHot ? Color.urgent : root.fg
     width: 16 * u; height: 16 * u
@@ -656,16 +422,7 @@ Item {
     }
   }
 
-  // Workbench 1.3 drawer icon.
-  component Drawer: Item {
-    property bool open: false
-    width: Math.round(root.barSize * 0.62); height: Math.round(width * 0.82)
-    Rectangle { anchors.fill: parent; color: "#0055aa"; border.width: 1; border.color: "#ffffff" }
-    Rectangle { x: 2; y: parent.open ? parent.height * 0.52 : parent.height * 0.4; width: parent.width - 4; height: 1; color: "#ffffff" }
-    Rectangle { anchors.horizontalCenter: parent.horizontalCenter; y: parent.open ? parent.height * 0.64 : parent.height * 0.56; width: parent.width * 0.26; height: 2; color: "#ff8800" }
-  }
-
-  // ---------------------------------------------------------------- popup (group list / drawer window)
+  // ---------------------------------------------------------------- popup (group list)
   property bool popupOpen: false
   property string popupGroup: ""
   property Item popupAnchor: root
@@ -687,15 +444,6 @@ Item {
     return []
   }
   readonly property string popupTitle: popupGroup === "all" ? "System" : (function() { for (var i = 0; i < groups.length; i++) if (groups[i].id === popupGroup) return groups[i].name; return "" })()
-  readonly property bool workbench: popupGroup === "all" && (variant === "drawer" || hardware)
-
-  // The compact strip's span in its bar, for the A500 case's LED window.
-  function caseLedSpan() {
-    if (variant !== "compact" || !compactStrip.visible) return null
-    var win = root.QsWindow.window
-    var p = compactStrip.mapToItem(null, 0, 0)
-    return win && win.screen && p ? { screen: win.screen.name, x: Math.round(p.x), w: Math.round(compactStrip.width) } : null
-  }
 
   function stateJson() {
     return JSON.stringify({variant: variant, mounted: Object.keys(mounted), wifi: wifiName,
@@ -709,13 +457,13 @@ Item {
     owner: root
     bar: root.bar
     open: root.popupOpen
-    padding: root.workbench ? 0 : Style.spacing.popupPadding
+    padding: Style.spacing.popupPadding
     focusTarget: popupKeys
-    contentWidth: root.workbench ? Style.space(470) : Style.space(360)
+    contentWidth: Style.space(360)
     contentHeight: popup.fittedContentHeight(content.implicitHeight)
 
-    // Fog look (test): the popup grows out of the bar as fog.
-    Root.FogPanel { panel: popup; fog: Bridge.ModuleBus.fog; color: Bridge.ModuleBus.fogColor; material: Bridge.ModuleBus.material }
+    // Theme material: the popup rolls out of the bar as a card.
+    Root.MaterialCard { panel: popup; material: Bridge.ModuleBus.material }
 
     Item {
       id: popupKeys
@@ -726,67 +474,17 @@ Item {
       Column {
         id: content
         width: parent.width
-        spacing: root.workbench ? 0 : Style.space(4)
-
-        // Workbench title bar (drawer mode)
-        Rectangle {
-          visible: root.workbench
-          width: parent.width; height: Style.space(24)
-          color: Color.accent
-          Row {
-            anchors.fill: parent; anchors.leftMargin: Style.space(8)
-            spacing: Style.space(8)
-            Rectangle { anchors.verticalCenter: parent.verticalCenter; width: Style.space(12); height: width; color: "transparent"; border.width: 1; border.color: Color.popups.background
-              Rectangle { anchors.centerIn: parent; width: 4; height: 4; color: Color.popups.background } }
-            Text { textFormat: Text.PlainText;
-              anchors.verticalCenter: parent.verticalCenter
-              text: root.popupTitle
-              font.family: Bridge.ModuleBus.momentFamily
-              font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.title)
-              font.bold: !Bridge.ModuleBus.pixelMoments
-              renderType: Text.NativeRendering
-              color: Color.popups.background
-            }
-          }
-          // drag stripes
-          Column {
-            anchors.right: parent.right; anchors.rightMargin: Style.space(8); anchors.verticalCenter: parent.verticalCenter
-            spacing: 2
-            Repeater { model: 4; Rectangle { width: Style.space(110); height: 1; color: Util.alpha(Color.popups.background, 0.6) } }
-          }
-        }
+        spacing: Style.space(4)
 
         Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
-          visible: !root.workbench
           text: root.popupTitle
-          font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.title)
+          font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.title
           color: Color.popups.text
           bottomPadding: Style.space(4)
         }
 
-        // rows (groups) or icon grid (drawer)
-        Grid {
-          visible: root.workbench
-          width: parent.width
-          columns: 4
-          padding: Style.space(12)
-          rowSpacing: Style.space(10)
-          Repeater {
-            model: root.workbench ? root.popupMembers : []
-            Item {
-              required property string modelData
-              width: (content.width - Style.space(24)) / 4; height: Style.space(64)
-              Rectangle { anchors.fill: parent; anchors.margins: 2; color: iconHover.hovered ? Util.alpha(Color.popups.text, 0.08) : "transparent" }
-              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.horizontalCenter: parent.horizontalCenter; y: Style.space(4); text: root.catalogue[modelData].glyph; font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.space(28)); color: root.memberAlert(modelData) ? Color.urgent : Color.popups.text }
-              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.horizontalCenter: parent.horizontalCenter; y: Style.space(40); width: parent.width - 4; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight; text: root.catalogue[modelData].name; font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: Color.popups.text }
-              HoverHandler { id: iconHover }
-              MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openMember(parent.modelData) }
-            }
-          }
-        }
-
         Repeater {
-          model: root.workbench ? [] : root.popupMembers
+          model: root.popupMembers
           Rectangle {
             required property string modelData
             width: content.width; height: Style.space(40)
@@ -795,25 +493,17 @@ Item {
             Row {
               anchors.fill: parent; anchors.leftMargin: Style.space(8)
               spacing: Style.space(10)
-              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; width: Style.space(20); text: root.catalogue[modelData].glyph; font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.icon + 2); color: root.memberAlert(modelData) ? Color.urgent : Color.popups.text }
+              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; width: Style.space(20); text: root.catalogue[modelData].glyph; font.family: Style.font.family; font.pixelSize: Style.font.icon + 2; color: root.memberAlert(modelData) ? Color.urgent : Color.popups.text }
               Column {
                 anchors.verticalCenter: parent.verticalCenter
-                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; text: root.catalogue[modelData].name; font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.body); color: Color.popups.text }
-                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; visible: text !== ""; text: root.memberState(modelData); font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: root.memberAlert(modelData) ? Color.urgent : Util.alpha(Color.popups.text, 0.6) }
+                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; text: root.catalogue[modelData].name; font.family: Style.font.family; font.pixelSize: Style.font.body; color: Color.popups.text }
+                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; visible: text !== ""; text: root.memberState(modelData); font.family: Style.font.family; font.pixelSize: Style.font.caption; color: root.memberAlert(modelData) ? Color.urgent : Util.alpha(Color.popups.text, 0.6) }
               }
             }
-            Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.right: parent.right; anchors.rightMargin: Style.space(10); anchors.verticalCenter: parent.verticalCenter; text: "›"; font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.title); color: Util.alpha(Color.popups.text, 0.5) }
+            Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.right: parent.right; anchors.rightMargin: Style.space(10); anchors.verticalCenter: parent.verticalCenter; text: "›"; font.family: Style.font.family; font.pixelSize: Style.font.title; color: Util.alpha(Color.popups.text, 0.5) }
             HoverHandler { id: rowHover }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openMember(parent.modelData) }
           }
-        }
-
-        Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
-          visible: root.workbench
-          leftPadding: Style.space(12); bottomPadding: Style.space(10)
-          text: "Click opens the widget's own Omarchy popup"
-          font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption)
-          color: Util.alpha(Color.popups.text, 0.5)
         }
       }
     }

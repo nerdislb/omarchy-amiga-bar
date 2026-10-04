@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "id": "nerdibeard.amiga-bar",
-  "name": "Amiga Bar",
-  "version": "0.9.1-local.1",
+  "id": "nerdibeard.tusche-bar",
+  "name": "Tusche Bar",
+  "version": "1.0.0-local.1",
   "author": "Nerdibeard",
   "license": "MIT",
-  "description": "Presets and compact Amiga-style modules for the native Omarchy bar (workspaces, quotas, status, island).",
+  "description": "Presets and compact modules for the native Omarchy bar (workspaces, AI quotas, status, centre), made for the Tusche & Papier themes.",
   "kinds": [
     "panel",
     "menu"

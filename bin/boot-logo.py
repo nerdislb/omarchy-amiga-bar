@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Boot screen logo (Plymouth) for the Amiga Bar's logos: set | restore | status | render.
+"""Boot screen logo (Plymouth) for the Tusche Bar's logos: set | restore | status | render.
 
 The boot screen asks for the disk password before the desktop starts; Omarchy
 draws it from /usr/share/plymouth/themes/omarchy (logo.png on a background and
@@ -33,7 +33,7 @@ HERE = Path(__file__).resolve().parent
 ASSETS = HERE.parent / 'assets/boot'
 LOGOS = ('nerdibeard', 'arch')
 INSTALLED = Path('/usr/share/plymouth/themes/omarchy/logo.png')
-STATE = Path.home() / '.local/state/amiga-bar/boot-logo'
+STATE = Path.home() / '.local/state/tusche-bar/boot-logo'
 CURRENT = Path.home() / '.local/state/omarchy/current/theme'
 
 

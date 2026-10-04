@@ -6,23 +6,22 @@ import qs.Commons
 import qs.Ui
 
 // Workspaces (and optionally the Omarchy menu logo) in one compact module.
-// Loaded by the Amiga Bar as a custom QML module:
-//   { "id": "amiga.workspaces", "source": ".../modules/Workspaces.qml",
-//     "variant": "pips" | "stack" | "logo" | "minimap" | "cli" | "boing"
+// Loaded by the Tusche Bar as a custom QML module:
+//   { "id": "tusche.workspaces", "source": ".../modules/Workspaces.qml",
+//     "variant": "pips" | "stack" | "logo" | "minimap"
 //                | "none" (menu logo only, next to the native workspaces),
-//     "menu": true, "logo": "omarchy" | "amiga" | "boing" | "arch" | "nerdibeard" }
-// Left click on a workspace focuses it. On the logo, with the "menu" option
-// "drop" (default): left click folds out the drop-down menu (DropMenu.qml),
-// right click opens Omarchy's own centred menu; with "strip": left click the
-// Omarchy menu, right click the Amiga menu strip. Middle click: the Control
-// Center. The mouse wheel steps through workspaces in every variant.
+//     "menu": true, "logo": "omarchy" | "arch" | "nerdibeard" }
+// Left click on a workspace focuses it. On the logo: left click folds out the
+// drop-down menu (DropMenu.qml), right click opens Omarchy's own centred menu,
+// middle click the Control Center. The mouse wheel steps through workspaces
+// in every variant.
 // The drop-down also answers the questions of the actions it ran
 // (dropAsk, for the engine's IPC `ask`).
 Item {
   id: root
 
   property var bar: null
-  property string moduleName: "amiga.workspaces"
+  property string moduleName: "tusche.workspaces"
   property var settings: ({})
 
   function setting(key, fallback) {
@@ -80,20 +79,18 @@ Item {
     var next = ids[Math.max(0, Math.min(ids.length - 1, (i < 0 ? 0 : i) + delta))]
     if (next !== active) focusWorkspace(next)
   }
-  readonly property bool dropStyle: Bridge.ModuleBus.menuStyle !== "strip"
   function openMenu(button) {
     if (!bar) return
-    if (button === Qt.MiddleButton) bar.run("omarchy-shell amiga-bar options")
-    else if (dropStyle && button !== Qt.RightButton) toggleDrop()
-    else if (!dropStyle && button === Qt.RightButton) bar.run("omarchy-shell amiga-bar strip")
+    if (button === Qt.MiddleButton) bar.run("omarchy-shell tusche-bar options")
+    else if (button !== Qt.RightButton) toggleDrop()
     else bar.run("omarchy-shell shell toggle omarchy.menu '{\"menu\":\"root\"}'")
   }
 
   // ---------------------------------------------------------------- drop-down menu
   // Popup contract for the panel and the bar's single-popout coordinator.
-  // Only with the logo shown and the "drop" option; otherwise open() is a
-  // no-op, so panel navigation never holds an invisible "opened" owner.
-  readonly property bool dropAvailable: showMenu && dropStyle && !!bar
+  // Only with the logo shown; otherwise open() is a no-op, so panel
+  // navigation never holds an invisible "opened" owner.
+  readonly property bool dropAvailable: showMenu && !!bar
   property bool dropOpen: false
   readonly property bool opened: dropOpen
   property bool popoutSwitchClosing: false
@@ -225,21 +222,13 @@ Item {
     Text { renderType: Text.NativeRendering;
       anchors.centerIn: parent
       anchors.verticalCenterOffset: menuSlot.inverted ? Math.round(root.barSize * 0.08) : 0
-      visible: root.variant !== "logo" && ["amiga", "boing", "arch", "nerdibeard"].indexOf(root.logo) === -1
+      visible: root.variant !== "logo" && ["arch", "nerdibeard"].indexOf(root.logo) === -1
       text: ""
-      font.family: Bridge.ModuleBus.pixelAll ? Bridge.ModuleBus.pixelFamily : "omarchy"
-      font.pixelSize: Bridge.ModuleBus.px(Style.font.icon + 2)
+      font.family: "omarchy"
+      font.pixelSize: Style.font.icon + 2
       color: menuSlot.inverted ? menuSlot.source.text : root.strong
     }
 
-    // Amiga tick or Boing ball in the pixel brick grid, on whole pixels.
-    PixelLogo {
-      visible: root.variant !== "logo" && (root.logo === "amiga" || root.logo === "boing")
-      kind: root.logo
-      x: Math.round((parent.width - implicitWidth) / 2)
-      y: Math.round((parent.height - implicitHeight) / 2)
-      width: implicitWidth; height: implicitHeight
-    }
 
     // Arch (the official mark, unaltered) and the Nerdibeard seal (logo
     // design round 04.10.). Loaded only when chosen, so each arrives with
@@ -287,8 +276,8 @@ Item {
       Text { renderType: Text.NativeRendering;
         anchors.centerIn: parent
         text: root.active === 10 ? "0" : String(root.active)
-        font.family: Bridge.ModuleBus.family; font.bold: true
-        font.pixelSize: Bridge.ModuleBus.px(Style.font.body + 1)
+        font.family: Style.font.family; font.bold: true
+        font.pixelSize: Style.font.body + 1
         color: root.accent
       }
     }
@@ -312,8 +301,6 @@ Item {
       case "stack": return stackView
       case "logo": return dotsView
       case "minimap": return minimapView
-      case "cli": return cliView
-      case "boing": return boingView
       case "none": return null
       default: return pipsView
       }
@@ -363,7 +350,7 @@ Item {
             anchors.centerIn: parent
             opacity: pips.grow
             text: modelData === 10 ? "0" : String(modelData)
-            font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.bodySmall)
+            font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.bodySmall
             color: parent.occ ? Bridge.ModuleBus.barColor : root.fg
           }
           MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.focusWorkspace(parent.modelData) }
@@ -382,7 +369,7 @@ Item {
           anchors.centerIn: parent
           opacity: pips.grow
           text: root.active === 10 ? "0" : String(root.active)
-          font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.bodySmall)
+          font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.bodySmall
           color: Bridge.ModuleBus.barColor
         }
       }
@@ -422,7 +409,7 @@ Item {
         width: parent.box; height: parent.box
         color: Bridge.ModuleBus.barColor
         border.width: Math.max(1, Style.space(1.5)); border.color: root.accent
-        Text { renderType: Text.NativeRendering; anchors.centerIn: parent; text: root.active === 10 ? "0" : String(root.active); font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.body); color: root.strong }
+        Text { renderType: Text.NativeRendering; anchors.centerIn: parent; text: root.active === 10 ? "0" : String(root.active); font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.body; color: root.strong }
       }
       MouseArea {
         anchors.fill: parent
@@ -493,73 +480,6 @@ Item {
           }
           MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.focusWorkspace(parent.modelData) }
         }
-      }
-    }
-  }
-
-  // CLI: "2>" like the Kickstart 1.3 shell prompt, block cursor, +n others.
-  Component {
-    id: cliView
-    Row {
-      spacing: Style.space(2)
-      height: root.barSize
-      Text { renderType: Text.NativeRendering;
-        anchors.verticalCenter: parent.verticalCenter
-        text: (root.active === 10 ? "0" : String(root.active)) + ">"
-        font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.body + 1)
-        color: root.strong
-      }
-      Rectangle {
-        id: cursor
-        anchors.verticalCenter: parent.verticalCenter
-        width: Style.space(8); height: Math.round(root.barSize * 0.55)
-        color: root.accent
-        SequentialAnimation on opacity {
-          running: !Style.reduceMotion
-          loops: Animation.Infinite
-          NumberAnimation { to: 1; duration: 0 }
-          PauseAnimation { duration: 600 }
-          NumberAnimation { to: 0.15; duration: 0 }
-          PauseAnimation { duration: 400 }
-        }
-      }
-      Text { renderType: Text.NativeRendering;
-        readonly property int others: root.occupiedIds.filter(function(id) { return id !== root.active }).length
-        visible: others > 0
-        anchors.verticalCenter: parent.verticalCenter
-        text: "+" + others
-        font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption)
-        color: root.dim
-      }
-    }
-  }
-
-  // Boing: a ball rolls along a track to the active workspace.
-  Component {
-    id: boingView
-    Item {
-      readonly property real stepW: Style.space(13)
-      implicitWidth: (root.ids.length - 1) * stepW + Style.space(12)
-      height: root.barSize
-      Rectangle { x: 0; y: root.barSize * 0.72; width: parent.implicitWidth; height: 1; color: root.dim }
-      Repeater {
-        model: root.ids
-        Rectangle {
-          required property int modelData
-          required property int index
-          readonly property bool occ: root.occupied(modelData)
-          x: Style.space(6) + index * parent.stepW - 1
-          y: root.barSize * 0.72 - height
-          width: 2; height: occ ? Style.space(4) : Style.space(2)
-          color: root.urgent(modelData) ? root.urgentColor : occ ? root.fg : root.dim
-          MouseArea { anchors.fill: parent; anchors.margins: -5; cursorShape: Qt.PointingHandCursor; onClicked: root.focusWorkspace(parent.modelData) }
-        }
-      }
-      BoingBall {
-        size: Math.round(root.barSize * 0.42)
-        x: Style.space(6) + root.activeF * parent.stepW - size / 2
-        y: root.barSize * 0.72 - size - 1
-        spin: root.activeF * 2.2
       }
     }
   }

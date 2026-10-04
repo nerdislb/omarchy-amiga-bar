@@ -5,15 +5,15 @@ import Quickshell.Io
 import qs.Commons
 
 // Current temperature next to the native weather widget (same location as
-// the weather panel, from Open-Meteo). Custom QML module of the Amiga Bar:
-//   { "id": "amiga.centre", "source": ".../modules/Centre.qml" }
+// the weather panel, from Open-Meteo). Custom QML module of the Tusche Bar:
+//   { "id": "tusche.centre", "source": ".../modules/Centre.qml" }
 // The weather and world-clock widgets stay native: their popups place
 // themselves through the bar's centre section.
 Item {
   id: root
 
   property var bar: null
-  property string moduleName: "amiga.centre"
+  property string moduleName: "tusche.centre"
   property var settings: ({})
   readonly property int barSize: bar && bar.barSize ? bar.barSize : Style.bar.sizeHorizontal
   readonly property color fg: bar && bar.barForeground ? bar.barForeground : Color.bar.text
@@ -27,7 +27,7 @@ Item {
     id: label
     anchors.verticalCenter: parent.verticalCenter
     text: root.temperature
-    font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.bodySmall)
+    font.family: Style.font.family; font.pixelSize: Style.font.bodySmall
     color: Util.alpha(root.fg, 0.75)
   }
 

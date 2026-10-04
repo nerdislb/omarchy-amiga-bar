@@ -1,22 +1,22 @@
 import QtQuick
 import "bridge" as Bridge
 
-// The theme material (and the fog look) for Omarchy's own popups – the
-// KeyboardPanels of the native widgets the Amiga Bar hosts (folded into the
-// status groups, or wrapped visibly by modules/Native.qml). It finds each
-// widget's KeyboardPanel and hangs a FogPanel into its content, exactly as
+// The theme material for Omarchy's own popups – the KeyboardPanels of the
+// native widgets the Tusche Bar hosts (folded into the status groups) and of
+// those that stay in Omarchy's bar. It finds each widget's KeyboardPanel and
+// hangs a MaterialCard into its content, exactly as
 // our own popups declare one, so the native network or audio popup rolls,
 // casts the theme's shadow or blooms like ours. Omarchy's code stays as it
 // is: a popup this search does not recognise keeps Omarchy's own look.
-// Without fog and material nothing changes (edge: false – no extra line or
-// shadow on Omarchy's popups).
+// Without a material nothing changes (edge: false – no extra line or shadow
+// on Omarchy's popups).
 QtObject {
   id: dress
 
   property bool enabled: true
-  // panels that already carry a FogPanel
+  // panels that already carry a MaterialCard
   property var dressed: []
-  readonly property Component fogComponent: Component { FogPanel {} }
+  readonly property Component cardComponent: Component { MaterialCard {} }
 
   // A KeyboardPanel (Omarchy's Ui/KeyboardPanel.qml), recognised by its API.
   function isPanel(o) {
@@ -46,14 +46,12 @@ QtObject {
       if (dressed.indexOf(p) !== -1) continue
       var holder = holderOf(p)
       if (!holder) continue
-      var fp = fogComponent.createObject(holder, {
+      var mc = cardComponent.createObject(holder, {
         panel: p,
         edge: false,
-        fog: Qt.binding(function() { return Bridge.ModuleBus.fog }),
-        color: Qt.binding(function() { return Bridge.ModuleBus.fogColor }),
         material: Qt.binding(function() { return Bridge.ModuleBus.material })
       })
-      if (fp) added.push(p)
+      if (mc) added.push(p)
     }
     if (added.length) dressed = dressed.concat(added)
     return added.length
@@ -84,9 +82,9 @@ QtObject {
       if (nativeIds.indexOf(String(slots[j].moduleName)) !== -1 && slots[j].activeItem) n += attach(slots[j].activeItem)
     return n
   }
-  // What the search sees, for `amiga-bar state` (natives): each Omarchy slot
+  // What the search sees, for `tusche-bar state` (natives): each Omarchy slot
   // it found, whether it has a widget, the KeyboardPanels in it, whether their
-  // content holder was recognised and whether they carry a FogPanel.
+  // content holder was recognised and whether they carry a MaterialCard.
   function report(from) {
     if (!from) return null
     var top = from
@@ -102,7 +100,7 @@ QtObject {
     }
     return { slots: slots.length, natives: out, dressedTotal: dressed.length }
   }
-  // a destroyed widget takes its panels (and their FogPanels) along: forget them
+  // a destroyed widget takes its panels (and their MaterialCards) along: forget them
   function forget() {
     dressed = dressed.filter(function(p) { return !!p && p.borderSpec !== undefined })
   }

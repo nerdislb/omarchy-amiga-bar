@@ -1,27 +1,23 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import qs.Commons
 import qs.Ui as Ui
-import "bridge" as Bridge
 import "Presets.js" as Presets
 import "ControlCenter.js" as CC
 
-// Control Center: one window for the Amiga Bar, the Amiga Island and the
+// Control Center: one window for the Tusche Bar, the Tusche Island and the
 // card picker, plus Health. Structure after Shibumi's (Quick · Configure,
 // areas on the left, editor on the right, Ctrl+K search over settings and
-// their values, a Health chip), confirmed the Amiga way:
+// their values, a Health chip), with explicit commits:
 //   Use    applies the staged changes live, the window stays open;
 //   Save   applies what is still staged and closes;
-//   Cancel (button, close gadget, Esc once the search is closed, click
-//          outside, or any other close) restores the state from opening if
-//          Use applied something, then closes.
-// The pixel font row is not staged: it may install the desktop font profile
-// and restart the shell, so it applies at once and Cancel leaves it alone.
+//   Cancel (button, ×, Esc once the search is closed, click outside, or
+//          any other close) restores the state from opening if Use applied
+//          something, then closes.
 // Writes go through the engine's apply (bar), the island's IPC (island) and
 // the card picker's menu-override.py (cards) — see ControlCenter.js.
 PanelWindow {
@@ -29,16 +25,13 @@ PanelWindow {
 
   property var host: null
   property bool open: false
-  // Fog look (test): the window grows out of the bar as fog.
-  property bool fog: false
-  property color fogColor: "black"
   signal closeRequested()
 
   // ---------------------------------------------------------------- state
   property string area: "quick"
   property string configureArea: "bar"     // where "Configure" goes back to
   property string requestedArea: ""        // set before opening (IPC: cc <area>)
-  property var snapshot: null              // live state at opening (font row moves it along)
+  property var snapshot: null              // live state at opening
   property var edits: ({})                 // staged, not applied: { "<domain>.<key>": value }
   property bool usedLive: false            // Use applied something since opening
   property var applied: ({})               // domains Use touched: bar · island · cards
@@ -47,7 +40,6 @@ PanelWindow {
   property bool messageError: false
   property string closeNote: ""            // a failed revert, shown at the next opening
   property string flashId: ""
-  property bool peek: false
   property int searchSel: 0
 
   readonly property var live: CC.liveState(host ? host.options : ({}), host ? host.config : ({}), cardsStatus)
@@ -59,7 +51,7 @@ PanelWindow {
   // ---------------------------------------------------------------- probes (read-only)
   readonly property string homeDir: Quickshell.env("HOME")
   readonly property string cardsScript: homeDir + "/.config/omarchy/plugins/nerdibeard.card-picker/bin/menu-override.py"
-  readonly property string markerPath: homeDir + "/.local/state/omarchy/amiga-island/notifications-takeover"
+  readonly property string markerPath: homeDir + "/.local/state/omarchy/tusche-island/notifications-takeover"
   readonly property string usageDir: (Quickshell.env("XDG_STATE_HOME") || homeDir + "/.local/state") + "/omarchy/agents/usage"
   property string cardsStatus: ""          // enabled · disabled · missing · error · "" (not known yet)
   property var islandNotes: null           // island IPC state.notifications · false: no answer · null: unknown
@@ -70,8 +62,6 @@ PanelWindow {
 
   readonly property var healthList: CC.healthChecks({
     hasBase: !!(host && host.baseLayout),
-    profile: host ? host.systemProfile : "unknown",
-    font: live.bar.font,
     usageFolded: !!(host && host.usageFolded),
     usageRunning: !!(host && host.usageRunning),
     usageIntervalSec: host ? host.usageIntervalSec : 900,
@@ -103,7 +93,7 @@ PanelWindow {
     : message !== "" ? message
     : changeList.length ? changeList.length + (changeList.length === 1 ? " change" : " changes") + " staged, not applied · Use tries it live, Save applies and closes"
     : usedLive ? "Live, not saved yet · Save keeps it, Cancel restores the state from opening"
-    : "Ctrl+K search · ↑↓ areas · Esc cancels · hold the depth gadget to look behind the window"
+    : "Ctrl+K search · ↑↓ areas · Esc cancels"
   readonly property color footerTone: !working && message !== "" && messageError ? Color.urgent
     : working || message !== "" || changeList.length || usedLive ? Color.accent
     : Util.alpha(Color.popups.text, 0.6)
@@ -125,7 +115,7 @@ PanelWindow {
   }
 
   // ---------------------------------------------------------------- open / close
-  onOpenChanged: { if (open) begin(); else end(); followFog() }
+  onOpenChanged: { if (open) begin(); else end(); reveal() }
 
   function begin() {
     if (working) { beginAfterWork = true; return }
@@ -137,14 +127,13 @@ PanelWindow {
     cardsStatus = ""                            // read again below; joins the snapshot when it arrives
     snapshot = CC.copy(live)
     message = closeNote; messageError = closeNote !== ""; closeNote = ""
-    flashId = ""; peek = false; searchSel = 0
+    flashId = ""; searchSel = 0
     searchField.text = ""; comboName.text = ""
     editor.contentY = 0
     refreshHealth()
     keys.forceActiveFocus()
   }
   function end() {
-    peek = false
     searchField.text = ""
     if (working) return                         // finishQueue decides
     if (!committed && usedLive) revertInBackground()
@@ -172,30 +161,16 @@ PanelWindow {
   function pick(id, v) {
     if (working || !host) return
     message = ""; messageError = false
-    if (id === "bar.font") { pickFont(v); return }
     edits = CC.stage(edits, live, id, v)
-  }
-  // Not staged: may install/remove the desktop font profile (and restart the
-  // shell). The snapshot follows, so Cancel does not undo it.
-  function pickFont(level) {
-    var e = Object.assign({}, edits); delete e["bar.font"]; edits = e
-    if (level === live.bar.font) return
-    var wasDesktop = live.bar.font === "desktop"
-    var r = host.setFont(level)
-    if (r !== "ok") { message = "Pixel font: " + r; messageError = true; return }
-    snapshot = CC.withValue(snapshot, "bar.font", level)
-    message = level === "desktop" || wasDesktop
-      ? "Pixel font: switching the desktop font profile — the shell restarts when it is done"
-      : "Pixel font applied at once (outside Save · Use · Cancel)"
   }
   function stageOptions(options) {
     if (working) return
     message = ""; messageError = false
-    edits = CC.stageBar(edits, live, Presets.keepDesktopFont(options, pending.bar))
+    edits = CC.stageBar(edits, live, Presets.keepLook(options, pending.bar))
   }
   function stagePreset(id) { var p = Presets.presetById(id); if (p) stageOptions(p.options) }
   function saveCombination(name) {
-    if (host) host.saveResult = host.saveCombination(name, CC.commitBar(pending.bar, live.bar))
+    if (host) host.saveResult = host.saveCombination(name, CC.commitBar(pending.bar))
   }
 
   // ---------------------------------------------------------------- Save · Use · Cancel
@@ -246,9 +221,9 @@ PanelWindow {
     nextStep()
   }
   function stepLabel(s) {
-    if (s.domain === "island") { var spec = CC.setting("island." + s.key); return "Amiga Island · " + spec.label + ": " + CC.valueLabel(spec, s.value) }
+    if (s.domain === "island") { var spec = CC.setting("island." + s.key); return "Tusche Island · " + spec.label + ": " + CC.valueLabel(spec, s.value) }
     if (s.domain === "cards") return "Card picker · " + CC.valueLabel(CC.setting("cards.override"), s.value)
-    return "Amiga Bar · " + s.keys.length + (s.keys.length === 1 ? " option" : " options") + " (the bar rebuilds)"
+    return "Tusche Bar · " + s.keys.length + (s.keys.length === 1 ? " option" : " options") + " (the bar rebuilds)"
   }
   function setPhase(p) { phase = p; phaseAt = Date.now() }
   function nextStep() {
@@ -257,7 +232,7 @@ PanelWindow {
     workText = (queueMode === "cancel" || queueMode === "revert" ? "Restoring · " : "Applying · ") + stepLabel(step)
     if (step.domain === "island") {
       setPhase("set")
-      islandSet.command = ["omarchy-shell", "amiga-island", "set", step.key, String(step.value)]
+      islandSet.command = ["omarchy-shell", "tusche-island", "set", step.key, String(step.value)]
       islandSet.running = true
     } else if (step.domain === "cards") {
       setPhase("set")
@@ -298,17 +273,17 @@ PanelWindow {
       }
     } else if (s.domain === "bar") {
       if (phase === "wait") {
-        // Let a pixel font change (immediate) finish and reach shell.json
-        // first: the options are computed on top of the live ones.
-        if (host.writing || host.fontBusy) return
+        // Let an earlier write finish and reach shell.json first: the
+        // options are computed on top of the live ones.
+        if (host.writing) return
         if (host.lastWritten && !CC.sameOptions(host.options, host.lastWritten) && now - phaseAt < 3000) return
         s.value = CC.barOptions(s, live.bar)
         var r = host.apply(s.value)
-        if (r !== "ok") { failStep("Amiga Bar: " + r); return }
+        if (r !== "ok") { failStep("Tusche Bar: " + r); return }
         setPhase("write")
       } else if (phase === "write") {
         if (host.writing) return
-        if (String(host.lastResult).indexOf("error") === 0) { failStep("Amiga Bar: " + host.lastResult); return }
+        if (String(host.lastResult).indexOf("error") === 0) { failStep("Tusche Bar: " + host.lastResult); return }
         if (CC.sameOptions(host.options, s.value)) stepDone(true)
       }
     }
@@ -353,7 +328,7 @@ PanelWindow {
       if (!win.step || win.step.domain !== "island") return
       var out = String(islandSetOut.text || "").trim()
       if (code !== 0 || out !== String(win.step.value)) {
-        win.failStep("Amiga Island did not take " + win.step.key + ": " + (out || String(islandSetErr.text || "").trim() || "no answer"))
+        win.failStep("Tusche Island did not take " + win.step.key + ": " + (out || String(islandSetErr.text || "").trim() || "no answer"))
         return
       }
       win.setPhase("config")
@@ -379,7 +354,6 @@ PanelWindow {
   // ---------------------------------------------------------------- health probes
   function refreshHealth() {
     if (!host) return
-    host.refreshSystemFont()
     if (!markerProbe.running) markerProbe.running = true
     if (!usageProbe.running) usageProbe.running = true
     if (live.island) probeIsland()
@@ -393,7 +367,7 @@ PanelWindow {
   }
   Process {
     id: islandProbe
-    command: ["omarchy-shell", "amiga-island", "state"]
+    command: ["omarchy-shell", "tusche-island", "state"]
     stdout: StdioCollector { id: islandProbeOut }
     onExited: function(code) {
       var notes = false
@@ -492,11 +466,11 @@ PanelWindow {
     for (var i = 0; i < s.length; i++) if (s[i].name === f) return s[i]
     return s.length ? s[0] : null
   }
-  visible: open || stage.reveal > 0.001 || grow > 0.001 || ghost.opacity > 0
+  visible: open || stage.reveal > 0.001
   color: "transparent"
   anchors { top: true; bottom: true; left: true; right: true }
   exclusionMode: ExclusionMode.Ignore
-  WlrLayershell.namespace: "amiga-bar-control-center"
+  WlrLayershell.namespace: "tusche-bar-control-center"
   WlrLayershell.layer: WlrLayer.Overlay
   WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
@@ -507,89 +481,13 @@ PanelWindow {
     onClicked: win.cancel()
   }
 
-  // ------------------------------------------------------------ fog look
-  // reveal 0 → 1 shows the card. Plain: a short fade. Fog: a drop falls out
-  // of the bar under its centre, swells to the card's size, then the card
-  // fades in on it; closing reverses and leaves a faint fog for a moment.
-  property real grow: 0
-  readonly property bool fogShown: fog && !Style.reduceMotion
-  readonly property real fogMargin: 32
-  readonly property real barBottom: card.y - Style.gapsOut
-  readonly property var blob: {
-    var d = Math.min(1, grow / 0.3)
-    var e = Math.max(0, Math.min(1, (grow - 0.3) / 0.7))
-    e = 1 - Math.pow(1 - e, 3)
-    var dropW = 52, dropH = 28
-    var fullH = card.y + card.height - barBottom
-    var dx = card.x + card.width / 2 - dropW / 2
-    return { x: dx + (card.x - dx) * e, y: barBottom, w: dropW + (card.width - dropW) * e, h: d * dropH + (fullH - dropH) * e }
-  }
+  // ------------------------------------------------------------ reveal
+  // reveal 0 → 1 shows the card: a short fade (none with Reduced Motion).
   NumberAnimation { id: revealAnim; target: stage; property: "reveal"; duration: Style.duration(140); easing.type: Easing.OutCubic }
-  SequentialAnimation {
-    id: fogOpening
-    NumberAnimation { target: win; property: "grow"; to: 1; duration: 480; easing.type: Easing.Linear }
-    NumberAnimation { target: stage; property: "reveal"; to: 1; duration: 140; easing.type: Easing.Linear }
-  }
-  SequentialAnimation {
-    id: fogClosing
-    NumberAnimation { target: stage; property: "reveal"; to: 0; duration: 110; easing.type: Easing.Linear }
-    ScriptAction {
-      script: {
-        ghost.x = win.blob.x - fogStage.x; ghost.y = win.blob.y - fogStage.y
-        ghost.width = win.blob.w; ghost.height = win.blob.h
-        ghost.opacity = 0.16
-        ghostFade.restart()
-      }
-    }
-    NumberAnimation { target: win; property: "grow"; to: 0; duration: 380; easing.type: Easing.Linear }
-  }
-  NumberAnimation { id: ghostFade; target: ghost; property: "opacity"; to: 0; duration: 760; easing.type: Easing.InQuad }
-  function followFog() {
-    revealAnim.stop(); fogOpening.stop(); fogClosing.stop()
-    if (!fogShown) {
-      grow = 0
-      revealAnim.to = open ? 1 : 0
-      revealAnim.start()
-      return
-    }
-    if (open) {
-      if (grow >= 1) { revealAnim.to = 1; revealAnim.start() }
-      else { stage.reveal = 0; fogOpening.start() }
-    } else if (grow > 0) fogClosing.start()
-    else { revealAnim.to = 0; revealAnim.start() }
-  }
-  onFogShownChanged: if (!fogShown) { grow = 0; ghost.opacity = 0; followFog() }
-
-  // The fog, under the card; clipped at the bar's lower edge (the shapes
-  // reach up into the bar for the blur, nothing is painted over the bar).
-  Item {
-    id: fogStage
-    visible: win.fog && (win.grow > 0 || ghost.opacity > 0)
-    x: card.x - win.fogMargin
-    y: win.barBottom
-    width: card.width + win.fogMargin * 2
-    height: card.y + card.height + win.fogMargin - win.barBottom
-    clip: true
-
-    Item {
-      anchors.fill: parent
-      // enabled only while shown: a MultiEffect created hidden never draws
-      layer.enabled: fogStage.visible
-      layer.effect: MultiEffect { blurEnabled: true; blur: 1; blurMax: 48; autoPaddingEnabled: false }
-      Rectangle { id: ghost; opacity: 0; radius: 12; color: win.fogColor }
-    }
-    FogLayer {
-      y: -win.fogMargin
-      width: fogStage.width
-      height: fogStage.height + win.fogMargin
-      color: win.fogColor
-      blurMax: 24
-      threshold: 0.4
-      softness: 0.5
-      // the flare where the blob leaves the bar; shapes only change size
-      Rectangle { x: win.blob.x - fogStage.x - 14; width: win.grow > 0 ? win.blob.w + 28 : 0; height: win.fogMargin + 1; color: "white" }
-      Rectangle { x: win.blob.x - fogStage.x; y: win.fogMargin; width: win.blob.w; height: win.blob.h; radius: 10; color: "white" }
-    }
+  function reveal() {
+    revealAnim.stop()
+    revealAnim.to = open ? 1 : 0
+    revealAnim.start()
   }
 
   Item {
@@ -605,14 +503,9 @@ PanelWindow {
       height: Math.min(win.height - y - Style.space(12), Style.space(640))
       x: Math.round((win.width - width) / 2)
       y: Style.bar.sizeHorizontal + Style.gapsOut
-      // Fog look: the fog is the card's surface.
-      color: win.fog ? "transparent" : Color.popups.background
-      borderSpec: win.fog ? Border.flat("transparent", Math.max(1, Style.space(2)))
-        : Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
+      color: Color.popups.background
+      borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
       radius: Style.cornerRadius
-      // Depth gadget held: look behind the window.
-      opacity: win.peek ? 0.12 : 1
-      Behavior on opacity { NumberAnimation { duration: Style.duration(120) } }
 
       MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
       Item {
@@ -622,58 +515,32 @@ PanelWindow {
         Keys.onPressed: function(e) { win.keyPressed(e) }
       }
 
-      // ---- Workbench title bar: close gadget (Cancel), title, drag stripes, depth gadget
+      // ---- title: name and × (Cancel)
       Item {
         id: titleBar
-        readonly property int inset: Math.max(Style.space(2), Math.round(card.radius / 2))
-        x: card.borderLeft + inset
-        y: card.borderTop + inset
-        width: card.width - card.borderLeft - card.borderRight - inset * 2
-        height: Math.max(Style.space(24), titleText.implicitHeight + Style.space(6))
-        Bevel { anchors.fill: parent; fill: Util.alpha(Color.popups.text, 0.06) }
-        Item {
-          id: closeGadget
-          width: parent.height; height: parent.height
-          Rectangle {
-            anchors.centerIn: parent
-            width: Math.round(parent.height * 0.44); height: width
-            color: "transparent"; border.width: 1; border.color: Color.popups.text
-            Rectangle { anchors.centerIn: parent; width: Math.max(2, Math.round(parent.width * 0.34)); height: width; color: Color.popups.text }
-          }
-          MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.cancel() }
-        }
-        Rectangle { x: closeGadget.width; y: 3; width: 1; height: parent.height - 6; color: Util.alpha("#000000", 0.5) }
-        Moment {
+        x: card.borderLeft + card.pad
+        y: card.borderTop + card.pad
+        width: card.width - card.borderLeft - card.borderRight - card.pad * 2
+        height: Math.max(closeButton.height, titleText.implicitHeight)
+        Strong {
           id: titleText
-          x: closeGadget.width + Style.space(10)
           anchors.verticalCenter: parent.verticalCenter
           text: "Control Center"
-          font.bold: !Bridge.ModuleBus.pixelMoments
+          font.pixelSize: Style.font.title
+          font.bold: true
         }
-        Column {
-          x: titleText.x + titleText.implicitWidth + Style.space(12)
-          width: Math.max(0, depthGadget.x - x - Style.space(10))
-          anchors.verticalCenter: parent.verticalCenter
-          spacing: 2
-          Repeater {
-            model: Math.max(0, Math.floor((titleBar.height - 8) / 3))
-            Rectangle { width: parent.width; height: 1; color: Util.alpha(Color.popups.text, 0.18) }
-          }
-        }
-        Rectangle { x: depthGadget.x - 1; y: 3; width: 1; height: parent.height - 6; color: Util.alpha("#000000", 0.5) }
         Item {
-          id: depthGadget
+          id: closeButton
           x: parent.width - width
-          width: parent.height; height: parent.height
-          Rectangle { x: parent.width * 0.2; y: parent.height * 0.2; width: parent.width * 0.42; height: parent.height * 0.38; color: "transparent"; border.width: 1; border.color: Color.popups.text }
-          Rectangle { x: parent.width * 0.38; y: parent.height * 0.42; width: parent.width * 0.42; height: parent.height * 0.38; color: Color.popups.text }
-          MouseArea {
+          anchors.verticalCenter: parent.verticalCenter
+          width: Style.space(28); height: width
+          Rectangle {
             anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onPressed: win.peek = true
-            onReleased: win.peek = false
-            onCanceled: win.peek = false
+            radius: Math.min(Style.cornerRadius, 3)
+            color: closeMouse.containsMouse ? Style.hoverFillFor(Color.popups.text, Color.accent, Color.urgent) : "transparent"
           }
+          Strong { anchors.centerIn: parent; text: "×"; font.pixelSize: Style.font.title; color: Util.alpha(Color.popups.text, 0.75) }
+          MouseArea { id: closeMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.cancel() }
         }
       }
 
@@ -692,8 +559,8 @@ PanelWindow {
           Row {
             id: segments
             anchors.verticalCenter: parent.verticalCenter
-            WbButton { label: "Quick"; minWidth: Style.space(92); selected: win.area === "quick"; onPicked: win.showArea("quick") }
-            WbButton { label: "Configure"; minWidth: Style.space(92); selected: win.area !== "quick"; onPicked: win.showArea(win.configureArea) }
+            CcButton { label: "Quick"; minWidth: Style.space(92); selected: win.area === "quick"; onPicked: win.showArea("quick") }
+            CcButton { label: "Configure"; minWidth: Style.space(92); selected: win.area !== "quick"; onPicked: win.showArea(win.configureArea) }
           }
           Item {
             id: searchBox
@@ -701,7 +568,7 @@ PanelWindow {
             width: Math.max(Style.space(160), Math.min(Style.space(520), healthRow.x - x - Style.space(16)))
             height: Math.max(Style.space(30), searchField.implicitHeight)
             anchors.verticalCenter: parent.verticalCenter
-            Bevel { anchors.fill: parent; inset: true; fill: Qt.darker(Color.popups.background, 1.25) }
+            Face { anchors.fill: parent; inset: true; fill: Qt.darker(Color.popups.background, 1.25) }
             Rectangle {
               anchors.fill: parent; anchors.margins: -1
               color: "transparent"; border.width: 1; border.color: Color.accent
@@ -725,7 +592,7 @@ PanelWindow {
               placeholderTextColor: Util.alpha(Color.popups.text, 0.45)
               renderType: Text.NativeRendering
               selectByMouse: true
-              font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.body)
+              font.family: Style.font.family; font.pixelSize: Style.font.body
               color: Color.popups.text
               background: Item {}
               onTextChanged: win.searchSel = 0
@@ -753,7 +620,7 @@ PanelWindow {
               height: chipText.implicitHeight + Style.space(6)
               color: Util.alpha(tone, 0.16)
               border.width: 1; border.color: tone
-              Moment { id: chipText; anchors.centerIn: parent; text: win.health.label; color: healthChip.tone; font.bold: !Bridge.ModuleBus.pixelMoments }
+              Strong { id: chipText; anchors.centerIn: parent; text: win.health.label; color: healthChip.tone; font.bold: true }
               MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.showArea("health") }
             }
           }
@@ -770,7 +637,7 @@ PanelWindow {
 
           Column {
             id: areaList
-            width: Bridge.ModuleBus.pixelAll ? Style.space(236) : Style.space(200)
+            width: Style.space(200)
             spacing: Style.space(2)
             Repeater {
               model: CC.AREAS
@@ -831,12 +698,12 @@ PanelWindow {
               Item {
                 width: parent.width
                 height: areaHead.implicitHeight + Style.space(6)
-                Moment {
+                Strong {
                   id: areaHead
                   text: CC.areaLabel(win.area)
                   color: Color.accent
-                  font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.title)
-                  font.bold: !Bridge.ModuleBus.pixelMoments
+                  font.pixelSize: Style.font.title
+                  font.bold: true
                 }
                 Caption {
                   anchors.left: areaHead.right; anchors.leftMargin: Style.space(10)
@@ -853,17 +720,14 @@ PanelWindow {
                 width: parent.width
                 spacing: Style.space(2)
                 SectionHead { text: "LOOK" }
-                Repeater { model: CC.QUICK.filter(function(id) { return id.indexOf("bar.") === 0 && id !== "bar.font" }); delegate: settingRow }
-                SectionHead { visible: win.islandAvailable; text: "AMIGA ISLAND" }
+                Repeater { model: CC.QUICK.filter(function(id) { return id.indexOf("bar.") === 0 }); delegate: settingRow }
+                SectionHead { visible: win.islandAvailable; text: "TUSCHE ISLAND" }
                 Repeater { model: win.islandAvailable ? CC.QUICK.filter(function(id) { return id.indexOf("island.") === 0 }) : []; delegate: settingRow }
-                SectionHead { text: "PIXEL FONT" }
-                Repeater { model: ["bar.font"]; delegate: settingRow }
-                FontNotes {}
                 SectionHead { text: "PRESETS" }
                 PresetFlow {}
               }
 
-              // ---- Amiga Bar
+              // ---- Tusche Bar
               Column {
                 visible: win.area === "bar"
                 width: parent.width
@@ -888,7 +752,7 @@ PanelWindow {
                       id: nameBox
                       width: parent.width - saveCombo.width - Style.space(8)
                       height: Math.max(Style.space(30), comboName.implicitHeight)
-                      Bevel { anchors.fill: parent; inset: true; fill: Qt.darker(Color.popups.background, 1.25) }
+                      Face { anchors.fill: parent; inset: true; fill: Qt.darker(Color.popups.background, 1.25) }
                       TextField {
                         id: comboName
                         x: Style.space(8); width: parent.width - Style.space(16); height: parent.height
@@ -899,7 +763,7 @@ PanelWindow {
                         maximumLength: 48
                         renderType: Text.NativeRendering
                         selectByMouse: true
-                        font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.body)
+                        font.family: Style.font.family; font.pixelSize: Style.font.body
                         color: Color.popups.text
                         background: Item {}
                         onAccepted: win.saveCombination(text)
@@ -909,7 +773,7 @@ PanelWindow {
                         }
                       }
                     }
-                    WbButton { id: saveCombo; x: parent.width - width; label: "Save / replace"; onPicked: win.saveCombination(comboName.text) }
+                    CcButton { id: saveCombo; x: parent.width - width; label: "Save / replace"; onPicked: win.saveCombination(comboName.text) }
                   }
                   Flow {
                     width: parent.width
@@ -940,10 +804,9 @@ PanelWindow {
                 }
                 SectionHead { text: "OPTIONS" }
                 Repeater { model: CC.barIds(); delegate: settingRow }
-                FontNotes {}
               }
 
-              // ---- Amiga Island
+              // ---- Tusche Island
               Column {
                 visible: win.area === "island"
                 width: parent.width
@@ -951,7 +814,7 @@ PanelWindow {
                 Caption {
                   visible: !win.islandAvailable
                   width: parent.width; wrapMode: Text.WordWrap
-                  text: "The Amiga Island (nerdibeard.amiga-island) is not in shell.json, so there is nothing to set here."
+                  text: "The Tusche Island (nerdibeard.tusche-island) is not in shell.json, so there is nothing to set here."
                 }
                 SectionHead { visible: win.islandAvailable; text: "NOTIFICATIONS" }
                 Repeater { model: win.islandAvailable ? CC.ISLAND_SETTINGS.map(function(s) { return "island." + s.key }) : []; delegate: settingRow }
@@ -959,7 +822,7 @@ PanelWindow {
                   visible: win.islandAvailable
                   topPadding: Style.space(6)
                   width: parent.width; wrapMode: Text.WordWrap
-                  text: "The island saves these itself (omarchy-shell amiga-island set …). Notifications on: the island takes over from Omarchy's notification service and shows them in the bar; off hands them back. Its fog look follows the Amiga Bar's Fog option, so there is no separate switch here."
+                  text: "The island saves these itself (omarchy-shell tusche-island set …). Notifications on: the island takes over from Omarchy's notification service and shows them in the bar; off hands them back. With the bar edge \"From the theme\" and a theme that has a bar material (Tusche & Papier) the notes take the theme's card; the note style is for other themes."
                 }
               }
 
@@ -1000,7 +863,7 @@ PanelWindow {
                     color: win.health.issues ? Color.urgent : Color.popups.text
                     font.bold: true
                   }
-                  WbButton { id: recheck; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; label: "Check again"; onPicked: win.refreshHealth() }
+                  CcButton { id: recheck; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; label: "Check again"; onPicked: win.refreshHealth() }
                 }
                 Repeater {
                   model: win.healthList
@@ -1011,7 +874,7 @@ PanelWindow {
                     width: editorColumn.width
                     height: checkText.implicitHeight + Style.space(10)
                     FlashBg { forId: check.settingId }
-                    Moment {
+                    Strong {
                       id: checkMark
                       x: Style.space(6); y: Style.space(5)
                       width: Style.space(20)
@@ -1044,8 +907,7 @@ PanelWindow {
           width: parent.width
           height: statusLine.implicitHeight + buttons.height + Style.space(14)
           y: parent.height - height
-          Rectangle { width: parent.width; height: 1; color: Util.alpha("#000000", 0.45) }
-          Rectangle { y: 1; width: parent.width; height: 1; color: Util.alpha("#ffffff", 0.12) }
+          Rectangle { width: parent.width; height: 1; color: Util.alpha(Color.popups.text, 0.12) }
           Body {
             id: statusLine
             y: Style.space(7)
@@ -1059,9 +921,9 @@ PanelWindow {
             y: statusLine.y + statusLine.implicitHeight + Style.space(7)
             width: parent.width
             height: saveButton.height
-            WbButton { id: saveButton; minWidth: Style.space(124); label: "Save"; enabled: !win.working; onPicked: win.save() }
-            WbButton { x: Math.round((parent.width - width) / 2); minWidth: Style.space(124); label: "Use"; primary: true; enabled: !win.working && win.changeList.length > 0; onPicked: win.use() }
-            WbButton { x: parent.width - width; minWidth: Style.space(124); label: "Cancel"; enabled: !win.working; onPicked: win.cancel() }
+            CcButton { id: saveButton; minWidth: Style.space(124); label: "Save"; enabled: !win.working; onPicked: win.save() }
+            CcButton { x: Math.round((parent.width - width) / 2); minWidth: Style.space(124); label: "Use"; primary: true; enabled: !win.working && win.changeList.length > 0; onPicked: win.use() }
+            CcButton { x: parent.width - width; minWidth: Style.space(124); label: "Cancel"; enabled: !win.working; onPicked: win.cancel() }
           }
         }
 
@@ -1139,9 +1001,8 @@ PanelWindow {
       width: editorColumn.width
       settingId: modelData
       label: spec ? spec.label : modelData
-      hint: !spec ? "" : spec.immediate ? "Applies at once" : spec.hint
+      hint: spec ? spec.hint : ""
       values: spec ? spec.values : []
-      immediate: !!(spec && spec.immediate)
       available: !!(spec && win.live[spec.domain])
       current: String(CC.value(win.pending, modelData))
       liveValue: String(CC.value(win.live, modelData))
@@ -1152,46 +1013,39 @@ PanelWindow {
   component Body: Text {
     renderType: Text.NativeRendering
     textFormat: Text.PlainText
-    font.family: Bridge.ModuleBus.family
-    font.pixelSize: Bridge.ModuleBus.px(Style.font.body)
+    font.family: Style.font.family
+    font.pixelSize: Style.font.body
     color: Color.popups.text
   }
   component Caption: Body {
-    font.pixelSize: Bridge.ModuleBus.px(Style.font.caption)
+    font.pixelSize: Style.font.caption
     color: Util.alpha(Color.popups.text, 0.6)
   }
-  // Amiga moments (title, section heads, chips, gadgets): Topaz when the
-  // pixel font level reaches them.
-  component Moment: Text {
+  // Titles, section heads, buttons and marks.
+  component Strong: Text {
     renderType: Text.NativeRendering
     textFormat: Text.PlainText
-    font.family: Bridge.ModuleBus.momentFamily
-    font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body)
+    font.family: Style.font.family
+    font.pixelSize: Style.font.body
     color: Color.popups.text
   }
-  component SectionHead: Moment {
-    font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption)
-    font.bold: !Bridge.ModuleBus.pixelMoments
+  component SectionHead: Strong {
+    font.pixelSize: Style.font.caption
+    font.bold: true
     color: Color.accent
     topPadding: Style.space(10)
     bottomPadding: Style.space(3)
   }
 
-  // 1 px Workbench bevel: light top/left, dark bottom/right (swapped when inset).
-  // On light themes the highlight has to be near white to show at all, and
-  // the shadow softer, or only the dark half of the frame is seen.
-  component Bevel: Item {
-    id: bevel
+  // A flat face for fields, buttons and chips in Omarchy's popup style: the
+  // fill and a faint frame, stronger while selected or pressed (`inset`).
+  component Face: Rectangle {
     property bool inset: false
     property color fill: "transparent"
-    readonly property bool lightTheme: Bridge.ModuleBus.isLight(Color.popups.background)
-    readonly property color light: lightTheme ? Util.alpha("#ffffff", 0.85) : Util.alpha("#ffffff", 0.22)
-    readonly property color shade: lightTheme ? Util.alpha("#000000", 0.32) : Util.alpha("#000000", 0.5)
-    Rectangle { anchors.fill: parent; color: bevel.fill }
-    Rectangle { width: parent.width; height: 1; color: bevel.inset ? bevel.shade : bevel.light }
-    Rectangle { width: 1; height: parent.height; color: bevel.inset ? bevel.shade : bevel.light }
-    Rectangle { y: parent.height - 1; width: parent.width; height: 1; color: bevel.inset ? bevel.light : bevel.shade }
-    Rectangle { x: parent.width - 1; width: 1; height: parent.height; color: bevel.inset ? bevel.light : bevel.shade }
+    color: fill
+    radius: Math.min(Style.cornerRadius, 3)
+    border.width: 1
+    border.color: Util.alpha(Color.popups.text, inset ? 0.3 : 0.14)
   }
 
   component FlashBg: Rectangle {
@@ -1201,7 +1055,7 @@ PanelWindow {
     Behavior on color { ColorAnimation { duration: Style.duration(260) } }
   }
 
-  component WbButton: Item {
+  component CcButton: Item {
     id: btn
     property string label: ""
     property bool selected: false
@@ -1213,7 +1067,7 @@ PanelWindow {
     width: implicitWidth
     height: implicitHeight
     opacity: enabled ? 1 : 0.45
-    Bevel {
+    Face {
       anchors.fill: parent
       inset: btn.selected || btnMouse.pressed
       fill: btn.selected ? Color.accent
@@ -1221,13 +1075,11 @@ PanelWindow {
         : btnMouse.containsMouse ? Util.alpha(Color.accent, 0.16)
         : Util.alpha(Color.popups.text, btn.primary ? 0.1 : 0.05)
     }
-    Moment {
+    Strong {
       id: btnText
       anchors.centerIn: parent
-      anchors.horizontalCenterOffset: btnMouse.pressed ? 1 : 0
-      anchors.verticalCenterOffset: btnMouse.pressed ? 1 : 0
       text: btn.label
-      font.bold: (btn.selected || btn.primary) && !Bridge.ModuleBus.pixelMoments
+      font.bold: btn.selected || btn.primary
       color: btn.selected ? Color.popups.background : Color.popups.text
     }
     MouseArea { id: btnMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: btn.picked() }
@@ -1240,12 +1092,12 @@ PanelWindow {
     implicitHeight: capText.implicitHeight + Style.space(4)
     width: implicitWidth
     height: implicitHeight
-    Bevel { anchors.fill: parent; fill: Util.alpha(Color.popups.text, 0.08) }
-    Moment {
+    Face { anchors.fill: parent; fill: Util.alpha(Color.popups.text, 0.08) }
+    Strong {
       id: capText
       anchors.centerIn: parent
       text: cap.label
-      font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption)
+      font.pixelSize: Style.font.caption
       color: Util.alpha(Color.popups.text, 0.75)
     }
   }
@@ -1264,7 +1116,7 @@ PanelWindow {
     width: implicitWidth
     height: implicitHeight
     opacity: enabled ? 1 : 0.55
-    Bevel {
+    Face {
       anchors.fill: parent
       inset: chip.selected || chipMouse.pressed
       fill: chip.selected ? Color.accent
@@ -1306,7 +1158,6 @@ PanelWindow {
     property string current: ""
     property string liveValue: ""
     property bool available: true
-    property bool immediate: false
     signal picked(string value)
     readonly property bool changed: available && current !== liveValue
     readonly property int labelWidth: Math.min(Style.space(200), Math.round(width * 0.32))
@@ -1366,28 +1217,6 @@ PanelWindow {
           onPicked: win.stagePreset(modelData.id)
         }
       }
-    }
-  }
-
-  component FontNotes: Column {
-    width: editorColumn.width
-    spacing: Style.space(4)
-    Caption {
-      width: parent.width; wrapMode: Text.WordWrap
-      leftPadding: Style.space(6)
-      text: "Pixel font: “Whole desktop” also sets fontconfig, the shell and GTK text (16 px), Ghostty/Kitty and Zen chrome, then restarts the shell; any other level removes all of it again. This row applies at once; Cancel does not undo it."
-    }
-    Caption {
-      readonly property string mismatch: !win.host ? ""
-        : win.host.systemProfile === "partial" ? "The desktop font profile is only partly installed — pick a level again to repair it."
-        : win.host.options.font === "desktop" && win.host.systemProfile === "normal" ? "The desktop font profile is not installed — pick \"Whole desktop\" again."
-        : win.host.options.font !== "desktop" && win.host.systemProfile === "amiga" ? "The desktop font profile is still installed — pick a level to remove it."
-        : ""
-      visible: text !== ""
-      width: parent.width; wrapMode: Text.WordWrap
-      leftPadding: Style.space(6)
-      text: win.host ? [win.host.systemFontResult, mismatch].filter(function(s) { return s }).join("  ") : ""
-      color: Color.popups.text
     }
   }
 }

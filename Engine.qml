@@ -8,7 +8,7 @@ import "Presets.js" as Presets
 import "ControlCenter.js" as CCModel
 import "bridge" as Bridge
 
-// Amiga Bar engine (keep-loaded panel next to the native Omarchy bar).
+// Tusche Bar engine (keep-loaded panel next to the native Omarchy bar).
 // It owns the Control Center and writes presets into bar.layout; the bar
 // itself stays the native one, so every widget keeps its own service.
 //
@@ -19,7 +19,7 @@ Item {
 
   property var shell: null
   property var manifest: null
-  readonly property string pluginId: manifest && manifest.id ? manifest.id : "nerdibeard.amiga-bar"
+  readonly property string pluginId: manifest && manifest.id ? manifest.id : "nerdibeard.tusche-bar"
 
   readonly property string pluginDir: {
     var u = String(Qt.resolvedUrl("."))
@@ -27,7 +27,7 @@ Item {
     return u.replace(/\/$/, "")
   }
   readonly property string moduleDir: pluginDir + "/modules"
-  readonly property string stateDir: Quickshell.env("HOME") + "/.local/state/amiga-bar"
+  readonly property string stateDir: Quickshell.env("HOME") + "/.local/state/tusche-bar"
 
   // ---------------------------------------------------------------- config
   property var config: ({})
@@ -55,10 +55,6 @@ Item {
   readonly property bool barReady: !!edgeBar
     && edgeBar.barSize > 0 && edgeBar.position === "top" && !edgeBar.barHidden
     && (!shell.barConfig || !shell.barConfig.id || shell.barConfig.id === "omarchy.bar")
-  // The fog look (test) replaces the Workbench edge while it is on.
-  readonly property bool fogOn: options.fog === "on"
-  readonly property bool fogVisible: fogOn && barReady && !edgeBar.transparent
-  readonly property bool edgeVisible: options.edge === "workbench" && !fogOn && options.form !== "a500" && barReady
   // Edge "theme": light and shadow from the current theme's bar-material.json
   // (Tusche & Papier); a theme without one shows no edge.
   readonly property string themeDir: Quickshell.env("HOME") + "/.local/state/omarchy/current/theme"
@@ -82,36 +78,8 @@ Item {
     onFileChanged: reload()
     onLoaded: { root.themeStamp++; materialFile.reload() }
   }
-  readonly property bool materialOn: options.edge === "theme" && !fogOn && !!material
-  readonly property bool themeEdgeVisible: materialOn && !!material.edge && options.form !== "a500" && barReady
-  // The colour the bar ends in (opaque; the A500 form makes the native
-  // bar's fill transparent): the bar's own, or the case's darker front.
-  readonly property color fogColor: {
-    var c = Color.bar.background
-    var opaque = Qt.rgba(c.r, c.g, c.b, 1)
-    return options.form === "a500" ? Qt.darker(opaque, 1.35) : opaque
-  }
-  Variants {
-    model: root.fogVisible ? Quickshell.screens : []
-    delegate: Component {
-      FogEdge {
-        required property var modelData
-        screen: modelData
-        fogColor: root.fogColor
-        barHeight: root.edgeBar ? root.edgeBar.barSize : Style.bar.sizeHorizontal
-      }
-    }
-  }
-  Variants {
-    model: root.edgeVisible ? Quickshell.screens : []
-    delegate: Component {
-      WorkbenchEdge {
-        required property var modelData
-        screen: modelData
-        barHeight: root.edgeBar ? root.edgeBar.barSize : Style.bar.sizeHorizontal
-      }
-    }
-  }
+  readonly property bool materialOn: options.edge === "theme" && !!material
+  readonly property bool themeEdgeVisible: materialOn && !!material.edge && barReady
   Variants {
     model: root.themeEdgeVisible ? Quickshell.screens : []
     delegate: Component {
@@ -191,7 +159,7 @@ Item {
     return "Saved: " + name
   }
   function loadCombination(name) {
-    for (var i = 0; i < savedPresets.length; i++) if (savedPresets[i].name === name) return apply(Presets.keepDesktopFont(savedPresets[i].options, options))
+    for (var i = 0; i < savedPresets.length; i++) if (savedPresets[i].name === name) return apply(Presets.keepLook(savedPresets[i].options, options))
     return "Unknown combination"
   }
   function deleteCombination(name) {
@@ -213,12 +181,7 @@ Item {
     onStarted: { write(payload); stdinEnabled = false }
     stdout: StdioCollector { onStreamFinished: root.lastResult = String(text).trim() }
     stderr: StdioCollector { onStreamFinished: if (String(text).trim()) root.lastResult = "error: " + String(text).trim() }
-    onExited: function(exitCode) {
-      stdinEnabled = true
-      // The desktop font profile changed: reload apps and the shell only now,
-      // after the option is saved (the restart also restarts this engine).
-      if (root.reloadAfterWrite) { root.reloadAfterWrite = false; root.reloadApps() }
-    }
+    onExited: stdinEnabled = true
   }
 
   function apply(nextOptions) {
@@ -238,170 +201,20 @@ Item {
   }
   function applyPreset(id) {
     var p = Presets.presetById(String(id))
-    return p ? apply(Presets.keepDesktopFont(p.options, options)) : "unknown preset: " + id
+    return p ? apply(Presets.keepLook(p.options, options)) : "unknown preset: " + id
   }
   function setVariant(element, variant) {
     if (!Presets.ELEMENTS[element] || !Presets.ELEMENTS[element].variants.some(function(v) { return v.id === variant })) return "unknown element or variant"
-    if (element === "font") return setFont(String(variant))
     var o = JSON.parse(JSON.stringify(options))
     o[String(element)] = String(variant)
     return apply(o)
   }
 
-  // ---------------------------------------------------------------- pixel font
-  // theme/topaz/bar only change our own text, live. "desktop" also installs
-  // the system profile (bin/system-font.py); the option is saved only after
-  // the script succeeded, then Ghostty and the shell reload.
+  // ---------------------------------------------------------------- modules' shared state
   Binding { target: Bridge.ModuleBus; property: "engine"; value: root }
-  Binding { target: Bridge.ModuleBus; property: "menuStyle"; value: root.options.menu }
-  Binding { target: Bridge.ModuleBus; property: "fontLevel"; value: root.options.font }
-  Binding { target: Bridge.ModuleBus; property: "fog"; value: root.fogOn }
-  Binding { target: Bridge.ModuleBus; property: "fogColor"; value: root.fogColor }
   Binding { target: Bridge.ModuleBus; property: "material"; value: root.materialOn ? root.material : null }
   Binding { target: Bridge.ModuleBus; property: "themeDir"; value: root.themeDir }
   Binding { target: Bridge.ModuleBus; property: "themeStamp"; value: root.themeStamp }
-  Binding { target: Bridge.ModuleBus; property: "noteActive"; value: root.caseVisible && !!root.islandSpan.note }
-  Binding { target: Bridge.ModuleBus; property: "noteScreen"; value: String(root.islandSpan.noteScreen || "") }
-  // per screen: the note comes out of the slot on the monitor it hangs on
-  function noteOn(screenName) { return !!islandSpan.note && (!islandSpan.noteScreen || islandSpan.noteScreen === screenName) }
-
-  // ---------------------------------------------------------------- bar form
-  // "a500": the native bar's own fill goes transparent (bin/bar-form.py, a
-  // managed block in ~/.config/omarchy/shell.toml) and A500Case draws the
-  // case on the layer under it; "full" removes the block again. Synced only
-  // once the options are read, so a restart never flashes the other form.
-  readonly property string formOption: options.form
-  readonly property bool caseVisible: formOption === "a500" && barReady
-  // The bar's fill is transparent only while the case can be under it: on
-  // the native bar at the top (a hidden bar keeps it, no churn).
-  readonly property bool formWanted: formOption === "a500" && !!edgeBar && edgeBar.position === "top"
-    && (!shell.barConfig || !shell.barConfig.id || shell.barConfig.id === "omarchy.bar")
-  property string formResult: ""
-  property bool formPending: false
-  onFormWantedChanged: if (configLoaded && edgeBar) syncForm()
-  onConfigLoadedChanged: if (configLoaded && edgeBar) syncForm()
-  onEdgeBarChanged: if (configLoaded && edgeBar) syncForm()
-  function syncForm() {
-    if (formWriter.running) { formPending = true; return }
-    formWriter.action = formWanted ? "enable" : "disable"
-    formWriter.running = true
-  }
-  // Removed or disabled (not just reloaded): give the bar its fill back.
-  // The script is copied to the state dir first, so this works even when
-  // the plugin's files are already gone.
-  Process { running: true; command: ["cp", root.pluginDir + "/bin/bar-form.py", root.stateDir + "/bar-form.py"] }
-  Component.onDestruction: Quickshell.execDetached(["sh", "-c",
-    "sleep 4; c=\"$HOME/.config/omarchy/shell.json\"; " +
-    "jq -e --arg id \"$1\" '([.plugins[]? | select(type == \"object\" and .id == $id)] | length > 0) " +
-    "and (((.disabledPlugins // []) | index($id)) == null)' \"$c\" >/dev/null 2>&1 && exit 0; " +
-    "python3 \"$2\" disable >/dev/null 2>&1",
-    "sh", root.pluginId, root.stateDir + "/bar-form.py"])
-  Process {
-    id: formWriter
-    property string action: "status"
-    command: ["python3", root.pluginDir + "/bin/bar-form.py", action]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        var r = null
-        try { r = JSON.parse(text) } catch (e) {}
-        root.formResult = r && r.error ? r.error : ""
-      }
-    }
-    onExited: if (root.formPending) { root.formPending = false; root.syncForm() }
-  }
-
-  // Where the island sits in each bar and whether a note is coming out
-  // (written by the Amiga Island while this form is on).
-  property var islandSpan: ({})
-  FileView {
-    path: Quickshell.env("HOME") + "/.local/state/omarchy/amiga-island/bar-span.json"
-    watchChanges: true
-    printErrors: false
-    onFileChanged: reload()
-    onLoaded: { try { root.islandSpan = JSON.parse(text()) } catch (e) {} }
-  }
-  // The compact strip's span per screen (for the case's LED window).
-  property var ledSpans: ({})
-  Timer {
-    interval: 1500
-    running: root.caseVisible
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: {
-      var out = {}
-      ;(Bridge.ModuleBus.instances.status || []).forEach(function(i) {
-        var r = i && typeof i.caseLedSpan === "function" ? i.caseLedSpan() : null
-        if (r && r.screen) out[r.screen] = { x: r.x, w: r.w }
-      })
-      if (JSON.stringify(out) !== JSON.stringify(root.ledSpans)) root.ledSpans = out
-    }
-  }
-  Variants {
-    model: root.caseVisible ? Quickshell.screens : []
-    delegate: Component {
-      A500Case {
-        required property var modelData
-        screen: modelData
-        barHeight: root.edgeBar ? root.edgeBar.barSize : Style.bar.sizeHorizontal
-        slot: root.islandSpan.screens && root.islandSpan.screens[modelData.name] ? root.islandSpan.screens[modelData.name] : null
-        led: root.ledSpans[modelData.name] || null
-        noteOpen: root.noteOn(modelData.name)
-      }
-    }
-  }
-  property string systemProfile: "unknown"   // normal · amiga · partial
-  property string systemFontResult: ""
-  property string pendingFont: ""
-  property bool reloadAfterWrite: false
-  readonly property bool fontBusy: systemFont.running || pendingFont !== ""
-  Process {
-    id: systemFont
-    property string action: "status"
-    command: ["python3", root.pluginDir + "/bin/system-font.py", action, "--no-reload"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        var result = null
-        try { result = JSON.parse(text) } catch (e) {}
-        if (result && result.profile) root.systemProfile = result.profile
-        if (systemFont.action === "status") {
-          if (!result || result.error) root.systemFontResult = "Could not read the desktop font profile"
-          return
-        }
-        var next = root.pendingFont
-        root.pendingFont = ""
-        if (!result || result.error) {
-          root.systemFontResult = (result && result.error ? result.error + " — " : "") + "nothing was saved"
-          return
-        }
-        root.systemFontResult = result.message || ""
-        var o = JSON.parse(JSON.stringify(root.options))
-        o.font = next
-        root.reloadAfterWrite = true
-        var r = root.apply(o)
-        if (r !== "ok") {
-          root.reloadAfterWrite = false
-          root.systemFontResult = "Profile changed, but the option was not saved: " + r
-          root.reloadApps()
-        }
-      }
-    }
-  }
-  function reloadApps() { Quickshell.execDetached(["python3", root.pluginDir + "/bin/system-font.py", "reload"]) }
-  function refreshSystemFont() {
-    if (systemFont.running) return
-    systemFont.action = "status"; systemFont.running = true
-  }
-  function setFont(level) {
-    if (systemFont.running || pendingFont !== "" || writer.running) return "busy"
-    var toDesktop = level === "desktop"
-    var needScript = toDesktop || options.font === "desktop" || systemProfile !== "normal"
-    if (!needScript) return apply(Object.assign({}, options, { font: level }))
-    pendingFont = level
-    systemFontResult = toDesktop ? "Installing the desktop font profile …" : "Removing the desktop font profile …"
-    systemFont.action = toDesktop ? "enable" : "restore"
-    systemFont.running = true
-    return "ok"
-  }
 
   // ---------------------------------------------------------------- AI usage refresh
   // omarchy.agents (and the AI usage widget) keep ~/.local/state/omarchy/
@@ -486,7 +299,7 @@ Item {
     try { var p = JSON.parse(payloadJson || "{}"); area = p && p.area ? String(p.area) : "" } catch (e) {}
     if (isOpen) { if (area) controlCenter.showArea(area); return }
     controlCenter.requestedArea = area
-    menuOpen = false; screenOpen = false; isOpen = true
+    isOpen = true
   }
   function close() { if (isOpen) controlCenter.cancel() }
   function toggle() { if (isOpen) close(); else open("") }
@@ -495,14 +308,10 @@ Item {
     id: controlCenter
     host: root
     open: root.isOpen
-    fog: root.fogOn
-    fogColor: root.fogColor
     onCloseRequested: root.isOpen = false
   }
 
-  // ---------------------------------------------------------------- menu strip + status screen (stage D)
-  property bool menuOpen: false
-  property bool screenOpen: false
+  // ---------------------------------------------------------------- drop-down logo menu
   // The drop-down logo menu (DropMenu.qml) lives in the workspaces module.
   property bool dropMenuOpen: false
   // the screen whose drop-down was open last (questions with no other home go there)
@@ -554,7 +363,7 @@ Item {
     if (!target) return "no drop-down"
     return target.dropAsk(p) ? "ok" : "no drop-down"
   }
-  // For `amiga-bar state`: the app library facade, and per screen the
+  // For `tusche-bar state`: the app library facade, and per screen the
   // questions pending and the asking actions still running.
   function askState() {
     var out = { shimDir: root.shimDir, appLibrary: !!(root.shell && root.shell.appLibrary), lastScreen: root.lastDropScreen, screens: {} }
@@ -564,7 +373,7 @@ Item {
     })
     return out
   }
-  SysState { id: sysState; active: root.menuOpen || root.screenOpen || root.dropMenuOpen }
+  SysState { id: sysState; active: root.dropMenuOpen }
   readonly property alias sys: sysState
 
   function run(cmd) { Quickshell.execDetached(["sh", "-c", cmd]) }
@@ -573,7 +382,7 @@ Item {
   // status module (embedded) or still in the bar.
   function openWidget(id) {
     var folded = options.right !== "today" && Presets.foldedIds(options).indexOf(id) !== -1
-    run(folded ? "omarchy-shell amiga-status member " + id : "omarchy-shell shell summon " + id)
+    run(folded ? "omarchy-shell tusche-status member " + id : "omarchy-shell shell summon " + id)
   }
   function focusAgent(a) {
     if (!a) return
@@ -589,34 +398,27 @@ Item {
     ;(Bridge.ModuleBus.instances.quota || []).forEach(function(i) { i.close() })
     ;(Bridge.ModuleBus.instances.workspaces || []).forEach(function(i) { i.close() })
   }
-  onIsOpenChanged: if (isOpen) { closeModulePopups(); refreshSystemFont() }
-  Component.onCompleted: { refreshSystemFont(); pluginScan.running = true }
+  onIsOpenChanged: if (isOpen) closeModulePopups()
+  Component.onCompleted: pluginScan.running = true
 
-  // Which third-party plugins (and local extras) exist on this machine: menu
-  // entries for absent ones stay hidden, so the menus work on any setup.
-  // Omarchy's own widgets (omarchy.*) always count as present.
+  // Which third-party plugins exist on this machine: menu entries for absent
+  // ones stay hidden, so the menus work on any setup. Omarchy's own widgets
+  // (omarchy.*) always count as present.
   property var installedPlugins: []
-  readonly property string galleryPath: Quickshell.env("HOME") + "/.openclaw/workspace/output/amiga-bar-2026-09-30/index.html"
   Process {
     id: pluginScan
-    command: ["sh", "-c", "ls -1 \"$HOME/.config/omarchy/plugins\" 2>/dev/null; [ -f \"$1\" ] && echo @gallery; true", "sh", root.galleryPath]
+    command: ["sh", "-c", "ls -1 \"$HOME/.config/omarchy/plugins\" 2>/dev/null; true"]
     stdout: StdioCollector { onStreamFinished: root.installedPlugins = String(text).split("\n").filter(function(l) { return l.length > 0 }) }
   }
   function hasPlugin(id) { return String(id).indexOf("omarchy.") === 0 || installedPlugins.indexOf(String(id)) !== -1 }
   function present(items) { return items.filter(function(e) { return !e.requires || root.hasPlugin(e.requires) }) }
-  onMenuOpenChanged: if (menuOpen) { isOpen = false; screenOpen = false; closeModulePopups(); pluginScan.running = true }
-  onDropMenuOpenChanged: if (dropMenuOpen) { isOpen = false; screenOpen = false; menuOpen = false; pluginScan.running = true }
-  onScreenOpenChanged: if (screenOpen) { isOpen = false; menuOpen = false; closeModulePopups(); refreshUsage("limits") }
-  function openScreen() { menuOpen = false; screenOpen = true }
+  onDropMenuOpenChanged: if (dropMenuOpen) { isOpen = false; pluginScan.running = true }
   // Super+Alt+M / logo: the drop-down menu under the logo of the focused
-  // screen, or the menu strip (option menu = "strip", or no logo shown).
+  // screen; without a logo shown, Omarchy's own menu.
   function toggleMenu() {
-    screenOpen = false
-    if (options.menu !== "strip") {
-      var w = Bridge.ModuleBus.pick("workspaces")
-      if (w && w.showMenu) { menuOpen = false; w.toggleDrop(); return }
-    }
-    menuOpen = !menuOpen
+    var w = Bridge.ModuleBus.pick("workspaces")
+    if (w && w.showMenu) w.toggleDrop()
+    else run("omarchy-menu toggle root")
   }
 
   // Menus (built on demand from live state). Items: { label, note, checked,
@@ -641,8 +443,7 @@ Item {
         { label: "Lock", action: function() { root.run("loginctl lock-session") } }
       ] },
       { title: "Agents", items: agents.concat([sep,
-        { label: "Quotas …", action: function() { root.run(root.options.ai !== "today" ? "omarchy-shell amiga-quota toggle" : "omarchy-shell shell summon nerdibeard.ai-usage") } },
-        { label: "Status screen", key: "M", action: function() { root.openScreen() } }]) },
+        { label: "Quotas …", action: function() { root.run(root.options.ai !== "today" ? "omarchy-shell tusche-quota toggle" : "omarchy-shell shell summon nerdibeard.ai-usage") } }]) },
       { title: "System", items: [
         { label: "System monitor …", note: "CPU " + Math.round(s.cpu * 100) + " %", requires: "bitr0t.system-monitor", action: function() { root.openWidget("bitr0t.system-monitor") } },
         { label: "Display & brightness …", requires: "nerdibeard.monitor", action: function() { root.openWidget("nerdibeard.monitor") } },
@@ -659,18 +460,15 @@ Item {
         { label: "Bluetooth …", action: function() { root.openWidget("omarchy.bluetooth") } }
       ] },
       { title: "Phone", items: [
-        { label: "Flux · " + (s.phone ? s.phone.name : "Pixel"), note: s.phone && s.phone.charge >= 0 ? s.phone.charge + " %" : "", requires: "flux", action: function() { root.run("omarchy-shell shell toggle flux") } },
+        { label: "Flux · " + (s.phone ? s.phone.name : "phone"), note: s.phone && s.phone.charge >= 0 ? s.phone.charge + " %" : "", requires: "flux", action: function() { root.run("omarchy-shell shell toggle flux") } },
         { label: "Buds …", requires: "io.github.nerdislb.buds-control", action: function() { root.openWidget("io.github.nerdislb.buds-control") } },
         sep,
         { label: "WhatsApp …", requires: "io.github.moizibnyousaf.omawhatsapp", action: function() { root.run("omarchy-shell io.github.moizibnyousaf.omawhatsapp toggleDropdown") } },
         { label: "Mail …", requires: "omamail", action: function() { root.run("omarchy-shell shell toggle omamail") } }
       ] },
       { title: "Tools", items: [
-        { label: "Status screen", key: "M", action: function() { root.openScreen() } },
-        { label: "Open island", action: function() { root.run("omarchy-shell amiga-island expand") } },
-        { label: "Control Center …", action: function() { root.open("") } },
-        sep,
-        { label: "Concept gallery", requires: "@gallery", action: function() { Quickshell.execDetached(["xdg-open", root.galleryPath]) } }
+        { label: "Open island", requires: "nerdibeard.tusche-island", action: function() { root.run("omarchy-shell tusche-island expand") } },
+        { label: "Control Center …", action: function() { root.open("") } }
       ] }
     ]
     // entries of absent plugins drop out; no doubled or dangling separators; empty groups go
@@ -697,9 +495,9 @@ Item {
       { id: "network", title: "Network", icon: "\u{f05a9}", items: items("Network") },
       { id: "phone", title: "Phone", icon: "\u{f011c}", items: items("Phone") },
       { id: "widgets", title: "Widgets", icon: "\u{f056e}", items: items("System") },
-      { id: "amiga", title: "Amiga", icon: "\u{f02ca}",
-        items: pick("Tools", ["Status screen", "Open island", "Control Center …"]).concat([sep],
-               pick("Omarchy", ["Terminal", "Do not disturb", "Stay awake", "Transparent bar"]), [sep], pick("Tools", ["Concept gallery"])) }
+      { id: "bar", title: "Tusche", icon: "\u{f02ca}",
+        items: pick("Tools", ["Open island", "Control Center …"]).concat([sep],
+               pick("Omarchy", ["Terminal", "Do not disturb", "Stay awake", "Transparent bar"])) }
     ]
     return groups.map(function(g) {
       var it = g.items.slice()
@@ -708,40 +506,21 @@ Item {
     }).filter(function(g) { return g.items.length > 0 })
   }
 
-  IntuitionMenu {
-    id: intuitionMenu
-    host: root
-    open: root.menuOpen
-    onCloseRequested: root.menuOpen = false
-  }
-  StatusScreen {
-    host: root
-    open: root.screenOpen
-    onCloseRequested: root.screenOpen = false
-  }
-
   IpcHandler {
-    target: "amiga-status"
+    target: "tusche-status"
     function group(id: string): void { var i = Bridge.ModuleBus.pick("status"); if (i) i.openGroup(id, i) }
     function member(id: string): void { var i = Bridge.ModuleBus.pick("status"); if (i) i.openMember(id) }
     function close(): void { var all = Bridge.ModuleBus.instances.status || []; all.forEach(function(i) { i.closePopup() }) }
     function state(): string { var i = Bridge.ModuleBus.pick("status"); return i ? i.stateJson() : "{}" }
   }
   IpcHandler {
-    target: "amiga-quota"
+    target: "tusche-quota"
     function toggle(): void { var i = Bridge.ModuleBus.pick("quota"); if (i) i.togglePopup() }
     function state(): string { var i = Bridge.ModuleBus.pick("quota"); return i ? JSON.stringify({ variant: i.variant, items: i.items, open: i.popupOpen }) : "{}" }
   }
 
   IpcHandler {
-    target: "amiga-bar"
-    // Legacy switch: amiga = whole desktop, normal = keep our text, drop the profile.
-    function font(profile: string): string {
-      if (profile === "amiga") return root.setFont("desktop")
-      if (profile === "normal") return root.setFont(root.options.font === "desktop" ? "bar" : root.options.font)
-      return "use amiga or normal"
-    }
-    function menuState(): string { return JSON.stringify({ open: root.menuOpen, tab: intuitionMenu.current, item: intuitionMenu.item }) }
+    target: "tusche-bar"
     function options(): void { root.toggle() }
     // Open the Control Center at an area (or switch to it when open).
     function cc(area: string): string {
@@ -756,9 +535,6 @@ Item {
     // "ok" when a drop-down took it.
     function ask(payload: string): string { return root.ask(payload) }
     function menu(): void { root.toggleMenu() }
-    // The menu strip, whatever the menu option says.
-    function strip(): void { root.screenOpen = false; root.menuOpen = !root.menuOpen }
-    function screen(): void { root.menuOpen = false; root.screenOpen = !root.screenOpen }
     function preset(id: string): string { return root.applyPreset(id) }
     function set(element: string, variant: string): string { return root.setVariant(element, variant) }
     // After choosing Today: fresh snapshot of your own layout. Without any
@@ -769,10 +545,8 @@ Item {
     }
     function state(): string {
       return JSON.stringify({ preset: root.presetId, options: root.options, hasBase: root.baseLayout !== null,
-                              open: root.isOpen, menuOpen: root.menuOpen, dropMenuOpen: root.dropMenuOpen, screenOpen: root.screenOpen, saved: root.savedPresets.map(function(p) { return p.name }), lastResult: root.lastResult, moduleDir: root.moduleDir,
-                              systemFont: root.systemProfile, fontResult: root.systemFontResult,
-                              form: { option: root.formOption, caseVisible: root.caseVisible, result: root.formResult, island: root.islandSpan, led: root.ledSpans },
-                              edge: { option: root.options.edge, material: root.material ? (root.material.edge ? root.material.edge.kind : "no edge") : null, themeEdge: root.themeEdgeVisible, workbench: root.edgeVisible, barReady: root.barReady },
+                              open: root.isOpen, dropMenuOpen: root.dropMenuOpen, saved: root.savedPresets.map(function(p) { return p.name }), lastResult: root.lastResult, moduleDir: root.moduleDir,
+                              edge: { option: root.options.edge, material: root.material ? (root.material.edge ? root.material.edge.kind : "no edge") : null, themeEdge: root.themeEdgeVisible, barReady: root.barReady },
                               usage: { folded: root.usageFolded, intervalSec: root.usageIntervalSec, running: usageUpdate.running, command: usageUpdate.command },
                               ask: root.askState(),
                               natives: (function() { var s = Bridge.ModuleBus.pick("status"); return s && s.nativeReport ? s.nativeReport() : null })(),

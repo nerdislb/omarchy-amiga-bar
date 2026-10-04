@@ -11,7 +11,7 @@ import qs.Ui
 // hangs under the bar (bar round 03.10.2026, recommendation „stille Kante“):
 //
 //   kind "dry"   – `line`: a line over the bar's lower edge (Tusche: light,
-//                  Papier: ink), on Overlay like the Workbench edge;
+//                  Papier: ink), on the Overlay layer;
 //                  below the bar: `shadow` (a short hard shadow), `glow`
 //                  (light right under the line) and `haze` (a still gradient
 //                  that runs out downwards).
@@ -67,7 +67,7 @@ Scope {
     implicitHeight: geometry.height
     // Ignore alone: an exclusiveZone would force Normal and push it below the bar.
     exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "amiga-bar-theme-line"
+    WlrLayershell.namespace: "tusche-bar-theme-line"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     mask: Region {}
@@ -133,7 +133,7 @@ Scope {
     margins.top: root.barHeight
     implicitHeight: Math.max(2, Math.ceil(height_))
     exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "amiga-bar-theme-edge"
+    WlrLayershell.namespace: "tusche-bar-theme-edge"
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     mask: Region {}

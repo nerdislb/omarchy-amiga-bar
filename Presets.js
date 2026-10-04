@@ -1,16 +1,3 @@
-.pragma library
-
-// Presets and layout building for the Amiga Bar. Pure functions: the bar
-// passes in the saved base layout (the user's own layout from before the
-// first preset) and the chosen options, and gets a full bar.layout back.
-//
-// Options: { workspaces, ai, right, edge, logo, centre, effects, font, form,
-// fog, menu } — see ELEMENTS. edge "theme" reads the current theme's
-// bar-material.json (ThemeEdge.qml); themes without one show no edge. effects/font/fog are read by the Amiga Island too
-// (Guru look, Boing, Copper, NerdWorkbench, fog cards). font "desktop" also
-// installs the system font profile; only the font row switches it, presets
-// and saved combinations never do.
-
 var ELEMENTS = {
   workspaces: {
     label: "Workspaces",
@@ -19,9 +6,7 @@ var ELEMENTS = {
       { id: "pips", label: "Pips" },
       { id: "stack", label: "Screen stack" },
       { id: "logo", label: "Logo carries the number" },
-      { id: "minimap", label: "Minimap" },
-      { id: "cli", label: "CLI prompt 2>" },
-      { id: "boing", label: "Boing track" }
+      { id: "minimap", label: "Minimap" }
     ]
   },
   ai: {
@@ -29,10 +14,9 @@ var ELEMENTS = {
     variants: [
       { id: "today", label: "As today" },
       { id: "gauge", label: "Gauge" },
-      { id: "vu", label: "Tracker VU" },
+      { id: "vu", label: "VU meter" },
       { id: "rings", label: "Rings" },
-      { id: "ondemand", label: "Only when needed" },
-      { id: "title", label: "Title line (Workbench)" }
+      { id: "ondemand", label: "Only when needed" }
     ]
   },
   right: {
@@ -40,17 +24,13 @@ var ELEMENTS = {
     variants: [
       { id: "today", label: "As today" },
       { id: "groups", label: "Groups" },
-      { id: "deviations", label: "Only deviations" },
-      { id: "drawer", label: "Drawer" },
-      { id: "hardware", label: "A500 hardware strip" },
-      { id: "compact", label: "A500 strip, compact" }
+      { id: "deviations", label: "Only deviations" }
     ]
   },
   edge: {
     label: "Bar edge",
     variants: [
       { id: "none", label: "None" },
-      { id: "workbench", label: "Workbench edge" },
       { id: "theme", label: "From the theme (light & shadow)" }
     ]
   },
@@ -59,9 +39,7 @@ var ELEMENTS = {
     variants: [
       { id: "omarchy", label: "Omarchy" },
       { id: "arch", label: "Arch Linux" },
-      { id: "nerdibeard", label: "Nerdibeard seal" },
-      { id: "amiga", label: "Amiga tick" },
-      { id: "boing", label: "Boing ball" }
+      { id: "nerdibeard", label: "Nerdibeard seal" }
     ]
   },
   centre: {
@@ -70,61 +48,24 @@ var ELEMENTS = {
       { id: "today", label: "As today" },
       { id: "calm", label: "Temperature at the weather" }
     ]
-  },
-  effects: {
-    label: "Events",
-    variants: [
-      { id: "plain", label: "Omarchy style" },
-      { id: "amiga", label: "Amiga effects (Boing, Copper, Guru look)" }
-    ]
-  },
-  font: {
-    label: "Pixel font (NerdWorkbench)",
-    variants: [
-      { id: "theme", label: "Theme font" },
-      { id: "topaz", label: "Amiga moments" },
-      { id: "bar", label: "Bar, island & menus" },
-      { id: "desktop", label: "Whole desktop" }
-    ]
-  },
-  form: {
-    label: "Bar form",
-    variants: [
-      { id: "full", label: "Full bar" },
-      { id: "a500", label: "A500 case edge" }
-    ]
-  },
-  fog: {
-    label: "Fog look (test)",
-    variants: [
-      { id: "off", label: "Off" },
-      { id: "on", label: "On" }
-    ]
-  },
-  menu: {
-    label: "Logo menu",
-    variants: [
-      { id: "drop", label: "Drop-down" },
-      { id: "strip", label: "Menu strip" }
-    ]
   }
 }
 
 // Look options that sit on top of any preset: presets keep the current
 // value, and preset matching ignores them.
-var LOOK = ["form", "fog", "menu", "edge"]
+var LOOK = ["edge"]
 
-// Presets from the concept film.
+// Presets.
 var PRESETS = [
-  { id: "heute", label: "Today", note: "Your bar as before",
-    options: { workspaces: "today", ai: "today", right: "today", logo: "omarchy", centre: "today", effects: "plain", font: "theme" } },
-  { id: "k1", label: "K1 · Tidy", note: "Pips · gauge · groups",
-    options: { workspaces: "pips", ai: "gauge", right: "groups", logo: "omarchy", centre: "calm", effects: "plain", font: "theme" } },
-  { id: "k2", label: "K2 · Workbench", note: "Logo · VU · drawer",
-    options: { workspaces: "logo", ai: "vu", right: "drawer", logo: "amiga", centre: "calm", effects: "amiga", font: "bar" } },
-  { id: "k3", label: "K3 · Focus", note: "Stack · on demand · deviations",
-    options: { workspaces: "stack", ai: "ondemand", right: "deviations", logo: "omarchy", centre: "calm", effects: "plain", font: "theme" } }
+  { id: "today", label: "Today", note: "Your bar as before",
+    options: { workspaces: "today", ai: "today", right: "today", logo: "omarchy", centre: "today" } },
+  { id: "tidy", label: "Tidy", note: "Pips · gauge · groups",
+    options: { workspaces: "pips", ai: "gauge", right: "groups", logo: "omarchy", centre: "calm" } },
+  { id: "focus", label: "Focus", note: "Stack · on demand · deviations",
+    options: { workspaces: "stack", ai: "ondemand", right: "deviations", logo: "omarchy", centre: "calm" } }
 ]
+// Preset ids of the Amiga Bar this grew out of.
+var OLD_PRESETS = { heute: "today", k1: "tidy", k3: "focus" }
 
 // Native widgets a variant folds into our own modules (removed from the
 // layout; our modules show their state and controls instead). Mail and
@@ -135,8 +76,6 @@ var GROUPED = {
   phone: ["flux", "io.github.nerdislb.buds-control"],
   system: ["bitr0t.system-monitor", "nerdibeard.monitor", "nerdibeard.googledrive", "com.omastorm.radar", "community.plugin-manager"]
 }
-var DRAWER = ["flux", "com.omastorm.radar", "io.github.nerdislb.buds-control", "bitr0t.system-monitor", "nerdibeard.googledrive",
-              "io.github.iamfitsum.omarchy-proton-vpn", "community.plugin-manager", "omarchy.tailscale", "omarchy.bluetooth", "nerdibeard.monitor"]
 var CENTRE_IDS = ["omarchy.weather", "omarchy.elsewhen"]
 
 function groupedIds() {
@@ -151,8 +90,6 @@ function foldedIds(options) {
   var out = []
   if (o.ai !== "today") out = out.concat(AI_IDS)
   if (o.right === "groups" || o.right === "deviations") out = out.concat(groupedIds())
-  else if (o.right === "drawer") out = out.concat(DRAWER)
-  else if (o.right === "hardware" || o.right === "compact") out = out.concat(DRAWER).concat(["omarchy.power"])
   if (o.right !== "today" && out.indexOf("omarchy.agents") === -1) out.push("omarchy.agents")
   return out
 }
@@ -163,9 +100,14 @@ function removeIds(layout, ids) {
     layout[sections[s]] = layout[sections[s]].filter(function(e) { return ids.indexOf(entryId(e)) === -1 })
 }
 
-var OWN_PREFIX = "amiga."
+var OWN_PREFIX = "tusche."
+// Own module ids; the Amiga Bar's ids (amiga.*) count too, so a layout built
+// by it is recognised and replaced.
+function isOwn(id) { id = String(id || ""); return id.indexOf(OWN_PREFIX) === 0 || id.indexOf("amiga.") === 0 }
+function ownName(id) { return String(id || "").replace(/^(tusche|amiga)\./, "") }
 
 function presetById(id) {
+  id = OLD_PRESETS[id] || id
   for (var i = 0; i < PRESETS.length; i++) if (PRESETS[i].id === id) return PRESETS[i]
   return null
 }
@@ -181,7 +123,7 @@ function stripOwn(layout) {
   for (var s = 0; s < sections.length; s++) {
     var list = layout && Array.isArray(layout[sections[s]]) ? layout[sections[s]] : []
     for (var i = 0; i < list.length; i++)
-      if (entryId(list[i]).indexOf(OWN_PREFIX) !== 0) out[sections[s]].push(copy(list[i]))
+      if (!isOwn(entryId(list[i]))) out[sections[s]].push(copy(list[i]))
   }
   return out
 }
@@ -190,7 +132,7 @@ function hasOwn(layout) {
   var sections = ["left", "center", "right"]
   for (var s = 0; s < sections.length; s++) {
     var list = layout && Array.isArray(layout[sections[s]]) ? layout[sections[s]] : []
-    for (var i = 0; i < list.length; i++) if (entryId(list[i]).indexOf(OWN_PREFIX) === 0) return true
+    for (var i = 0; i < list.length; i++) if (isOwn(entryId(list[i]))) return true
   }
   return false
 }
@@ -217,16 +159,16 @@ function build(base, options, moduleDir) {
   var o = normalizeOptions(options)
   var ws = String(o.workspaces || "today")
   if (ws !== "today") {
-    var entry = { id: "amiga.workspaces", source: moduleDir + "/Workspaces.qml", variant: ws, menu: true, logo: o.logo }
+    var entry = { id: "tusche.workspaces", source: moduleDir + "/Workspaces.qml", variant: ws, menu: true, logo: o.logo }
     if (!replaceGroup(layout, ["omarchy.menu", "omarchy.workspaces"], entry)) layout.left.unshift(entry)
   } else if (o.logo !== "omarchy") {
     // Native workspaces stay; only the menu logo becomes ours.
-    var menu = { id: "amiga.workspaces", source: moduleDir + "/Workspaces.qml", variant: "none", menu: true, logo: o.logo }
+    var menu = { id: "tusche.workspaces", source: moduleDir + "/Workspaces.qml", variant: "none", menu: true, logo: o.logo }
     if (!replaceGroup(layout, ["omarchy.menu"], menu)) layout.left.unshift(menu)
   }
   // Insert our modules where the widgets they replace sat, then fold.
   if (o.ai && o.ai !== "today") {
-    var q = { id: "amiga.quota", source: moduleDir + "/Quota.qml", variant: String(o.ai) }
+    var q = { id: "tusche.quota", source: moduleDir + "/Quota.qml", variant: String(o.ai) }
     if (!insertBefore(layout, "nerdibeard.ai-usage", q)) layout.left.push(q)
   }
   if (o.right && o.right !== "today") {
@@ -245,13 +187,13 @@ function build(base, options, moduleDir) {
         embeds[eid] = es
       }
     }
-    var st = { id: "amiga.status", source: moduleDir + "/Status.qml", variant: String(o.right), embeds: embeds }
+    var st = { id: "tusche.status", source: moduleDir + "/Status.qml", variant: String(o.right), embeds: embeds }
     if (!insertBefore(layout, "omarchy.audio", st)) layout.right.push(st)
   }
   // Weather and world clocks stay native (their popups position
   // themselves through the centre section); we add the temperature.
   if (o.centre === "calm") {
-    var centre = { id: "amiga.centre", source: moduleDir + "/Centre.qml" }
+    var centre = { id: "tusche.centre", source: moduleDir + "/Centre.qml" }
     if (!insertAfter(layout, "omarchy.weather", centre)) layout.center.push(centre)
   }
   removeIds(layout, foldedIds(o))
@@ -286,29 +228,22 @@ function normalizeOptions(o) {
   return out
 }
 
-// The desktop font profile sits on top of any preset, so it is ignored here.
 function matchPreset(options) {
   var n = normalizeOptions(options)
   for (var i = 0; i < PRESETS.length; i++) {
     var p = normalizeOptions(PRESETS[i].options)
-    if (n.font === "desktop") p.font = "desktop"
     LOOK.forEach(function(k) { p[k] = n[k] })
     if (JSON.stringify(p) === JSON.stringify(n)) return PRESETS[i].id
   }
   return ""
 }
 
-// Options for a preset or saved combination: the desktop font profile is a
-// system change and only follows the font row, so keep it as it is.
-function keepDesktopFont(next, current) {
+// Options for a preset or saved combination: a preset or an older saved
+// combination without a look option keeps the current one.
+function keepLook(next, current) {
   var o = normalizeOptions(next)
   var now = normalizeOptions(current)
-  // A preset or an older saved combination without a look option keeps
-  // the current one.
   LOOK.forEach(function(k) { if (!next || next[k] === undefined) o[k] = now[k] })
-  var desktopNow = now.font === "desktop"
-  if (desktopNow) o.font = "desktop"
-  else if (o.font === "desktop") o.font = "bar"
   return o
 }
 
@@ -317,8 +252,8 @@ function mergeEmbeddedSettings(base, current) {
   var out = copy(base), embeds = {}, native = {}
   ;["left", "center", "right"].forEach(function(section) {
     ;(current && current[section] || []).forEach(function(entry) {
-      if (entryId(entry) === "amiga.status") embeds = entry.embeds || {}
-      else if (entry && typeof entry === "object" && entryId(entry).indexOf(OWN_PREFIX) !== 0) native[entryId(entry)] = entry
+      if (isOwn(entryId(entry)) && ownName(entryId(entry)) === "status") embeds = entry.embeds || {}
+      else if (entry && typeof entry === "object" && !isOwn(entryId(entry))) native[entryId(entry)] = entry
     })
   })
   ;["left", "center", "right"].forEach(function(section) {
@@ -345,20 +280,20 @@ function reconstructBase(layout) {
   }
   ;["left", "center", "right"].forEach(function(section) {
     ;(layout && Array.isArray(layout[section]) ? layout[section] : []).forEach(function(entry) {
-      var id = entryId(entry)
-      if (id === "amiga.workspaces") { push(section, "omarchy.menu"); push(section, "omarchy.workspaces") }
-      else if (id === "amiga.quota") AI_IDS.forEach(function(a) { push(section, a) })
-      else if (id === "amiga.status") {
+      var id = entryId(entry), own = isOwn(id) ? ownName(id) : ""
+      if (own === "workspaces") { push(section, "omarchy.menu"); push(section, "omarchy.workspaces") }
+      else if (own === "quota") AI_IDS.forEach(function(a) { push(section, a) })
+      else if (own === "status") {
         var embeds = entry.embeds || {}
         Object.keys(embeds).forEach(function(k) { push(section, Object.assign({ id: k }, embeds[k])) })
       }
-      else if (id.indexOf(OWN_PREFIX) !== 0) push(section, entry)
+      else if (!own) push(section, entry)
     })
   })
   // omarchy.agents is folded by the AI and right-side modules only
   var folding = ["left", "center", "right"].some(function(section) {
     return (layout && Array.isArray(layout[section]) ? layout[section] : []).some(function(e) {
-      var id = entryId(e); return id === "amiga.status" || id === "amiga.quota" })
+      var id = entryId(e); return isOwn(id) && (ownName(id) === "status" || ownName(id) === "quota") })
   })
   if (folding && !seen["omarchy.agents"]) out.left.push("omarchy.agents")
   // plain string entries stay plain

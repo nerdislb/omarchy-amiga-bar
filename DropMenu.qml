@@ -5,10 +5,11 @@ import qs.Commons
 import qs.Ui
 import "bridge" as Bridge
 
-// Drop-down logo menu (Amiga Bar option `menu` = "drop"): one tall menu
-// that folds out of the logo — with the fog look on it grows out of the
-// bar as fog. On top the Omarchy menu itself (omarchy-menu.jsonc plus the
-// user's extensions, read like the native menu), below our own groups.
+// Drop-down logo menu of the Tusche Bar: one tall menu that folds out of
+// the logo — with the theme material it rolls (or blooms) out of the bar
+// like the other popups. On top the Omarchy menu itself (omarchy-menu.jsonc
+// plus the user's extensions, read like the native menu), below our own
+// groups.
 // Submenus open inside it (‹ goes back); typing searches the whole tree and
 // the installed apps. Keys: ↑↓ select · PgUp/PgDn page · Enter/→ open ·
 // ←/Backspace back · Esc clears or closes.
@@ -27,7 +28,7 @@ import "bridge" as Bridge
 KeyboardPanel {
   id: menu
 
-  // [{ kind: "omarchy" | "amiga" | "provider" | "waiting" | "request", id, title, … }];
+  // [{ kind: "omarchy" | "own" | "provider" | "waiting" | "request", id, title, … }];
   // empty = the top level.
   property var stack: []
   property string query: ""
@@ -43,8 +44,8 @@ KeyboardPanel {
   readonly property bool inputLevel: !!levelRequest && levelRequest.mode === "input"
   readonly property bool searching: query !== "" && !inputLevel
   readonly property color ink: Color.popups.text
-  readonly property string labelFamily: Bridge.ModuleBus.momentFamily
-  readonly property int labelPx: Bridge.ModuleBus.momentPx(Style.font.body)
+  readonly property string labelFamily: Style.font.family
+  readonly property int labelPx: Style.font.body
   readonly property int rowH: Math.max(Style.space(30), labelPx + Style.space(14))
   readonly property int separatorH: Style.space(13)
   readonly property int rowRadius: Math.min(Style.cornerRadius, 6)
@@ -93,9 +94,9 @@ KeyboardPanel {
   Behavior on contentHeight { NumberAnimation { duration: Style.duration(160); easing.type: Easing.OutCubic } }
 
   OmarchyMenuSource { id: source; live: menu.visible; appLibrary: menu.appLibrary }
-  FogPanel { id: fogPanel; panel: menu; fog: Bridge.ModuleBus.fog; color: Bridge.ModuleBus.fogColor; material: Bridge.ModuleBus.material }
+  MaterialCard { id: materialCard; panel: menu; material: Bridge.ModuleBus.material }
   // how far the card is out (rolled, grown or faded): the logo stays its tab until it is back in the bar
-  readonly property real cardPresence: fogPanel.presence
+  readonly property real cardPresence: materialCard.presence
 
   // ---------------------------------------------------------------- rows
   readonly property var groups: {
@@ -105,7 +106,7 @@ KeyboardPanel {
   function groupRows(g) {
     return (g ? g.items : []).map(function(it) {
       return it.separator ? { separator: true }
-        : { kind: "amiga", label: it.label, note: it.note || "", checked: !!it.checked, disabled: !!it.disabled, run: it.action, path: g.title }
+        : { kind: "own", label: it.label, note: it.note || "", checked: !!it.checked, disabled: !!it.disabled, run: it.action, path: g.title }
     })
   }
   readonly property var rows: {
@@ -208,13 +209,13 @@ KeyboardPanel {
   function activate(r) {
     if (!r || r.separator || r.disabled) return
     if (r.kind === "menu") push({ kind: "omarchy", id: r.target, title: r.title })
-    else if (r.kind === "group") push({ kind: "amiga", id: r.id, title: r.title })
+    else if (r.kind === "group") push({ kind: "own", id: r.id, title: r.title })
     else if (r.kind === "provider") openProvider(r)
     else if (r.kind === "action") { if (!(r.asks && launchAsking(r))) finish(function() { menu.runAction(r.action) }) }
     else if (r.kind === "app") { var lib = appLibrary; finish(function() { if (lib) lib.launch(r.appId, r.label) }) }
     else if (r.kind === "choice") answer(r.answer)
     else if (r.kind === "input") answer(query)
-    else if (r.kind === "amiga" && typeof r.run === "function") finish(r.run)
+    else if (r.kind === "own" && typeof r.run === "function") finish(r.run)
   }
 
   // ---------------------------------------------------------------- lists the shell fills in
@@ -235,7 +236,7 @@ KeyboardPanel {
   function prefixed(action, token) {
     var head = ""
     if (shimDir) head += "export PATH=" + Util.shellQuote(shimDir) + ':"$PATH"; '
-    if (token) head += "export AMIGA_BAR_ASK_TOKEN=" + Util.shellQuote(token) + "; "
+    if (token) head += "export TUSCHE_BAR_ASK_TOKEN=" + Util.shellQuote(token) + "; "
     return head + action
   }
   function runAction(action) {
@@ -543,7 +544,7 @@ KeyboardPanel {
           x: Style.space(8)
           anchors.verticalCenter: parent.verticalCenter
           text: "‹"
-          font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body + 4)
+          font.pixelSize: Style.font.body + 4
           color: Util.alpha(menu.ink, 0.7)
           MouseArea { anchors.fill: parent; anchors.margins: -Style.space(6); cursorShape: Qt.PointingHandCursor; onClicked: menu.back() }
         }
@@ -555,7 +556,7 @@ KeyboardPanel {
           elide: Text.ElideRight
           text: menu.searching ? "⌕  " + menu.query + "▏" : (menu.level ? menu.level.title : menu.rootTitle).toUpperCase()
           font.letterSpacing: menu.searching ? 0 : Style.space(2.5)
-          font.pixelSize: menu.searching ? menu.labelPx : Bridge.ModuleBus.momentPx(Math.max(10, Style.font.body - 2))
+          font.pixelSize: menu.searching ? menu.labelPx : Math.max(10, Style.font.body - 2)
           color: Util.alpha(menu.ink, menu.searching ? 1 : 0.72)
         }
         Label {
@@ -563,7 +564,7 @@ KeyboardPanel {
           x: parent.width - implicitWidth - Style.space(10)
           anchors.verticalCenter: parent.verticalCenter
           text: "×"
-          font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body + 2)
+          font.pixelSize: Style.font.body + 2
           color: Util.alpha(menu.ink, 0.6)
           MouseArea { anchors.fill: parent; anchors.margins: -Style.space(6); cursorShape: Qt.PointingHandCursor; onClicked: menu.close() }
         }
@@ -678,7 +679,7 @@ KeyboardPanel {
               width: Math.min(implicitWidth, row.width * 0.45)
               elide: Text.ElideRight
               text: row.r.note || (menu.query ? (row.r.path || "") : "")
-              font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.caption)
+              font.pixelSize: Style.font.caption
               color: row.hot && menu.inverting ? Util.alpha(menu.src.text, 0.75) : Util.alpha(menu.ink, 0.5)
             }
             Label {
@@ -691,7 +692,7 @@ KeyboardPanel {
               visible: row.opens
               anchors.verticalCenter: parent.verticalCenter
               text: "›"
-              font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body + 2)
+              font.pixelSize: Style.font.body + 2
               color: row.hot && menu.inverting ? menu.src.text : Util.alpha(menu.ink, row.hot ? 0.8 : 0.4)
             }
           }

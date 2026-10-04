@@ -18,7 +18,7 @@ import QtQuick
 // the edges; the flare may run out of the top (it continues into the bar).
 // Theme values: bar-material.json card.rest (ridge, pool, echo, residue,
 // halo); missing ones fall back to the study's.
-// (Same component in the Amiga Island: keep both copies alike.)
+// (Same component in the Tusche Island: keep both copies alike.)
 Item {
   id: sheet
 
@@ -157,7 +157,7 @@ Item {
     property real first: 0
     fragmentShader: Qt.resolvedUrl("shaders/gauss.frag.qsb")
   }
-  // the paper: cut at a gently displaced threshold (lo/hi as the fog's
+  // the paper: cut at a gently displaced threshold (lo/hi around the
   // threshold 0.4, spread 0.5: 0.1–0.6, narrowed to the middle once dry)
   ShaderEffect {
     id: cut

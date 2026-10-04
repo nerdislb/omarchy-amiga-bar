@@ -2,9 +2,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Live desktop state for the Intuition menu and the status screen. Polls
-// only while one of them is open (`active`), plus once on start. Read-only;
-// actions are separate commands.
+// Live desktop state for the drop-down logo menu. Polls only while it is
+// open (`active`), plus once on start. Read-only; actions are separate
+// commands.
 Item {
   id: st
 

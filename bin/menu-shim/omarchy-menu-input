@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# omarchy-menu-input for the actions the Amiga Bar's drop-down logo menu
+# omarchy-menu-input for the actions the Tusche Bar's drop-down logo menu
 # runs (DropMenu.qml puts this directory first on their PATH). Same
 # arguments and answer as Omarchy's own command, and the same file protocol:
-# the payload goes to the drop-down (`omarchy-shell amiga-bar ask`) instead
+# the payload goes to the drop-down (`omarchy-shell tusche-bar ask`) instead
 # of the centred menu, which writes the typed text into the selection file
 # and then creates the done file (a cancel creates the done file only).
-# Whenever no drop-down takes the question (no Amiga Bar, no drop-down, the
+# Whenever no drop-down takes the question (no Tusche Bar, no drop-down, the
 # shell not answering), Omarchy's own command runs with the same arguments.
 
 set -euo pipefail
@@ -75,9 +75,9 @@ payload=$(perl -MEncode=decode -MJSON::PP=encode_json -e '
   $payload->{width} = int($ARGV[3]) if length($ARGV[3] // "");
   $payload->{token} = decode("UTF-8", $ARGV[4]) if length($ARGV[4] // "");
   print encode_json($payload)
-' "$prompt" "$selection_file" "$done_file" "$menu_width" "${AMIGA_BAR_ASK_TOKEN:-}")
+' "$prompt" "$selection_file" "$done_file" "$menu_width" "${TUSCHE_BAR_ASK_TOKEN:-}")
 
-reply=$(omarchy-shell amiga-bar ask "$payload" 2>/dev/null) || reply=""
+reply=$(omarchy-shell tusche-bar ask "$payload" 2>/dev/null) || reply=""
 if [[ $reply != "ok" ]]; then
   # Our files go first: a drop-down that took the question after all (a late
   # reply) sees its asker gone and drops it.

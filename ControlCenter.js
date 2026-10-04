@@ -7,20 +7,20 @@
 // island settings through its IPC, the card picker through its script).
 //
 // State shape (live, snapshot, pending):
-//   { bar: <normalized Amiga Bar options>,
-//     island: { notifications, noteStyle, noteTopaz } | null (not configured),
+//   { bar: <normalized Tusche Bar options>,
+//     island: { notifications, noteStyle } | null (not configured),
 //     cards: { override: "enabled" | "disabled" } | null (not known) }
 // Values are strings, as the island IPC takes them. Staged edits are an
 // overlay { "<domain>.<key>": value } on top of the live state, so a setting
 // nobody touched follows the live value.
 
-var ISLAND_ID = "nerdibeard.amiga-island"
+var ISLAND_ID = "nerdibeard.tusche-island"
 var CARDS_ID = "nerdibeard.card-picker"
 
 var AREAS = [
   { id: "quick", label: "Quick", note: "Most-used switches" },
-  { id: "bar", label: "Amiga Bar", note: "Presets, combinations, every bar option" },
-  { id: "island", label: "Amiga Island", note: "Notifications in the bar" },
+  { id: "bar", label: "Tusche Bar", note: "Presets, combinations, every bar option" },
+  { id: "island", label: "Tusche Island", note: "Notifications in the bar" },
   { id: "cards", label: "Card picker", note: "Theme and wallpaper menus" },
   { id: "health", label: "Health", note: "Checks from live state" }
 ]
@@ -28,17 +28,15 @@ var AREAS = [
 var ISLAND_SETTINGS = [
   { key: "notifications", label: "Notifications", fallback: "false",
     values: [{ id: "true", label: "Island, in the bar" }, { id: "false", label: "Omarchy popups" }] },
-  { key: "noteStyle", label: "Note style", fallback: "workbench",
-    values: [{ id: "workbench", label: "Workbench" }, { id: "bubble", label: "Bubble" }] },
-  { key: "noteTopaz", label: "Note font", fallback: "true",
-    values: [{ id: "true", label: "Topaz (pixel)" }, { id: "false", label: "Theme font" }] }
+  { key: "noteStyle", label: "Note style (themes without material)", fallback: "window",
+    values: [{ id: "window", label: "Window" }, { id: "bubble", label: "Bubble" }] }
 ]
 
 var CARDS_SETTING = { key: "override", label: "Theme & wallpaper menus",
   values: [{ id: "enabled", label: "Card picker" }, { id: "disabled", label: "Omarchy pickers" }] }
 
 // Quick area: the most-used switches, in this order.
-var QUICK = ["bar.fog", "bar.form", "bar.edge", "bar.menu", "island.notifications", "island.noteStyle", "bar.font"]
+var QUICK = ["bar.edge", "bar.logo", "island.notifications", "island.noteStyle"]
 
 function copy(v) { return JSON.parse(JSON.stringify(v)) }
 
@@ -58,15 +56,14 @@ function settings() {
   var out = []
   for (var key in Presets.ELEMENTS) {
     var e = Presets.ELEMENTS[key]
-    out.push({ id: "bar." + key, domain: "bar", key: key, area: "bar", label: e.label, values: e.variants,
-               immediate: key === "font", hint: "" })
+    out.push({ id: "bar." + key, domain: "bar", key: key, area: "bar", label: e.label, values: e.variants, hint: "" })
   }
   ISLAND_SETTINGS.forEach(function(s) {
     out.push({ id: "island." + s.key, domain: "island", key: s.key, area: "island", label: s.label,
-               values: s.values, immediate: false, hint: s.hint || "" })
+               values: s.values, hint: s.hint || "" })
   })
   out.push({ id: "cards.override", domain: "cards", key: "override", area: "cards", label: CARDS_SETTING.label,
-             values: CARDS_SETTING.values, immediate: false, hint: "" })
+             values: CARDS_SETTING.values, hint: "" })
   return out
 }
 function setting(id) {
@@ -98,8 +95,7 @@ function islandEntry(config) {
 function islandValues(entry) {
   if (!entry) return null
   return { notifications: entry.notifications === true ? "true" : "false",
-           noteStyle: entry.noteStyle === "bubble" ? "bubble" : "workbench",
-           noteTopaz: entry.noteTopaz === false ? "false" : "true" }
+           noteStyle: entry.noteStyle === "bubble" ? "bubble" : "window" }
 }
 function listed(config, id) {
   var plugins = config && Array.isArray(config.plugins) ? config.plugins : []
@@ -123,13 +119,6 @@ function withValue(state, id, v) {
 }
 
 // ---------------------------------------------------------------- staging
-// The desktop font profile is a system change: only the font row (applied
-// at once, outside staging) switches it. Anything else keeps it as it is.
-function guardFont(target, liveFont) {
-  if (liveFont === "desktop") return "desktop"
-  if (target === "desktop") return liveFont
-  return target
-}
 function pendingState(live, edits) {
   var out = copy(live)
   for (var id in edits) {
@@ -142,7 +131,6 @@ function stage(edits, live, id, v) {
   var p = split(id)
   var out = Object.assign({}, edits)
   if (!live || !live[p.domain]) return out
-  if (id === "bar.font") v = guardFont(v, live.bar.font)
   if (live[p.domain][p.key] === v) delete out[id]
   else out[id] = v
   return out
@@ -173,10 +161,8 @@ function changes(edits, live) {
   })
   return out
 }
-function commitBar(pendingBar, liveBar) {
-  var o = Presets.normalizeOptions(pendingBar)
-  o.font = guardFont(o.font, Presets.normalizeOptions(liveBar).font)
-  return o
+function commitBar(pendingBar) {
+  return Presets.normalizeOptions(pendingBar)
 }
 function sameOptions(a, b) {
   return JSON.stringify(Presets.normalizeOptions(a)) === JSON.stringify(Presets.normalizeOptions(b))
@@ -199,15 +185,13 @@ function plan(edits, live) {
   return steps
 }
 // A bar step carries only its changed keys; the options are computed when
-// it runs, on top of the live options then (an immediate font change or an
-// outside change in between is kept).
+// it runs, on top of the live options then (an outside change in between is
+// kept).
 function barOptions(step, liveBar) {
-  return commitBar(Object.assign({}, Presets.normalizeOptions(liveBar), step.changes), liveBar)
+  return commitBar(Object.assign({}, Presets.normalizeOptions(liveBar), step.changes))
 }
 // Steps for Cancel after Use: back to the snapshot, only in the domains Use
-// touched. The font row is not staged and never reverted (the caller moves
-// the snapshot's font along when the row is used); guardFont keeps the
-// desktop profile as it is.
+// touched.
 function revertPlan(snapshot, live, applied) {
   var steps = []
   if (!snapshot || !live) return steps
@@ -225,13 +209,13 @@ function revertPlan(snapshot, live, applied) {
   return steps
 }
 
-// Does the island's own state (omarchy-shell amiga-island state →
+// Does the island's own state (omarchy-shell tusche-island state →
 // notifications) show this value?
 function islandReports(notes, key, v) {
   if (!notes) return false
   if (key === "notifications") return notes.wants === (v === "true")
-  if (key === "noteStyle") return notes.style === v
-  if (key === "noteTopaz") return notes.topaz === (v === "true")
+  // (an island from before the rename reports its window style as "workbench")
+  if (key === "noteStyle") return (notes.style === "workbench" ? "window" : notes.style) === v
   return false
 }
 
@@ -295,16 +279,7 @@ function healthChecks(f) {
 
   add("base", "Bar base layout", f.hasBase ? "ok" : "issue",
       f.hasBase ? "Your own layout is saved (base.json); Today restores it"
-                : "No saved base layout: choose Today, then run omarchy-shell amiga-bar recaptureBase")
-
-  var fontLabel = valueLabel(setting("bar.font"), f.font)
-  var desk = f.font === "desktop"
-  if (f.profile === "partial") add("font", "Desktop font profile", "issue", "Only partly installed: pick a pixel font level again to repair it")
-  else if (f.profile === "normal" || f.profile === "amiga") {
-    if (desk && f.profile === "normal") add("font", "Desktop font profile", "issue", "Level is Whole desktop, but the profile is not installed: pick Whole desktop again")
-    else if (!desk && f.profile === "amiga") add("font", "Desktop font profile", "issue", "Still installed although the level is " + fontLabel + ": pick a level to remove it")
-    else add("font", "Desktop font profile", "ok", desk ? "Installed (Whole desktop)" : "Not installed · level " + fontLabel)
-  } else add("font", "Desktop font profile", "unknown", "Reading the profile …")
+                : "No saved base layout: choose Today, then run omarchy-shell tusche-bar recaptureBase")
 
   var mins = Math.max(1, Math.round(Number(f.usageIntervalSec || 900) / 60))
   if (!f.usageFolded) add("usage", "AI usage refresh", "ok", "The AI widgets are in the bar and refresh themselves")
@@ -326,7 +301,7 @@ function healthChecks(f) {
     else add("notes", label, "ok", "Island not configured; Omarchy shows notifications")
   }
   else if (n === null || n === undefined) add("notes", label, "unknown", "Asking the island …")
-  else if (n === false) add("notes", label, "issue", "The island does not answer (omarchy-shell amiga-island state)")
+  else if (n === false) add("notes", label, "issue", "The island does not answer (omarchy-shell tusche-island state)")
   else if (f.islandWants) {
     if (!n.serving && !n.omarchyDisabled) add("notes", label, "issue", "Setting is on, but Omarchy's notification service is still running")
     else if (!n.serving) add("notes", label, "issue", "Setting is on, but the island is not serving notifications yet")

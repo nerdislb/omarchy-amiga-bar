@@ -3,10 +3,10 @@
 
   apply-settings.py [--look FILE] [--dry-run]
 
-- Saved Amiga Bar combinations: merged by name into
-  ~/.local/state/amiga-bar/presets.json (the Control Center lists them; the
+- Saved Tusche Bar combinations: merged by name into
+  ~/.local/state/tusche-bar/presets.json (the Control Center lists them; the
   installer then loads the chosen one, which builds the bar).
-- Amiga Island: its bar entry gets look.json's settings. Without one it takes
+- Tusche Island: its bar entry gets look.json's settings. Without one it takes
   the place of Omarchy's clock in the centre (the island is the clock), else
   goes before the weather, else to the end of the centre.
 
@@ -22,8 +22,8 @@ import tempfile
 HERE = Path(__file__).resolve().parent
 HOME = Path.home()
 SHELL = HOME / '.config/omarchy/shell.json'
-PRESETS = HOME / '.local/state/amiga-bar/presets.json'
-ISLAND = 'nerdibeard.amiga-island'
+PRESETS = HOME / '.local/state/tusche-bar/presets.json'
+ISLAND = 'nerdibeard.tusche-island'
 
 
 def write_json(path, data, dry):

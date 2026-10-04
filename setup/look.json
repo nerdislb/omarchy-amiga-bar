@@ -4,30 +4,12 @@
   "barCombination": "paper",
   "barCombinations": [
     {
-      "name": "Amiga (vor Tusche)",
-      "options": {
-        "workspaces": "stack",
-        "ai": "vu",
-        "right": "compact",
-        "edge": "none",
-        "logo": "amiga",
-        "centre": "calm",
-        "effects": "amiga",
-        "font": "theme",
-        "form": "full",
-        "fog": "off",
-        "menu": "drop"
-      }
-    },
-    {
       "name": "My focus",
       "options": {
         "workspaces": "stack",
         "ai": "ondemand",
         "right": "deviations",
-        "centre": "calm",
-        "effects": "plain",
-        "font": "theme"
+        "centre": "calm"
       }
     },
     {
@@ -38,12 +20,7 @@
         "right": "groups",
         "edge": "theme",
         "logo": "nerdibeard",
-        "centre": "calm",
-        "effects": "plain",
-        "font": "theme",
-        "form": "full",
-        "fog": "off",
-        "menu": "drop"
+        "centre": "calm"
       }
     }
   ],
@@ -90,7 +67,6 @@
     ],
     "barMode": true,
     "weekStart": "monday",
-    "noteStyle": "bubble",
-    "noteTopaz": false
+    "noteStyle": "bubble"
   }
 }

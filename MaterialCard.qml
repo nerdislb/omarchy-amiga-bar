@@ -2,32 +2,31 @@ import QtQuick
 import QtQuick.Effects
 import qs.Commons
 
-// Fog look (Amiga Bar option `fog`, a test) for an Omarchy KeyboardPanel.
-// Without fog but with a theme material (edge option "theme": the theme's
-// bar-material.json, Tusche & Papier) the card takes the theme's light and
-// shadow instead – a hard ink shadow (Papier), a light halo (Tusche, Lavur)
-// – and rolls out of the bar from the top, and back up when it closes.
-// A material card with `bloom` (the Lavur themes) blooms instead: the fog's
-// growth out of the bar as a sheet of wet paper (InkSheet) – ink fills it,
-// the water clears it, and the pigment dries into a rim at its calm edge
-// (frame round 03.10.2026, recommendation 6), standing still once dry.
-// Declare it inside the panel. While `fog` is on it takes the card's own
-// fill and frame away and grows a fog blob out of the bar behind it: a drop
-// under the anchor, then the card's size; the content fades in last.
-// Closing: the content fades, the blob shrinks back into the bar and a
-// faint fog lingers for a moment. Top bars only; elsewhere, and with fog
-// off, the card stays Omarchy's own.
-// (Same component in the Amiga Island: keep both copies alike.)
+// The theme material for an Omarchy KeyboardPanel's card. With a theme
+// material (edge option "theme": the theme's bar-material.json, Tusche &
+// Papier) the card takes the theme's light and shadow – a hard ink shadow
+// (Papier), a light halo (Tusche) – and rolls out of the bar from the top,
+// and back up when it closes.
+// A material card with `bloom` (the Lavur themes) blooms instead: it takes
+// the card's own fill and frame away and grows out of the bar behind it as
+// a sheet of wet paper (InkSheet) – a drop under the anchor, then the card's
+// size; ink fills it, the water clears it, and the pigment dries into a rim
+// at its calm edge (frame round 03.10.2026), standing still once dry. The
+// content fades in last. Closing: the content fades, the sheet shrinks back
+// into the bar and a faint trace lingers for a moment. Top bars only.
+// Without a material the card stays Omarchy's own, with a faint line and a
+// soft shadow (`edge`).
+// Declare it inside the panel.
+// (Same component in the Tusche Island: keep both copies alike.)
 Item {
   id: fp
 
   property var panel: null
-  property bool fog: false
   // The colour the bar ends in (opaque).
   property color color: Qt.rgba(Color.bar.background.r, Color.bar.background.g, Color.bar.background.b, 1)
-  // Edge, with and without fog: a faint line in the text colour and a soft
-  // shadow, so a popup in the bar's colour still stands apart from windows
-  // of the same colour behind it. With fog the line follows the fog's shape.
+  // Edge: a faint line in the text colour and a soft shadow, so a popup in
+  // the bar's colour still stands apart from windows of the same colour
+  // behind it.
   property bool edge: true
   readonly property bool lightTheme: 0.2126 * Color.popups.background.r + 0.7152 * Color.popups.background.g + 0.0722 * Color.popups.background.b > 0.55
   readonly property color rimColor: Util.alpha(Color.popups.text, lightTheme ? 0.24 : 0.22)
@@ -70,23 +69,23 @@ Item {
   // and the card's parent the panel window's root item.
   readonly property Item card: parent && parent.parent && parent.parent.borderSpec !== undefined ? parent.parent : null
   readonly property Item surface: card ? card.parent : null
-  // Lavur material: the fog machinery, styled as a bloom
-  readonly property bool bloomWanted: !fog && !!material && !!material.card && material.card.bloom === true
-  readonly property bool active: (fog || bloomWanted) && !!card && !!surface && !!panel && panel.barPos === "top"
-  readonly property bool bloom: active && !fog
+  // Lavur material: the card grows out of the bar as a bloom
+  readonly property bool bloomWanted: !!material && !!material.card && material.card.bloom === true
+  readonly property bool active: bloomWanted && !!card && !!surface && !!panel && panel.barPos === "top"
+  readonly property bool bloom: active
   readonly property bool reduced: Style.reduceMotion
 
   // Theme material (bar-material.json; set while the edge option is "theme").
   property var material: null
   readonly property var mat: material && material.card ? material.card : null
-  readonly property bool matOn: !fog && !!mat && mat.bloom !== true && !!card && !!surface && !!panel
+  readonly property bool matOn: !!mat && mat.bloom !== true && !!card && !!surface && !!panel
   readonly property bool rolls: matOn && mat.roll !== false && panel.barPos === "top"
   property real roll: 0      // 0 = rolled up into the bar, 1 = open
   // only while it is out or on its way, and on closing until the rolled-in
   // card has faded: released earlier, the whole card flashed up at full
   // height for the panel's fade (closed, the card and its mask need no layer)
   readonly property bool rolling: rolls && roll < 0.999 && (panel.open || roll > 0.001 || (!!card && card.opacity > 0.001))
-  // How far the card is out (0–1): the roll, the fog's or bloom's growth,
+  // How far the card is out (0–1): the roll, the bloom's growth,
   // else its fade – a source tab stays until its card is back in the bar.
   readonly property real presence: rolls ? roll : active ? grow : (card ? card.opacity : 0)
   // Closing a rolling card: some panels drop part of their content the
@@ -138,9 +137,9 @@ Item {
     return Math.max(card.x + dropW / 2, Math.min(card.x + card.width - dropW / 2, cx))
   }
 
-  // The card's fill and frame give way to the fog; its opacity carries
+  // The card's fill and frame give way to the bloom; its opacity carries
   // the content (kept just above 0 while the blob shrinks, so the panel,
-  // which unmaps at opacity 0, stays up until the fog is back in the bar).
+  // which unmaps at opacity 0, stays up until the bloom is back in the bar).
   Binding { target: fp.card; property: "color"; value: "transparent"; when: fp.active }
   Binding { target: fp.card; property: "borderSpec"; value: Border.flat("transparent", Math.max(1, Style.space(2))); when: fp.active }
   Binding { target: fp.card; property: "opacity"; value: Math.max(fp.ink, fp.grow > 0.001 ? 0.004 : 0); when: fp.active }
@@ -198,7 +197,7 @@ Item {
   NumberAnimation { id: ghostFade; property: "opacity"; to: 0; duration: 760; easing.type: Easing.InQuad }
 
   function followRoll() {
-    // Same rule as the fog below: when rolling stops applying, only stop –
+    // Same rule as the bloom below: when rolling stops applying, only stop –
     // never write roll through a Binding that is about to be released.
     if (!rolls) { rollOut.stop(); rollIn.stop(); return }
     if (panel.open) {
@@ -213,7 +212,7 @@ Item {
   }
   // becoming a rolling card: take the state without animating (open = out, closed = in)
   onRollsChanged: { rollOut.stop(); rollIn.stop(); if (rolls) roll = panel && panel.open ? 1 : 0 }
-  // Reduced Motion switched on mid-roll, mid-fog or mid-bloom: jump to where it is going
+  // Reduced Motion switched on mid-roll or mid-bloom: jump to where it is going
   onReducedChanged: {
     if (!reduced) return
     if (rolls && (rollOut.running || rollIn.running)) followRoll()
@@ -223,11 +222,11 @@ Item {
 
   function follow() {
     followRoll()
-    // Fog off: only stop. Writing grow/ink here would still go through the
+    // Bloom off: only stop. Writing grow/ink here would still go through the
     // card's opacity Binding (not yet released) and start the panel's
     // opacity Behavior, which then outlives the restored binding — closed
-    // popups came back fully opaque and never unmapped. Turning the fog on
-    // again resets both below.
+    // popups came back fully opaque and never unmapped. Turning the bloom
+    // on again resets both below.
     if (!active) { opening.stop(); closing.stop(); settle(); return }
     if (panel.open) {
       closing.stop()
@@ -236,12 +235,12 @@ Item {
       else {
         ink = 0; opening.start()
         // all ink from the first frame (the pause in `wetting` holds it)
-        if (bloom) { wetting.stop(); clearing = 0; wet = 1; phase = 0; wetting.start() } else settle()
+        wetting.stop(); clearing = 0; wet = 1; phase = 0; wetting.start()
       }
     } else {
       opening.stop()
       // Switching to another bar popup closes this one at once (as
-      // KeyboardPanel does): no shrinking fog next to the new one.
+      // KeyboardPanel does): no shrinking bloom next to the new one.
       if (reduced || grow <= 0 || panel.popoutSwitchClosing) {
         closing.stop(); grow = 0; ink = 0
         if (stage) stage.ghost.opacity = 0
@@ -256,9 +255,9 @@ Item {
   }
   onActiveChanged: follow()
 
-  // The fog, under the card in the panel window. Clipped at the bar's
-  // lower edge: the shapes reach up into the bar for the blur, but nothing
-  // may be painted over the bar's widgets.
+  // The bloom, under the card in the panel window. Clipped at the bar's
+  // lower edge: the sheet reaches up into the bar, but nothing may be
+  // painted over the bar's widgets.
   // Created straight into the panel window, under the card.
   property Item stage: null
   readonly property real ghostOpacity: stage ? stage.ghost.opacity : 0
@@ -276,80 +275,14 @@ Item {
 
       Item {
         anchors.fill: parent
-        layer.enabled: stageItem.visible
+        layer.enabled: stageItem.visible && ghost.opacity > 0
         layer.effect: MultiEffect { blurEnabled: true; blur: 1; blurMax: 48; autoPaddingEnabled: false }
         Rectangle { id: ghost; opacity: 0; radius: 12; color: fp.color }
-        // soft shadow under the fog's blob, kept off the bar's edge
-        Rectangle {
-          visible: fp.edge && !fp.bloom
-          x: fp.blob.x - stageItem.x + 4
-          y: 18
-          width: fp.grow > 0 ? Math.max(0, fp.blob.w - 8) : 0
-          height: Math.max(0, fp.blob.h - 12)
-          radius: 12
-          color: Qt.rgba(0, 0, 0, fp.shadowOpacity)
-        }
       }
 
-      // the fog's edge line: the same shapes a little larger, in the rim
-      // colour, under the fog itself
-      FogLayer {
-        visible: fp.edge && !fp.bloom
-        y: -fp.margin
-        width: stageItem.width
-        height: stageItem.height + fp.margin
-        color: fp.rimColor
-        blurMax: 24
-        threshold: 0.4
-        softness: 0.5
-        Rectangle {
-          x: fp.blob.x - stageItem.x - 14 - fp.rim
-          width: fp.grow > 0 ? fp.blob.w + 28 + 2 * fp.rim : 0
-          height: fp.margin + 1
-          color: "white"
-        }
-        Rectangle {
-          x: fp.blob.x - stageItem.x - fp.rim
-          y: fp.margin
-          width: fp.grow > 0 ? fp.blob.w + 2 * fp.rim : 0
-          height: fp.blob.h + fp.rim
-          radius: 10 + fp.rim
-          color: "white"
-        }
-      }
-
-      FogLayer {
-        visible: !fp.bloom
-        y: -fp.margin
-        width: stageItem.width
-        height: stageItem.height + fp.margin
-        color: fp.color
-        blurMax: 24
-        threshold: 0.4
-        softness: 0.5
-
-        // up into the bar: the flare where the blob leaves it (shapes only
-        // change size: the fog layer does not repaint a merely hidden one)
-        Rectangle {
-          x: fp.blob.x - stageItem.x - 14
-          width: fp.grow > 0 ? fp.blob.w + 28 : 0
-          height: fp.margin + 1
-          color: "white"
-        }
-        Rectangle {
-          x: fp.blob.x - stageItem.x
-          y: fp.margin
-          width: fp.blob.w
-          height: fp.blob.h
-          radius: 10
-          color: "white"
-        }
-      }
-
-      // the bloom: one sheet of wet paper (layer coordinates as the fog's:
-      // the bar's lower edge at `margin`; the wet ink below its edge only)
+      // the bloom: one sheet of wet paper (layer coordinates: the bar's
+      // lower edge at `margin`; the wet ink below its edge only)
       InkSheet {
-        visible: fp.bloom
         y: -fp.margin
         width: stageItem.width
         height: stageItem.height + fp.margin
@@ -380,8 +313,8 @@ Item {
     }
   }
 
-  // Without fog (or where the fog does not apply): line on the card and a
-  // shadow under it, fading with the card.
+  // Without the bloom: line on the card and a shadow (or the material's
+  // shadow or halo) under it, fading with the card.
   property Item cardShadow: null
   property Item cardLine: null
   Component {

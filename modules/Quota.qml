@@ -6,8 +6,8 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// AI quotas, compact. Custom QML module of the Amiga Bar:
-//   { "id": "amiga.quota", "source": ".../modules/Quota.qml",
+// AI quotas, compact. Custom QML module of the Tusche Bar:
+//   { "id": "tusche.quota", "source": ".../modules/Quota.qml",
 //     "variant": "gauge" | "vu" | "rings" | "ondemand" }
 // Data: Omarchy's agent usage files (~/.local/state/omarchy/agents/usage)
 // plus the DeepSeek balance; which limits are shown follows the existing
@@ -19,7 +19,7 @@ Item {
   Component.onDestruction: Bridge.ModuleBus.unregister("quota", root)
 
   property var bar: null
-  property string moduleName: "amiga.quota"
+  property string moduleName: "tusche.quota"
   property var settings: ({})
   function setting(key, fallback) { var v = settings ? settings[key] : undefined; return v === undefined || v === null ? fallback : v }
 
@@ -153,7 +153,7 @@ Item {
     x: Style.space(4)
     height: root.barSize
     sourceComponent: root.variant === "vu" ? vuView : root.variant === "rings" ? ringsView
-      : root.variant === "ondemand" ? chipView : root.variant === "title" ? titleView : gaugeView
+      : root.variant === "ondemand" ? chipView : gaugeView
   }
 
   MouseArea {
@@ -166,35 +166,6 @@ Item {
     }
   }
 
-  // Title line: one calm line like the Workbench screen title
-  // ("Workbench release. 421,520 free memory"), Topaz if chosen.
-  property real freeGiB: 0
-  FileView {
-    id: meminfo
-    path: "/proc/meminfo"
-    onLoaded: { var m = /MemAvailable:\s+(\d+)/.exec(String(text())); if (m) root.freeGiB = Number(m[1]) / 1048576 }
-  }
-  Timer { interval: 10000; running: root.variant === "title"; repeat: true; triggeredOnStart: true; onTriggered: meminfo.reload() }
-  readonly property string titleText: "Workbench  " + freeGiB.toFixed(1) + "G free" + quotaItems.map(function(q) {
-    return "  " + q.name + " " + Math.round(q.percent * 100) + "%" }).join("")
-  Component {
-    id: titleView
-    Item {
-      height: root.barSize
-      // Hires Topaz (8 px per character) keeps the line clear of the centre.
-      implicitWidth: line.implicitWidth
-      Text {
-        id: line
-        anchors.verticalCenter: parent.verticalCenter
-        text: root.titleText
-        font.family: Bridge.ModuleBus.momentFamily
-        font.pixelSize: Bridge.ModuleBus.momentPx(Style.font.body)
-        renderType: Text.NativeRendering
-        color: root.tightest && root.tightest.percent >= 0.9 ? root.tone(root.tightest.percent) : Util.alpha(root.fg, 0.8)
-      }
-    }
-  }
-
   // Gauge: the tightest limit, coloured by level.
   Component {
     id: gaugeView
@@ -204,7 +175,7 @@ Item {
       Text { renderType: Text.NativeRendering;
         anchors.verticalCenter: parent.verticalCenter
         text: "\u{f04c5}"
-        font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.icon + 2)
+        font.family: Style.font.family; font.pixelSize: Style.font.icon + 2
         color: root.tightest ? root.tone(root.tightest.percent) : root.fg
       }
       Column {
@@ -212,8 +183,8 @@ Item {
         spacing: Style.space(2)
         Row {
           spacing: Style.space(4)
-          Text { renderType: Text.NativeRendering; text: root.tightest ? root.tightest.name : "AI"; font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: Util.alpha(root.fg, 0.65) }
-          Text { renderType: Text.NativeRendering; text: root.tightest ? Math.round(root.tightest.percent * 100) + "%" : "–"; font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.bodySmall); color: root.fg }
+          Text { renderType: Text.NativeRendering; text: root.tightest ? root.tightest.name : "AI"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption; color: Util.alpha(root.fg, 0.65) }
+          Text { renderType: Text.NativeRendering; text: root.tightest ? Math.round(root.tightest.percent * 100) + "%" : "–"; font.family: Style.font.family; font.pixelSize: Style.font.bodySmall; color: root.fg }
         }
         Rectangle {
           width: Style.space(62); height: Math.max(2, Style.space(4))
@@ -236,7 +207,7 @@ Item {
           required property var modelData
           spacing: Style.space(2)
           anchors.verticalCenter: parent.verticalCenter
-          Text { renderType: Text.NativeRendering; anchors.verticalCenter: parent.verticalCenter; text: root.letters[modelData.provider] || "?"; font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: Util.alpha(root.fg, 0.65) }
+          Text { renderType: Text.NativeRendering; anchors.verticalCenter: parent.verticalCenter; text: root.letters[modelData.provider] || "?"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption; color: Util.alpha(root.fg, 0.65) }
           Column {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 1
@@ -258,7 +229,7 @@ Item {
         visible: !!root.balance
         anchors.verticalCenter: parent.verticalCenter
         text: root.balance ? root.balance.value.replace(/^USD\s*/, "$") : ""
-        font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: Util.alpha(root.fg, 0.75)
+        font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Util.alpha(root.fg, 0.75)
       }
     }
   }
@@ -286,7 +257,7 @@ Item {
             c.beginPath(); c.arc(width / 2, height / 2, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0.03, Math.min(1, modelData.percent))); c.stroke()
           }
           Connections { target: root; function onItemsChanged() { ring.requestPaint() } }
-          Text { renderType: Text.NativeRendering; anchors.centerIn: parent; text: root.letters[modelData.provider] || "?"; font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption - 1); color: root.fg }
+          Text { renderType: Text.NativeRendering; anchors.centerIn: parent; text: root.letters[modelData.provider] || "?"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption - 1; color: root.fg }
         }
       }
     }
@@ -305,8 +276,8 @@ Item {
         id: chipRow
         anchors.centerIn: parent
         spacing: Style.space(5)
-        Text { renderType: Text.NativeRendering; text: "\u{f04c5}"; font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.icon); color: root.tightest ? root.tone(root.tightest.percent) : root.fg }
-        Text { renderType: Text.NativeRendering; text: root.tightest ? root.tightest.name + " " + root.shortLabel(root.tightest.label) + " " + Math.round(root.tightest.percent * 100) + "%" : ""; font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.bodySmall); color: root.fg }
+        Text { renderType: Text.NativeRendering; text: "\u{f04c5}"; font.family: Style.font.family; font.pixelSize: Style.font.icon; color: root.tightest ? root.tone(root.tightest.percent) : root.fg }
+        Text { renderType: Text.NativeRendering; text: root.tightest ? root.tightest.name + " " + root.shortLabel(root.tightest.label) + " " + Math.round(root.tightest.percent * 100) + "%" : ""; font.family: Style.font.family; font.pixelSize: Style.font.bodySmall; color: root.fg }
       }
     }
   }
@@ -332,8 +303,8 @@ Item {
     contentWidth: Style.space(440)
     contentHeight: popup.fittedContentHeight(list.implicitHeight)
 
-    // Fog look (test): the popup grows out of the bar as fog.
-    Root.FogPanel { panel: popup; fog: Bridge.ModuleBus.fog; color: Bridge.ModuleBus.fogColor; material: Bridge.ModuleBus.material }
+    // Theme material: the popup rolls out of the bar as a card.
+    Root.MaterialCard { panel: popup; material: Bridge.ModuleBus.material }
 
     Item {
       id: popupKeys
@@ -344,14 +315,14 @@ Item {
         id: list
         width: parent.width
         spacing: Style.space(8)
-        Text { renderType: Text.NativeRendering; text: "AI quotas"; font.family: Bridge.ModuleBus.family; font.bold: true; font.pixelSize: Bridge.ModuleBus.px(Style.font.title); color: Color.popups.text }
+        Text { renderType: Text.NativeRendering; text: "AI quotas"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.title; color: Color.popups.text }
         Repeater {
           model: root.items
           Row {
             required property var modelData
             width: list.width
             spacing: Style.space(8)
-            Text { renderType: Text.NativeRendering; width: Style.space(150); elide: Text.ElideRight; text: modelData.name + " · " + root.shortLabel(modelData.label); font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.body); color: Color.popups.text }
+            Text { renderType: Text.NativeRendering; width: Style.space(150); elide: Text.ElideRight; text: modelData.name + " · " + root.shortLabel(modelData.label); font.family: Style.font.family; font.pixelSize: Style.font.body; color: Color.popups.text }
             Rectangle {
               visible: modelData.percent >= 0
               anchors.verticalCenter: parent.verticalCenter
@@ -361,12 +332,12 @@ Item {
             }
             Text { renderType: Text.NativeRendering;
               text: modelData.percent >= 0 ? Math.round(modelData.percent * 100) + "%" : modelData.value
-              font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.body); color: Color.popups.text
+              font.family: Style.font.family; font.pixelSize: Style.font.body; color: Color.popups.text
             }
-            Text { renderType: Text.NativeRendering; text: modelData.expired ? "reset · refreshing" : root.resetText(modelData.resetsAt); font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: Util.alpha(Color.popups.text, 0.55) }
+            Text { renderType: Text.NativeRendering; text: modelData.expired ? "reset · refreshing" : root.resetText(modelData.resetsAt); font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Util.alpha(Color.popups.text, 0.55) }
           }
         }
-        Text { renderType: Text.NativeRendering; text: "Middle click refreshes · same selection as the AI usage widget"; font.family: Bridge.ModuleBus.family; font.pixelSize: Bridge.ModuleBus.px(Style.font.caption); color: Util.alpha(Color.popups.text, 0.5) }
+        Text { renderType: Text.NativeRendering; text: "Middle click refreshes · same selection as the AI usage widget"; font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Util.alpha(Color.popups.text, 0.5) }
       }
     }
   }

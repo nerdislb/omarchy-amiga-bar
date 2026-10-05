@@ -1083,23 +1083,42 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.deepEqual(plain(ctx.LOOK), ['edge', 'keys']);
   assert.equal(ctx.normalizeOptions({}).keys, 'omarchy', 'plugin alone: Omarchy\'s keys stay');
   assert.equal(ctx.keepLook(ctx.presetById('tidy').options, {keys: 'bar'}).keys, 'bar', 'presets keep the keys');
-  // keybinds.py on a scratch file: adds one block, is idempotent, removes it cleanly
+  // look options only: the options are saved, the bar keeps its arrangement
+  assert.equal(ctx.layoutDiffers({keys: 'bar', edge: 'line'}, {}), false, 'keys/edge alone do not rebuild the bar');
+  assert.equal(ctx.layoutDiffers(ctx.presetById('tidy').options, {}), true, 'a preset still rebuilds');
+  assert(/if \(currentLayout && !Presets\.layoutDiffers\(opts, options\)\) \{[\s\S]*?layout: currentLayout/.test(engine), 'apply keeps the arranged bar');
+  assert(ws.includes('if (!m.appLibrary) { close(); bar.run("omarchy-menu toggle apps"); return }'), 'no app library: Omarchy\'s Apps menu toggles');
+  // keybinds.py on a scratch file: adds one block, is idempotent, removes it
+  // cleanly (copied blocks too); a stub hyprctl keeps the real compositor out
   const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'tb-keys-'));
   try {
     const file = path.join(dir, 'bindings.lua');
+    const bin = path.join(dir, 'bin'), calls = path.join(dir, 'hyprctl.calls');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'hyprctl'), `#!/bin/sh\necho "$@" >> '${calls}'\n`, {mode: 0o755});
     fs.writeFileSync(file, 'o.bind("SUPER + A", "x", "y")\n', {mode: 0o640});
     const run = a => require('node:child_process').execFileSync('python3', [path.join(root, 'bin/keybinds.py'), a],
-      {encoding: 'utf8', env: Object.assign({}, process.env, {OMARCHY_HYPR_BINDINGS: file, PATH: '/nonexistent:/usr/bin:/bin'})}).trim();
+      {encoding: 'utf8', env: Object.assign({}, process.env, {OMARCHY_HYPR_BINDINGS: file, PATH: `${bin}:/usr/bin:/bin`})}).trim();
+    const reloads = () => fs.existsSync(calls) ? fs.readFileSync(calls, 'utf8').trim().split('\n').length : 0;
     assert.equal(run('status'), 'omarchy');
     assert.equal(run('bar'), 'bar');
     const once = fs.readFileSync(file, 'utf8');
     assert(once.includes('hl.unbind("SUPER + SPACE")') && once.includes('"omarchy-shell tusche-bar search || omarchy-menu toggle root"')
       && once.includes('"omarchy-shell tusche-bar apps || omarchy-menu toggle apps"'));
+    assert.equal(reloads(), 1, 'Hyprland asked to reload once');
     run('bar');
     assert.equal(fs.readFileSync(file, 'utf8'), once, 'idempotent');
+    assert.equal(reloads(), 1, 'nothing changed: no reload');
     assert.equal(fs.statSync(file).mode & 0o777, 0o640, 'file mode kept');
     assert.equal(run('omarchy'), 'omarchy');
     assert.equal(fs.readFileSync(file, 'utf8'), 'o.bind("SUPER + A", "x", "y")\n', 'removed cleanly');
+    // a block copied twice (e.g. by hand): one block after "bar", none after "omarchy"
+    const block = once.slice(once.indexOf('-- BEGIN Tusche Bar keys'));
+    fs.writeFileSync(file, block + '\no.bind("SUPER + A", "x", "y")\n\n' + block);
+    run('bar');
+    assert.equal(fs.readFileSync(file, 'utf8').split('-- BEGIN Tusche Bar keys').length - 1, 1, 'duplicates folded into one block');
+    run('omarchy');
+    assert.equal(fs.readFileSync(file, 'utf8'), 'o.bind("SUPER + A", "x", "y")\n', 'all copies removed');
   } finally {
     fs.rmSync(dir, {recursive: true, force: true});
   }

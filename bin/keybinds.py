@@ -36,15 +36,17 @@ def read():
 
 
 def strip(text):
-    i = text.find(BEGIN)
-    if i < 0:
-        return text
-    j = text.find(END, i)
-    if j < 0:
-        return text
-    j += len(END)
-    head, tail = text[:i].rstrip('\n'), text[j:].lstrip('\n')
-    return head + ('\n\n' if head and tail else '\n' if head else '') + tail
+    """Every complete managed block out (a copied block must not survive)."""
+    while True:
+        i = text.find(BEGIN)
+        if i < 0:
+            return text
+        j = text.find(END, i)
+        if j < 0:
+            return text
+        j += len(END)
+        head, tail = text[:i].rstrip('\n'), text[j:].lstrip('\n')
+        text = head + ('\n\n' if head and tail else '\n' if head else '') + tail
 
 
 def write(text):

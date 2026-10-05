@@ -111,6 +111,8 @@ Item {
   function openApps() {
     var m = dropLoader.item
     if (!dropAvailable || !m) return
+    // without the shell's app library: Omarchy's own Apps menu, toggled
+    if (!m.appLibrary) { close(); bar.run("omarchy-menu toggle apps"); return }
     if (dropOpen && m.level && m.level.provider === "apps") { close(); return }
     if (!dropOpen) open()
     Qt.callLater(function() { if (root.dropOpen) m.openApps() })

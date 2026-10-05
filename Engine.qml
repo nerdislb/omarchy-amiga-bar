@@ -189,6 +189,13 @@ Item {
     if (!baseLayout) return "no base layout"
     if (writer.running) return "busy"
     var opts = Presets.normalizeOptions(nextOptions)
+    if (currentLayout && !Presets.layoutDiffers(opts, options)) {
+      // only look options (edge, Super+Space): save them, keep the bar as arranged
+      lastWritten = opts
+      writer.payload = JSON.stringify({ pluginId: pluginId, options: opts, layout: currentLayout })
+      writer.running = true
+      return "ok"
+    }
     var merged = Presets.mergeEmbeddedSettings(baseLayout, currentLayout)
     if (JSON.stringify(merged) !== JSON.stringify(baseLayout)) {
       baseLayout = merged

@@ -246,6 +246,15 @@ function matchPreset(options) {
   return ""
 }
 
+// Whether two option sets build different bars. The look options (edge,
+// keys) never change bar.layout, so switching only those keeps the bar as the
+// user arranged it.
+function layoutDiffers(a, b) {
+  var x = normalizeOptions(a), y = normalizeOptions(b)
+  for (var key in ELEMENTS) if (LOOK.indexOf(key) === -1 && x[key] !== y[key]) return true
+  return false
+}
+
 // Options for a preset or saved combination: a preset or an older saved
 // combination without a look option keeps the current one.
 function keepLook(next, current) {

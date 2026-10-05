@@ -57,7 +57,7 @@ case "$cmd" in
       else
         command -v curl >/dev/null || die "curl is missing"
         echo "==> download $a"
-        curl -fL --retry 2 -o "$tmp/$a" "$URL/$a" || die "download failed: $URL/$a"
+        curl -fsSL --retry 2 -o "$tmp/$a" "$URL/$a" || die "download failed: $URL/$a"
       fi
     done
     (cd "$tmp" && grep -E " ($(assets | paste -sd '|'))$" "$SUMS" | sha256sum -c --quiet -) || die "checksum mismatch – nothing was installed"

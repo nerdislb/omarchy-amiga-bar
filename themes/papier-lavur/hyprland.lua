@@ -18,6 +18,6 @@ hl.config({
   },
 
   decoration = {
-    shadow = { enabled = true, range = 50, render_power = 2, offset = { 0, 6 }, color = "rgba(11111138)", color_inactive = "rgba(00000000)" },
+    shadow = { enabled = true, range = 24, render_power = 3, offset = { 0, 4 }, color = "rgba(11111128)", color_inactive = "rgba(00000000)" },
   },
 })

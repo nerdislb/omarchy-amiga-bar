@@ -414,11 +414,38 @@ Item {
   function present(items) { return items.filter(function(e) { return !e.requires || root.hasPlugin(e.requires) }) }
   onDropMenuOpenChanged: if (dropMenuOpen) { isOpen = false; pluginScan.running = true }
   // Super+Alt+M / logo: the drop-down menu under the logo of the focused
-  // screen; without a logo shown, Omarchy's own menu.
-  function toggleMenu() {
+  // screen; without a logo shown, Omarchy's own menu. mode "search" opens it
+  // as a launcher (Super+Space: search line, apps first), "apps" on the Apps
+  // list (Super+Alt+Space).
+  function toggleMenu(mode) {
     var w = Bridge.ModuleBus.pick("workspaces")
-    if (w && w.showMenu) w.toggleDrop()
-    else run("omarchy-menu toggle root")
+    if (w && w.showMenu) {
+      if (mode === "search") w.openSearch()
+      else if (mode === "apps") w.openApps()
+      else w.toggleDrop()
+    } else run(mode === "apps" ? "omarchy-menu toggle apps" : "omarchy-menu toggle root")
+  }
+
+  // Super+Space follows the option: bin/keybinds.py keeps (or removes) one
+  // managed block in ~/.config/hypr/bindings.lua. Synced once the options are
+  // read and whenever the option changes.
+  property string keysState: ""
+  property bool keysPending: false
+  readonly property string keysOption: options.keys
+  onKeysOptionChanged: syncKeys()
+  onConfigLoadedChanged: syncKeys()
+  function syncKeys() {
+    if (!configLoaded) return
+    if (keysProc.running) { keysPending = true; return }
+    keysProc.action = keysOption === "bar" ? "bar" : "omarchy"
+    keysProc.running = true
+  }
+  Process {
+    id: keysProc
+    property string action: "status"
+    command: ["python3", root.pluginDir + "/bin/keybinds.py", action]
+    stdout: StdioCollector { onStreamFinished: root.keysState = String(text).trim() }
+    onExited: if (root.keysPending) { root.keysPending = false; root.syncKeys() }
   }
 
   // Menus (built on demand from live state). Items: { label, note, checked,
@@ -534,7 +561,11 @@ Item {
     // A question from bin/menu-shim (omarchy-menu-select / -input payload):
     // "ok" when a drop-down took it.
     function ask(payload: string): string { return root.ask(payload) }
-    function menu(): void { root.toggleMenu() }
+    function menu(): void { root.toggleMenu("") }
+    // Super+Space: the menu as a launcher (search line, apps first)
+    function search(): void { root.toggleMenu("search") }
+    // Super+Alt+Space: the menu on the Apps list
+    function apps(): void { root.toggleMenu("apps") }
     function preset(id: string): string { return root.applyPreset(id) }
     function set(element: string, variant: string): string { return root.setVariant(element, variant) }
     // After choosing Today: fresh snapshot of your own layout. Without any
@@ -546,6 +577,7 @@ Item {
     function state(): string {
       return JSON.stringify({ preset: root.presetId, options: root.options, hasBase: root.baseLayout !== null,
                               open: root.isOpen, dropMenuOpen: root.dropMenuOpen, saved: root.savedPresets.map(function(p) { return p.name }), lastResult: root.lastResult, moduleDir: root.moduleDir,
+                              keys: { option: root.keysOption, bindings: root.keysState },
                               edge: { option: root.options.edge, material: root.material ? (root.material.edge ? root.material.edge.kind : "no edge") : null, themeEdge: root.themeEdgeVisible, barReady: root.barReady },
                               usage: { folded: root.usageFolded, intervalSec: root.usageIntervalSec, running: usageUpdate.running, command: usageUpdate.command },
                               ask: root.askState(),

@@ -48,12 +48,20 @@ var ELEMENTS = {
       { id: "today", label: "As today" },
       { id: "calm", label: "Temperature at the weather" }
     ]
+  },
+  // not a layout option: Super+Space opens the bar's menu (bin/keybinds.py)
+  keys: {
+    label: "Super+Space",
+    variants: [
+      { id: "omarchy", label: "Omarchy menu" },
+      { id: "bar", label: "Bar menu with search" }
+    ]
   }
 }
 
 // Look options that sit on top of any preset: presets keep the current
 // value, and preset matching ignores them.
-var LOOK = ["edge"]
+var LOOK = ["edge", "keys"]
 
 // Presets.
 var PRESETS = [

@@ -98,6 +98,23 @@ Item {
   function close() { dropOpen = false }
   function closeForPopoutSwitch() { popoutSwitchClosing = true; dropOpen = false; Qt.callLater(function() { root.popoutSwitchClosing = false }) }
   function toggleDrop() { if (dropOpen) close(); else open() }
+  // Super+Space: the drop-down as a launcher (search line, apps first); a
+  // second press closes it.
+  function openSearch() {
+    if (dropOpen) { close(); return }
+    var m = dropLoader.item
+    if (!dropAvailable || !m) return
+    m.searchMode = true
+    open()
+  }
+  // Super+Alt+Space: straight onto the Apps list (closes when already there).
+  function openApps() {
+    var m = dropLoader.item
+    if (!dropAvailable || !m) return
+    if (dropOpen && m.level && m.level.provider === "apps") { close(); return }
+    if (!dropOpen) open()
+    Qt.callLater(function() { if (root.dropOpen) m.openApps() })
+  }
   // (during a plugin reload the engine may already be gone while this module is torn down)
   function syncDrop() { var e = Bridge.ModuleBus.engine; if (e && typeof e.syncDropMenu === "function") e.syncDropMenu() }
   onDropOpenChanged: syncDrop()

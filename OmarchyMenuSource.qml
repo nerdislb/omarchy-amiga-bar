@@ -18,6 +18,10 @@ Item {
   readonly property string omarchyPath: Quickshell.env("OMARCHY_PATH") || (Quickshell.env("HOME") + "/.local/share/omarchy")
   property var defaultItems: []
   property var userItems: []
+  // ids defined by Omarchy's own menu file (the drop-down keeps them on its
+  // first level; entries only the user's extensions add go under "More")
+  property var builtinIds: ({})
+  property int builtinCount: 0
   property var items: ({})
   property var itemOrder: []
   property var whenResults: ({})
@@ -29,6 +33,10 @@ Item {
 
   function rebuild() {
     var merged = MenuModel.mergeMenuSources(defaultItems, userItems)
+    var own = {}
+    for (var i = 0; i < defaultItems.length; i++) if (defaultItems[i] && defaultItems[i].id) own[defaultItems[i].id] = true
+    builtinIds = own
+    builtinCount = Object.keys(own).length
     items = merged.items
     itemOrder = merged.itemOrder
     // as the native menu: provider lists load again for the new definition
@@ -58,6 +66,8 @@ Item {
   }
 
   function entry(id) { return MenuModel.item(items, id) }
+  // without Omarchy's file (not read yet) everything counts as its own
+  function isBuiltin(id) { return builtinCount === 0 || builtinIds[id] === true }
   function shown(e) { return MenuModel.isVisible(items, itemOrder, whenResults, e, 0) }
 
   // A row for the view. kind: "menu" (opens inside the drop-down),

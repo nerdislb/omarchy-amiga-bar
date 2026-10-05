@@ -117,9 +117,9 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   console.log('PASS: base reconstruction');
 }
 
-// The edge is a look option: presets keep it, preset matching ignores it.
+// The edge (and the Super+Space keys) are look options: presets keep them, preset matching ignores them.
 {
-  assert.deepEqual(plain(ctx.LOOK), ['edge']);
+  assert.deepEqual(plain(ctx.LOOK), ['edge', 'keys']);
   const tidy = ctx.presetById('tidy').options;
   assert.equal(tidy.edge, undefined);
   assert.equal(ctx.keepLook(tidy, {edge: 'theme'}).edge, 'theme', 'a preset without an edge keeps the current one');
@@ -353,7 +353,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.deepEqual(plain(cc.barIds()), Object.keys(ctx.ELEMENTS).map(k => 'bar.' + k));
   assert.deepEqual(plain(cc.settings().map(s => s.id)), Object.keys(ctx.ELEMENTS).map(k => 'bar.' + k)
     .concat(['island.notifications', 'island.noteStyle', 'cards.override']));
-  assert.deepEqual(plain(cc.QUICK), ['bar.edge', 'bar.logo', 'island.notifications', 'island.noteStyle']);
+  assert.deepEqual(plain(cc.QUICK), ['bar.edge', 'bar.logo', 'bar.keys', 'island.notifications', 'island.noteStyle']);
   for (const id of cc.QUICK) assert(cc.setting(id), id);
   // Staging is an overlay; staging the live value removes the edit.
   let edits = cc.stage({}, live, 'bar.edge', 'theme');
@@ -482,7 +482,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.deepEqual(handlers, {
     'tusche-status': ['group', 'member', 'close', 'state'],
     'tusche-quota': ['toggle', 'state'],
-    'tusche-bar': ['options', 'cc', 'save', 'load', 'ask', 'menu', 'preset', 'set', 'recaptureBase', 'state']});
+    'tusche-bar': ['options', 'cc', 'save', 'load', 'ask', 'menu', 'search', 'apps', 'preset', 'set', 'recaptureBase', 'state']});
   assert(en.includes('Quickshell.env("HOME") + "/.local/state/tusche-bar"'));
   assert(en.includes('"nerdibeard.tusche-bar"'));
   // logo: left = the drop-down, right = Omarchy's own menu, middle = the Control Center
@@ -664,7 +664,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     'opens only for a pending question (an abandoned one is cancelled quietly)');
 
   // DropMenu wiring: nested levels, look kept, every close cancels.
-  assert.match(dm, /readonly property bool opens: r\.kind === "menu" \|\| r\.kind === "group" \|\| r\.kind === "provider" \|\| r\.asks === true/, 'chevrons for the new levels');
+  assert.match(dm, /readonly property bool opens: r\.kind === "menu" \|\| r\.kind === "group" \|\| r\.kind === "more" \|\| r\.kind === "provider" \|\| r\.asks === true/, 'chevrons for the new levels');
   assert.match(dm, /ListView \{\n        id: list/);
   assert.doesNotMatch(dm, /Repeater/);
   assert.match(dm, /else if \(r\.kind === "app"\) \{ var lib = appLibrary; finish\(function\(\) \{ if \(lib\) lib\.launch\(r\.appId, r\.label\) \}\) \}/, 'close, then launch');
@@ -672,7 +672,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     'unknown providers (or Apps without the library) keep the native menu');
   assert.match(dm, /function runAction\(action\) \{\n    Util\.execDetached\(prefixed\(action, ""\)\)/, 'every action gets the shims');
   assert.match(dm, /proc\.command = launchCommand\(r\.action, token\)/);
-  assert.match(dm, /if \(!menu\.open\) \{ menu\.dropClosed\(\); return \}/, 'every close cancels what is pending');
+  assert.match(dm, /if \(!menu\.open\) \{ menu\.searchMode = false; menu\.dropClosed\(\); return \}/, 'every close cancels what is pending');
   assert.match(dm, /Component\.onDestruction: cancelAll\(\)/);
   assert.match(dm, /visible: row\.isApp && status === Image\.Ready/, "an app's own icon, the glyph until it is there");
 
@@ -1057,4 +1057,51 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     fs.rmSync(home, {recursive: true, force: true});
   }
   console.log('PASS: migration from the Amiga Bar / Island (ids, sources, options, state, bindings; idempotent)');
+}
+
+// Drop-down menu: Omarchy's own entries on the first level, the rest under
+// More; Super+Space as a launcher (search line, apps first) and Super+Alt+Space
+// on the Apps list; the keys follow the "keys" look option via bin/keybinds.py.
+{
+  const dm = fs.readFileSync(path.join(root, 'DropMenu.qml'), 'utf8');
+  const src = fs.readFileSync(path.join(root, 'OmarchyMenuSource.qml'), 'utf8');
+  const ws = fs.readFileSync(path.join(root, 'modules/Workspaces.qml'), 'utf8');
+  const engine = fs.readFileSync(path.join(root, 'Engine.qml'), 'utf8');
+  assert(src.includes('function isBuiltin(id) { return builtinCount === 0 || builtinIds[id] === true }'), 'without Omarchy\'s file nothing moves');
+  assert(dm.includes('source.children("root").filter(function(r) { return source.isBuiltin(r.id) })'), 'first level: Omarchy\'s own entries');
+  assert(dm.includes('{ kind: "more", id: "more", label: "More"'), 'one More row');
+  assert(dm.includes('if (lv.kind === "more") return moreRows()'));
+  assert(/function moreRows\(\) \{[\s\S]*!source\.isBuiltin\(r\.id\)[\s\S]*kind: "group"/.test(dm), 'More: extension entries, then the bar groups');
+  assert(dm.includes('r.kind === "more" || r.kind === "provider"'), 'More shows the submenu chevron');
+  assert(dm.includes('if (searchMode) return apps.concat('), 'launcher search: apps first');
+  assert(dm.includes('if (!menu.open) { menu.searchMode = false;'), 'search mode ends with the menu');
+  assert(dm.includes('"⌕  ▏Search apps and menu"'));
+  assert(/function openApps\(\) \{[\s\S]*root\[i\]\.provider === "apps"[\s\S]*omarchy-menu summon apps/.test(dm), 'Apps level or the native Apps menu');
+  assert(ws.includes('m.searchMode = true') && ws.includes('function openApps()'));
+  assert(engine.includes('function search(): void { root.toggleMenu("search") }') && engine.includes('function apps(): void { root.toggleMenu("apps") }'));
+  assert(engine.includes('keysProc.action = keysOption === "bar" ? "bar" : "omarchy"'), 'the bindings follow the option');
+  assert.deepEqual(plain(ctx.LOOK), ['edge', 'keys']);
+  assert.equal(ctx.normalizeOptions({}).keys, 'omarchy', 'plugin alone: Omarchy\'s keys stay');
+  assert.equal(ctx.keepLook(ctx.presetById('tidy').options, {keys: 'bar'}).keys, 'bar', 'presets keep the keys');
+  // keybinds.py on a scratch file: adds one block, is idempotent, removes it cleanly
+  const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'tb-keys-'));
+  try {
+    const file = path.join(dir, 'bindings.lua');
+    fs.writeFileSync(file, 'o.bind("SUPER + A", "x", "y")\n', {mode: 0o640});
+    const run = a => require('node:child_process').execFileSync('python3', [path.join(root, 'bin/keybinds.py'), a],
+      {encoding: 'utf8', env: Object.assign({}, process.env, {OMARCHY_HYPR_BINDINGS: file, PATH: '/nonexistent:/usr/bin:/bin'})}).trim();
+    assert.equal(run('status'), 'omarchy');
+    assert.equal(run('bar'), 'bar');
+    const once = fs.readFileSync(file, 'utf8');
+    assert(once.includes('hl.unbind("SUPER + SPACE")') && once.includes('"omarchy-shell tusche-bar search || omarchy-menu toggle root"')
+      && once.includes('"omarchy-shell tusche-bar apps || omarchy-menu toggle apps"'));
+    run('bar');
+    assert.equal(fs.readFileSync(file, 'utf8'), once, 'idempotent');
+    assert.equal(fs.statSync(file).mode & 0o777, 0o640, 'file mode kept');
+    assert.equal(run('omarchy'), 'omarchy');
+    assert.equal(fs.readFileSync(file, 'utf8'), 'o.bind("SUPER + A", "x", "y")\n', 'removed cleanly');
+  } finally {
+    fs.rmSync(dir, {recursive: true, force: true});
+  }
+  console.log('PASS: drop-down menu: Omarchy\'s entries first, More, launcher search, Apps level, Super+Space keys');
 }

@@ -277,6 +277,10 @@ if ! $dry; then
   else
     note "bar: kept as it was (to load '$combo': omarchy-shell tusche-bar load $combo)"
   fi
+  # Super+Space and Super+Alt+Space open the bar's menu (search line / Apps);
+  # the Control Center's "Super+Space" row switches back to Omarchy's menus
+  keys="$(omarchy-shell tusche-bar set keys bar 2>&1 || true)"
+  note "Super+Space: the bar's menu ($keys)"
   omarchy theme set "$theme" >/dev/null 2>&1 || note "theme: run 'omarchy theme set $theme' yourself"
 else
   if $load; then note "[dry-run] omarchy restart shell; omarchy-shell tusche-bar load $combo; omarchy theme set $theme"

@@ -65,11 +65,7 @@ Your own bar layout is saved the first time and comes back with `omarchy-shell t
 
 Menu entries and status groups for optional plugins only appear when those plugins are installed: Flux, Buds, OmaMail, WhatsApp, Proton VPN, the system monitor and others.
 
-A key for the logo menu, if you like one (`~/.config/hypr/bindings.lua`):
-
-```lua
-o.bind("SUPER + ALT + M", "Tusche menu", "omarchy-shell tusche-bar menu")
-```
+**Super+Space** can open the logo menu as a launcher: the search line is ready, apps lead the results, and Super+Alt+Space opens it on the Apps list. Switch it in the Control Center (Quick → Super+Space → Bar menu with search) or with `omarchy-shell tusche-bar set keys bar`; `… set keys omarchy` gives Omarchy's own menus back. It keeps one managed block in `~/.config/hypr/bindings.lua` (`bin/keybinds.py`), and when the bar is not running the keys still open Omarchy's menus. The whole-look install turns it on.
 
 ### Moving backgrounds (optional)
 
@@ -135,6 +131,7 @@ The sections below are the reference: how it is built, every option, IPC and tes
 | Bar edge (`ThemeEdge.qml`) | none (default), theme (light & shadow from the theme's `bar-material.json`) — kept by presets |
 | Logo (`ArchLogo.qml`, `SealLogo.qml`) | omarchy, arch (the official Arch Linux mark, unaltered, in the bar's ink), nerdibeard (the seal: nb cut out of a 16 px ink block); with native workspaces only the menu logo is replaced; the drop-down's title follows the logo |
 | Centre (`Centre.qml`) | today, calm (temperature at the weather glyph) |
+| Super+Space (`bin/keybinds.py`) | omarchy (Omarchy's menus, default), bar (the logo menu with the search line; Super+Alt+Space on the Apps list) — kept by presets |
 
 Presets: `today` (your bar), `tidy` (pips · gauge · groups), `focus` (stack · on demand · deviations).
 
@@ -219,7 +216,7 @@ change needs sudo). Test: `python3 tests/boot_logo.py`.
 
 ## Logo menu
 
-- `DropMenu.qml`: left click on the logo (or `omarchy-shell tusche-bar menu`, e.g. on **Super+Alt+M**) folds out one tall menu under the logo; with the theme material it rolls or blooms out of the bar like the other popups. On top the Omarchy menu itself — `omarchy-menu.jsonc` plus `~/.config/omarchy/extensions/omarchy-menu.jsonc`, read by `OmarchyMenuSource.qml` with Omarchy's own model library (`vendor/MenuModel.js`, unchanged copy) including `when:`/`checked:`/`disabled:` guards; below our groups Agents · Network · Phone · Widgets · Tusche (Control Center, island, Terminal, Do not disturb, Stay awake, Transparent bar). Submenus open inside it (‹ back), typing searches the whole tree and lists matching apps after the menu hits (at most 8); ↑↓, PgUp/PgDn, Enter/→, ←/Backspace, Esc. Right click on the logo: Omarchy's own centred menu. Middle click: the Control Center.
+- `DropMenu.qml`: left click on the logo (or `omarchy-shell tusche-bar menu`) folds out one tall menu under the logo; with the theme material it rolls or blooms out of the bar like the other popups. Its first level is the Omarchy menu itself, Apps to System — `omarchy-menu.jsonc` read by `OmarchyMenuSource.qml` with Omarchy's own model library (`vendor/MenuModel.js`, unchanged copy) including `when:`/`checked:`/`disabled:` guards. **More** holds what `~/.config/omarchy/extensions/omarchy-menu.jsonc` adds to the root (Window Overview …) and our groups Agents · Network · Phone · Widgets · Tusche (Control Center, island, Terminal, Do not disturb, Stay awake, Transparent bar); extension entries under an Omarchy submenu stay there. `omarchy-shell tusche-bar search` (Super+Space) opens it as a launcher: the search line is shown, apps come first, then menu entries with their path; `… apps` (Super+Alt+Space) opens it on the Apps list. Submenus open inside it (‹ back), typing searches the whole tree and lists matching apps after the menu hits (at most 8); ↑↓, PgUp/PgDn, Enter/→, ←/Backspace, Esc. Right click on the logo: Omarchy's own centred menu. Middle click: the Control Center.
 - Nested like the native menu, so a pick in the drop-down never ends in the centred menu:
   - **Lists the shell fills in** open as levels inside it: **Apps** from the shell's application library (the facade Omarchy hands to plugins of kind `menu` — hence `"menu"` next to `"panel"` in `manifest.json`; the plugin still loads as the same keep-loaded panel), alphabetical with the apps' own icons, launched like the native menu; **Font** and power profiles with the native menu's own bash providers (✓ on the current value). Typing inside a list filters it. Without the library (older shell) or for an unknown provider the native menu opens there as before.
   - **Questions** an action asks through `omarchy-menu-select` / `omarchy-menu-input` (Keybindings, Timezone, the plugin rows, Remove › TUI/Theme/Web App, Transcode …) are answered inside it. Every Omarchy action started from the drop-down runs with `bin/menu-shim` first on its `PATH`; those two shims take the same arguments, stdin and file protocol as Omarchy's commands and hand the payload to `omarchy-shell tusche-bar ask`. When no drop-down takes it (no Tusche Bar, no logo shown, shell not answering) they run Omarchy's own command with the same prompt, options (stdin included) and menu arguments. An action known to ask keeps the drop-down open on a waiting level that turns into the question, or closes when the action ends without asking (at the latest after 3 s). The answer is written as the native menu writes it (the selection file, then the done file); Esc, ×, a click outside, ‹ and every other close cancel (the done file alone), so no script is ever left waiting. `tusche-bar state` shows `ask`.
@@ -265,7 +262,7 @@ group may differ) and `state` reports it in `lastResult`.
 
 ## IPC
 
-- `omarchy-shell tusche-bar options` (Control Center, toggle) · `cc quick|bar|island|cards|health` · `preset today|tidy|focus` · `set <element> <variant>` · `save|load <name>` · `menu` (drop-down) · `recaptureBase` · `state`.
+- `omarchy-shell tusche-bar options` (Control Center, toggle) · `cc quick|bar|island|cards|health` · `preset today|tidy|focus` · `set <element> <variant>` · `save|load <name>` · `menu` (drop-down) · `search` (drop-down as a launcher) · `apps` (drop-down on the Apps list) · `recaptureBase` · `state`.
 - Module IPC (tests, keybinds): `tusche-quota toggle|state`, `tusche-status group net|phone|system|all`, `tusche-status member <widget-id>`, `tusche-centre state`.
 - `tusche-bar ask <payload>` is the menu shims' entry (an `omarchy-menu-select`/`-input` payload; answers `ok` when a drop-down took it).
 

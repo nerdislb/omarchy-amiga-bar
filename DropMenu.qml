@@ -28,10 +28,13 @@ import "bridge" as Bridge
 KeyboardPanel {
   id: menu
 
-  // [{ kind: "omarchy" | "own" | "provider" | "waiting" | "request", id, title, … }];
+  // [{ kind: "omarchy" | "own" | "more" | "provider" | "waiting" | "request", id, title, … }];
   // empty = the top level.
   property var stack: []
   property string query: ""
+  // Opened as a launcher (Super+Space): the search line shows from the start
+  // and apps lead the results. Set by the owner before opening, cleared on close.
+  property bool searchMode: false
   property int current: -1
   property real slideX: 0
   property int slideDir: 1
@@ -43,6 +46,8 @@ KeyboardPanel {
   readonly property var levelRequest: level && level.kind === "request" ? level.req : null
   readonly property bool inputLevel: !!levelRequest && levelRequest.mode === "input"
   readonly property bool searching: query !== "" && !inputLevel
+  // the empty search line of a launcher opening, on the first level only
+  readonly property bool launcherLine: searchMode && query === "" && !level
   readonly property color ink: Color.popups.text
   readonly property string labelFamily: Style.font.family
   readonly property int labelPx: Style.font.body
@@ -126,16 +131,32 @@ KeyboardPanel {
       })
       var hits = source.search(query, 30).concat(own)
       var apps = source.appHits(query, 8)
+      if (searchMode) return apps.concat(apps.length && hits.length ? [{ separator: true }] : [], hits)
       return hits.concat(hits.length && apps.length ? [{ separator: true }] : [], apps)
     }
     if (!lv) {
-      var top = groups.map(function(g) { return { kind: "group", id: g.id, label: g.title, title: g.title, icon: g.icon } })
-      return source.children("root").concat(top.length ? [{ separator: true }] : [], top)
+      // the first level is Omarchy's own menu (up to System); the rest is under More
+      var mine = source.children("root").filter(function(r) { return source.isBuiltin(r.id) })
+      return mine.concat(moreRows().length ? [{ separator: true }, { kind: "more", id: "more", label: "More", title: "More", icon: "\u{f01d8}" }] : [])
     }
+    if (lv.kind === "more") return moreRows()
     if (lv.kind === "omarchy") return source.children(lv.id)
     for (var i = 0; i < groups.length; i++) if (groups[i].id === lv.id) return groupRows(groups[i])
     return []
   }
+  // More: what extensions add to the root (Window Overview …), then the bar's groups.
+  function moreRows() {
+    var extra = source.children("root").filter(function(r) { return !source.isBuiltin(r.id) })
+    var top = groups.map(function(g) { return { kind: "group", id: g.id, label: g.title, title: g.title, icon: g.icon } })
+    return extra.concat(extra.length && top.length ? [{ separator: true }] : [], top)
+  }
+  // Straight onto the Apps list (Super+Alt+Space), as the native Apps menu.
+  function openApps() {
+    var root = source.children("root")
+    for (var i = 0; i < root.length; i++) if (root[i].provider === "apps") { activate(root[i]); return }
+    finish(function() { Util.execDetached("omarchy-menu summon apps") })
+  }
+
   // A list level's rows narrowed to what was typed (label or subtext, as the
   // native menu filters a question's options).
   function listRows(all) {
@@ -210,6 +231,7 @@ KeyboardPanel {
     if (!r || r.separator || r.disabled) return
     if (r.kind === "menu") push({ kind: "omarchy", id: r.target, title: r.title })
     else if (r.kind === "group") push({ kind: "own", id: r.id, title: r.title })
+    else if (r.kind === "more") push({ kind: "more", id: "more", title: r.title })
     else if (r.kind === "provider") openProvider(r)
     else if (r.kind === "action") { if (!(r.asks && launchAsking(r))) finish(function() { menu.runAction(r.action) }) }
     else if (r.kind === "app") { var lib = appLibrary; finish(function() { if (lib) lib.launch(r.appId, r.label) }) }
@@ -446,7 +468,7 @@ KeyboardPanel {
     Connections {
       target: menu
       function onOpenChanged() {
-        if (!menu.open) { menu.dropClosed(); return }
+        if (!menu.open) { menu.searchMode = false; menu.dropClosed(); return }
         menu.stack = []; menu.query = ""; menu.current = -1
         keys.keyboard = false; keys.pointerKnown = false
         menu.slideX = 0
@@ -554,10 +576,12 @@ KeyboardPanel {
           width: closeGlyph.x - x - Style.space(8)
           anchors.verticalCenter: parent.verticalCenter
           elide: Text.ElideRight
-          text: menu.searching ? "⌕  " + menu.query + "▏" : (menu.level ? menu.level.title : menu.rootTitle).toUpperCase()
-          font.letterSpacing: menu.searching ? 0 : Style.space(2.5)
-          font.pixelSize: menu.searching ? menu.labelPx : Math.max(10, Style.font.body - 2)
-          color: Util.alpha(menu.ink, menu.searching ? 1 : 0.72)
+          text: menu.searching ? "⌕  " + menu.query + "▏"
+            : menu.launcherLine ? "⌕  ▏Search apps and menu"
+            : (menu.level ? menu.level.title : menu.rootTitle).toUpperCase()
+          font.letterSpacing: menu.searching || menu.launcherLine ? 0 : Style.space(2.5)
+          font.pixelSize: menu.searching || menu.launcherLine ? menu.labelPx : Math.max(10, Style.font.body - 2)
+          color: Util.alpha(menu.ink, menu.searching ? 1 : menu.launcherLine ? 0.5 : 0.72)
         }
         Label {
           id: closeGlyph
@@ -588,7 +612,7 @@ KeyboardPanel {
           required property int index
           readonly property var r: menu.rows[index] || ({})
           readonly property bool hot: menu.current === index && !r.separator && !r.disabled
-          readonly property bool opens: r.kind === "menu" || r.kind === "group" || r.kind === "provider" || r.asks === true
+          readonly property bool opens: r.kind === "menu" || r.kind === "group" || r.kind === "more" || r.kind === "provider" || r.asks === true
           readonly property bool isApp: r.kind === "app"
           x: menu.slideX
           width: list.width

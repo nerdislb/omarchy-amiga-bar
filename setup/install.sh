@@ -11,6 +11,8 @@
 #     --combination NAME   saved bar combination to load (default: paper; after
 #                          a carry-over from the Amiga Bar only when given)
 #     --no-card-picker     leave the card picker out
+#     --animated           also install the moving backgrounds (quiet 60 s loops,
+#                          downloaded from the GitHub release, ~25 MB)
 #     --boot-logo          also put the seal on the boot screen (asks for sudo)
 #     --src DIR            where the repositories live (default ~/src)
 #     --dry-run            show what would happen, change nothing
@@ -30,6 +32,7 @@ theme=""
 combo=""
 combo_given=false
 card_picker=true
+animated=false
 boot_logo=false
 dry=false
 
@@ -38,11 +41,12 @@ while (( $# )); do
     --theme) theme="$2"; shift 2 ;;
     --combination) combo="$2"; combo_given=true; shift 2 ;;
     --no-card-picker) card_picker=false; shift ;;
+    --animated) animated=true; shift ;;
     --no-fastfetch) shift ;;   # accepted for older instructions; there is no fastfetch logo any more
     --boot-logo) boot_logo=true; shift ;;
     --src) SRC="$2"; shift 2 ;;
     --dry-run) dry=true; shift ;;
-    -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "install: unknown option $1 (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -203,8 +207,13 @@ run omarchy-shell shell rescanPlugins
 step "Themes: ${themes[*]}"
 run mkdir -p "$HOME/.config/omarchy/themes"
 for t in "${themes[@]}"; do
-  run rsync -a --delete "$bar_repo/themes/$t/" "$HOME/.config/omarchy/themes/$t/"
+  # the moving backgrounds are not in the repository: --delete must keep them
+  run rsync -a --delete --exclude '*-bewegt.mp4' "$bar_repo/themes/$t/" "$HOME/.config/omarchy/themes/$t/"
 done
+if $animated; then
+  step "Moving backgrounds (download)"
+  run "$here/motion-backgrounds.sh" install
+fi
 
 # ---------------------------------------------------------------- 6 · settings, then enable
 # The island's entry goes in first (in the clock's place): enabling a bar widget

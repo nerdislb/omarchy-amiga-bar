@@ -71,6 +71,24 @@ A key for the logo menu, if you like one (`~/.config/hypr/bindings.lua`):
 o.bind("SUPER + ALT + M", "Tusche menu", "omarchy-shell tusche-bar menu")
 ```
 
+### Moving backgrounds (optional)
+
+Very quiet 60-second loops of the theme stills: mist drifting through the
+valleys, the lighthouse beam turning, dust in a shaft of light, cloud shadows,
+and once a minute a few far birds or a falling leaf. The stills stay each
+theme's default; the loops are extra backgrounds (`4-berge-bewegt.mp4` …) you
+pick in the card picker or with `omarchy theme bg next`.
+
+```sh
+~/src/omarchy-tusche-bar/setup/motion-backgrounds.sh install   # ~25 MB from the GitHub release, checksummed
+~/src/omarchy-tusche-bar/setup/motion-backgrounds.sh remove
+```
+
+Or `setup/install.sh --animated`. They are 1080p HEVC Main10 (decoded in
+hardware on most machines); Omarchy pauses video backgrounds behind
+fullscreen windows. `tools/motion-backgrounds/render.py` renders them from the
+stills (numpy): every scene is a pure function of time, frame 60 s = frame 0.
+
 ### Coming from the Amiga Bar
 
 The Tusche Bar and Island were called Amiga Bar and Amiga Island until October 2026. `setup/install.sh` carries such a setup over by itself: the options, saved combinations, base layout, island settings and state move to the new names (`setup/migrate-from-amiga.py`), the removed Amiga extras undo what they changed outside the plugin (fastfetch logo, desktop font profile, the A500 bar form), and the old plugin folders go into the backup.

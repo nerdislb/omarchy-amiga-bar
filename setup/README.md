@@ -40,6 +40,7 @@ tusche-look/omarchy-tusche-bar/setup/install.sh
 | `--theme papier\|tusche\|papier-lavur\|tusche-lavur` | Theme to switch to (default `papier`). |
 | `--combination NAME` | Saved bar combination to load (default `paper`; after a carry-over from the Amiga Bar only when given, so the bar keeps its arrangement). |
 | `--no-card-picker` | Leave the card picker out. |
+| `--animated` | Also install the moving backgrounds (quiet 60 s loops, downloaded from the GitHub release and checksummed; `setup/motion-backgrounds.sh` does the same on its own). |
 | `--boot-logo` | Also put the seal on the boot screen (asks for sudo, rebuilds the initramfs). |
 | `--src DIR` | Repository folder (default `~/src`). |
 | `--dry-run` | Show every step and change nothing. |

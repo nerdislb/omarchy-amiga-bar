@@ -1129,6 +1129,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
 // keep an empty ring in the bar; the formatting helpers.
 {
   const q = fs.readFileSync(path.join(root, 'modules/Quota.qml'), 'utf8');
+  assert(q.includes('if (slug(l.title || l.label) !== parts[1]) continue'), 'tracked ids like the AI usage widget: title first (Antigravity limits only have a title)');
   assert(q.includes('model: root.ringItems') && q.includes('percent: modelData.missing ? -1 : modelData.percent'), 'rings include agents without numbers');
   assert(q.includes('readonly property var recordIds: ["claude", "codex", "antigravity", "grok", "fireworks"]'));
   assert(q.includes('WheelHandler { onWheel: function(e) { root.step(e.angleDelta.y > 0 ? -1 : 1) } }'), 'scroll switches agents');

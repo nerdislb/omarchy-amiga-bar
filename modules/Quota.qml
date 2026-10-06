@@ -113,7 +113,7 @@ Item {
       if (!p) continue
       for (var j = 0; j < p.limits.length; j++) {
         var l = p.limits[j]
-        if (slug(l.label) !== parts[1]) continue
+        if (slug(l.title || l.label) !== parts[1]) continue   // the AI usage widget's ids: title first
         var resets = Date.parse(String(l.resetsAt || ""))
         var expired = !l.noQuota && resets > 0 && resets <= now
         out.push({ key: tracked[i], provider: parts[0], name: names[parts[0]] || p.name, label: String(l.title || l.label || ""),

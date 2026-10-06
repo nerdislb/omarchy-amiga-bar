@@ -481,7 +481,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     handlers[m[1]] = [...m[2].matchAll(/^    function (\w+)\(/gm)].map(f => f[1]);
   assert.deepEqual(handlers, {
     'tusche-status': ['group', 'member', 'close', 'state'],
-    'tusche-quota': ['toggle', 'state'],
+    'tusche-quota': ['toggle', 'select', 'state'],
     'tusche-bar': ['options', 'cc', 'save', 'load', 'ask', 'menu', 'search', 'apps', 'preset', 'set', 'recaptureBase', 'state']});
   assert(en.includes('Quickshell.env("HOME") + "/.local/state/tusche-bar"'));
   assert(en.includes('"nerdibeard.tusche-bar"'));
@@ -1123,4 +1123,38 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     fs.rmSync(dir, {recursive: true, force: true});
   }
   console.log('PASS: drop-down menu: Omarchy\'s entries first, More, launcher search, Apps level, Super+Space keys');
+}
+
+// AI quota popup: a card per agent, switchable; tracked agents without numbers
+// keep an empty ring in the bar; the formatting helpers.
+{
+  const q = fs.readFileSync(path.join(root, 'modules/Quota.qml'), 'utf8');
+  assert(q.includes('model: root.ringItems') && q.includes('percent: modelData.missing ? -1 : modelData.percent'), 'rings include agents without numbers');
+  assert(q.includes('readonly property var recordIds: ["claude", "codex", "antigravity", "grok", "fireworks"]'));
+  assert(q.includes('WheelHandler { onWheel: function(e) { root.step(e.angleDelta.y > 0 ? -1 : 1) } }'), 'scroll switches agents');
+  assert(/e\.key === Qt\.Key_Left[\s\S]*root\.step\(-1\)[\s\S]*e\.key === Qt\.Key_Right[\s\S]*root\.step\(1\)/.test(q), 'arrows switch agents');
+  for (const name of ['Caption', 'Section', 'Meter', 'Ring'])
+    assert(new RegExp('^  component ' + name + ': ', 'm').test(q), name + ' is a top-level inline component');
+  const qc = {Qt: {locale: () => 'en_US'}, now: Date.parse('2026-10-06T17:40:00Z')};
+  vm.createContext(qc);
+  for (const f of ['num', 'tokens', 'modelName', 'topModels', 'favourite', 'hasData', 'limitsOf', 'peakOf', 'statusOf'])
+    vm.runInContext(functionSource(q, f), qc);
+  assert.equal(qc.tokens(102733415), '103M');
+  assert.equal(qc.tokens(2900000000), '2.9B');
+  assert.equal(qc.tokens(28811), '29k');
+  assert.equal(qc.modelName('claude-opus-5-5'), 'Opus 5.5');
+  assert.equal(qc.modelName('claude-haiku-4-5-20251001'), 'Haiku 4.5');
+  assert.equal(qc.modelName('claude-opus-5'), 'Opus 5');
+  assert.equal(qc.modelName('gpt-6.1-sol'), 'gpt-6.1-sol');
+  assert.deepEqual(plain(qc.topModels({'claude-sonnet-5-5': 67, 'claude-opus-5-5': 35, x: 0}, 3).map(m => m.name)), ['Sonnet 5.5', 'Opus 5.5']);
+  assert.equal(qc.favourite({modelUsage: {'claude-opus-5-5': {outputTokens: 9}, 'claude-haiku-4-5-20251001': {outputTokens: 2}}}), 'Opus 5.5');
+  const ag = {name: 'Antigravity', ready: true, tierLabel: '', limits: [], usageStatusText: 'Antigravity closed', authHelpText: 'Open Antigravity to restore live usage.'};
+  assert.equal(qc.hasData(ag), false, 'Omarchy would hide it; tracked keeps it');
+  assert.equal(qc.peakOf(ag), -1, 'no numbers: empty ring');
+  assert.equal(qc.statusOf(ag).text, 'Antigravity closed · Open Antigravity to restore live usage.');
+  const cl = {name: 'Claude Code', ready: true, limits: [{label: 'Session (5-hour)', percent: 0.54, resetsAt: '2026-10-06T17:30:00Z'}, {label: 'Weekly (7-day)', percent: 0.69, resetsAt: '2026-10-09T02:00:00Z'}]};
+  assert.equal(qc.peakOf(cl), 0.69);
+  assert.deepEqual(plain(qc.limitsOf(cl).map(l => [l.percent, l.expired])), [[0, true], [0.69, false]], 'a passed reset counts as 0 %');
+  assert.equal(qc.statusOf({name: 'Grok', ready: false, limits: [], usageStatusText: 'Waiting for auth', authHelpText: 'Run grok login.'}).urgent, true);
+  console.log('PASS: AI quota popup (agent cards, switching, empty rings, formatting)');
 }

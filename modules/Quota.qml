@@ -12,7 +12,9 @@ import qs.Ui
 // Data: Omarchy's agent usage files (~/.local/state/omarchy/agents/usage)
 // plus the DeepSeek balance; which limits are shown follows the existing
 // AI-usage selection (~/.config/omarchy/ai-usage-deepseek.json "tracked").
-// Left click: all limits with reset times; middle click: refresh now.
+// Left click: a card per agent (limits with reset times, today's use, the
+// last seven days, all-time figures); ←/→, the scroll wheel or a click on the
+// row of agents switches between them. Middle click: refresh now.
 Item {
   id: root
   Component.onCompleted: Bridge.ModuleBus.register("quota", root)
@@ -59,17 +61,22 @@ Item {
     onLoaded: { try { var t = JSON.parse(text()).tracked; if (Array.isArray(t) && t.length) root.tracked = t } catch (e) {} }
   }
 
-  property var providers: ({})   // id -> { name, limits: [...] }
+  // Whole usage records (the agents panel's contract), id -> record.
+  property var providers: ({})
   function setProvider(id, text) {
     var d
     try { d = JSON.parse(text) } catch (e) { return }
+    if (!d || typeof d !== "object") return
+    d.name = String(d.name || d.id || id)
+    d.limits = Array.isArray(d.limits) ? d.limits : []
     var next = {}
     for (var k in providers) next[k] = providers[k]
-    next[id] = { name: String(d.name || d.id || id), limits: Array.isArray(d.limits) ? d.limits : [] }
+    next[id] = d
     providers = next
   }
+  readonly property var recordIds: ["claude", "codex", "antigravity", "grok", "fireworks"]
   Instantiator {
-    model: ["claude", "codex", "antigravity"]
+    model: root.recordIds
     delegate: FileView {
       required property string modelData
       path: root.usageDir + "/" + modelData + ".json"
@@ -88,8 +95,8 @@ Item {
   }
 
   function slug(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") }
-  readonly property var names: ({ claude: "Claude", codex: "Codex", deepseek: "DeepSeek", antigravity: "Gemini" })
-  readonly property var letters: ({ claude: "C", codex: "X", deepseek: "D", antigravity: "G" })
+  readonly property var names: ({ claude: "Claude", codex: "Codex", deepseek: "DeepSeek", antigravity: "Antigravity", grok: "Grok", fireworks: "Fireworks" })
+  readonly property var letters: ({ claude: "C", codex: "X", deepseek: "D", antigravity: "G", grok: "K", fireworks: "F" })
 
   // A limit whose reset time has passed is back at 0 %, whatever the record
   // still says: records only change when a collector runs. Such a limit is
@@ -117,6 +124,21 @@ Item {
     return out
   }
   readonly property var quotaItems: items.filter(function(x) { return x.percent >= 0 })
+  // The rings: every tracked quota, and a quiet empty ring for a tracked agent
+  // that has a record but no numbers right now (Antigravity while the app is
+  // closed), so it does not silently drop out of the bar.
+  readonly property var ringItems: {
+    var out = [], seen = {}
+    for (var i = 0; i < tracked.length; i++) {
+      var key = String(tracked[i]), id = key.split(":")[0]
+      var hit = items.filter(function(x) { return x.key === key })
+      if (hit.length) { hit.forEach(function(x) { if (x.percent >= 0) out.push(x) }); seen[id] = true; continue }
+      if (seen[id] || !providers[id]) continue
+      seen[id] = true
+      out.push({ key: key, provider: id, name: names[id] || providers[id].name, label: "", percent: 0, value: "", resetsAt: "", expired: false, missing: true })
+    }
+    return out
+  }
   readonly property bool anyExpired: items.some(function(x) { return x.expired })
   onAnyExpiredChanged: if (anyExpired) Bridge.ModuleBus.requestUsageRefresh("limits")
   readonly property var tightest: {
@@ -133,13 +155,119 @@ Item {
   }
   function resetText(iso) {
     if (!iso) return ""
-    var ms = Date.parse(iso) - Date.now()
+    var ms = Date.parse(iso) - now
     if (!(ms > 0)) return ""
     var m = Math.round(ms / 60000)
     if (m < 60) return m + " min"
     var h = Math.floor(m / 60)
     if (h < 48) return h + " h " + (m % 60) + " min"
     return Math.floor(h / 24) + " d " + (h % 24) + " h"
+  }
+
+  // ---------------------------------------------------------------- agents (popup)
+  function num(v) { var n = Number(v); return isFinite(n) ? n : 0 }
+  // An agent earns a card like in Omarchy's agents panel (numbers, limits or a
+  // plan); a tracked one always does while it has a record.
+  function hasData(r) {
+    return !!r && (num(r.totalPrompts) > 0 || num(r.totalSessions) > 0 || num(r.activeDays) > 0
+      || num(r.todayPrompts) > 0 || r.limits.length > 0 || (r.ready === true && String(r.tierLabel || "") !== ""))
+  }
+  readonly property var agentIds: {
+    var out = []
+    for (var i = 0; i < tracked.length; i++) {
+      var id = String(tracked[i]).split(":")[0]
+      if (out.indexOf(id) < 0 && providers[id]) out.push(id)
+    }
+    var rest = recordIds.concat(["deepseek"])
+    for (var j = 0; j < rest.length; j++)
+      if (out.indexOf(rest[j]) < 0 && hasData(providers[rest[j]])) out.push(rest[j])
+    return out
+  }
+  property string selectedId: ""
+  readonly property string shownId: agentIds.indexOf(selectedId) >= 0 ? selectedId : (agentIds.length ? agentIds[0] : "")
+  readonly property var shown: shownId ? providers[shownId] : null
+  function select(id) { if (agentIds.indexOf(String(id)) >= 0) { selectedId = String(id); return "ok" } return "agents: " + agentIds.join(" ") }
+  function step(d) {
+    var n = agentIds.length
+    if (!n) return
+    var i = agentIds.indexOf(shownId)
+    selectedId = agentIds[((i < 0 ? 0 : i) + d + n) % n]
+  }
+
+  // A record's limits as the popup draws them; a window past its reset is 0 %.
+  function limitsOf(r) {
+    if (!r) return []
+    return r.limits.map(function(l) {
+      var resets = Date.parse(String(l.resetsAt || ""))
+      var expired = !l.noQuota && resets > 0 && resets <= now
+      return { label: String(l.title || l.label || ""), noQuota: !!l.noQuota, expired: expired,
+               percent: l.noQuota ? -1 : expired ? 0 : Math.max(0, num(l.percent)),
+               resetsAt: String(l.resetsAt || ""), value: String(l.valueText || ""), detail: String(l.detailText || "") }
+    })
+  }
+  // The fullest window: the ring on the agent's tab.
+  function peakOf(r) {
+    var best = -1
+    limitsOf(r).forEach(function(l) { if (l.percent > best) best = l.percent })
+    return best
+  }
+  function balanceOf(r) { var b = limitsOf(r).filter(function(l) { return l.noQuota && l.value }); return b.length ? b[0] : null }
+
+  function tokens(n) {
+    n = num(n)
+    if (n >= 1e9) return (n / 1e9).toFixed(n >= 1e10 ? 0 : 1) + "B"
+    if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + "M"
+    if (n >= 1e3) return (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + "k"
+    return String(Math.round(n))
+  }
+  function count(n) { return Math.round(num(n)).toLocaleString(Qt.locale("en_US"), "f", 0) }
+  // claude-opus-5-5 → Opus 5.5, claude-haiku-4-5-20251001 → Haiku 4.5; others as they are.
+  function modelName(id) {
+    var s = String(id || "").replace(/^claude-/, "").replace(/-\d{8}$/, "")
+    var m = /^([a-z]+)-(\d+)(?:-(\d+))?$/.exec(s)
+    if (!m || String(id).indexOf("claude-") !== 0) return String(id)
+    return m[1].charAt(0).toUpperCase() + m[1].slice(1) + " " + m[2] + (m[3] !== undefined ? "." + m[3] : "")
+  }
+  function topModels(map, n) {
+    var out = []
+    for (var k in (map || {})) out.push({ name: modelName(k), tokens: num(map[k]) })
+    out.sort(function(a, b) { return b.tokens - a.tokens })
+    return out.filter(function(x) { return x.tokens > 0 }).slice(0, n)
+  }
+  // All-time favourite by tokens written (cache reads would crown whatever runs longest).
+  function favourite(r) {
+    var best = "", most = 0, usage = r && r.modelUsage ? r.modelUsage : {}
+    for (var k in usage) { var o = num(usage[k].outputTokens); if (o > most) { most = o; best = k } }
+    return best ? modelName(best) : ""
+  }
+  function lastDays(r) {
+    var days = r && Array.isArray(r.recentDays) ? r.recentDays.slice(-7) : []
+    return days.map(function(d) {
+      var t = new Date(String(d.date) + "T12:00:00")
+      return { day: isNaN(t.getTime()) ? "" : t.toLocaleString(Qt.locale("en_US"), "ddd"), tokens: num(d.messageCount) }
+    })
+  }
+  function resetLine(l) {
+    if (l.expired) return "reset · refreshing"
+    var left = resetText(l.resetsAt)
+    if (!left) return ""
+    var at = new Date(Date.parse(l.resetsAt))
+    return "resets in " + left + " · " + at.toLocaleString(Qt.locale("en_US"), Date.parse(l.resetsAt) - now < 20 * 3600000 ? "HH:mm" : "ddd HH:mm")
+  }
+  function agoText(iso) {
+    var t = Date.parse(String(iso || ""))
+    if (!(t > 0)) return ""
+    var m = Math.max(0, Math.round((now - t) / 60000))
+    return m < 1 ? "updated just now" : m < 60 ? "updated " + m + " min ago" : "updated " + Math.floor(m / 60) + " h ago"
+  }
+  // What the agent says about itself: sign-in trouble, a closed app, a cache.
+  function statusOf(r) {
+    if (!r) return { text: "", urgent: false }
+    var status = String(r.usageStatusText || ""), help = String(r.authHelpText || "")
+    if (r.ready === false) return { text: [status, help].filter(Boolean).join(" · "), urgent: true }
+    if (!r.limits.length && status) return { text: status + (help ? " · " + help : ""), urgent: false }
+    if (r.limitsStale === true) return { text: "Limits from an earlier check", urgent: false }
+    return { text: status, urgent: false }
   }
 
   // ---------------------------------------------------------------- layout
@@ -234,6 +362,30 @@ Item {
     }
   }
 
+  // A quota ring with the agent's initial: the bar's rings and the popup's tabs.
+  // percent < 0 (no numbers): only the track, the initial dimmed.
+  component Ring: Canvas {
+    id: ring
+    property real percent: -1
+    property string letter: "?"
+    property color ink: root.fg
+    property int letterPx: Style.font.caption - 1
+    onPercentChanged: requestPaint()
+    onInkChanged: requestPaint()
+    onPaint: {
+      var c = getContext("2d"); c.reset()
+      var r = width / 2 - 2
+      c.lineWidth = Math.max(2, width * 0.13)
+      c.strokeStyle = Util.alpha(ink, percent < 0 ? 0.22 : 0.15)
+      c.beginPath(); c.arc(width / 2, height / 2, r, 0, Math.PI * 2); c.stroke()
+      if (percent < 0) return
+      c.strokeStyle = root.tone(percent)
+      c.beginPath(); c.arc(width / 2, height / 2, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0.03, Math.min(1, percent))); c.stroke()
+    }
+    Connections { target: root; function onPalChanged() { ring.requestPaint() } }
+    Text { renderType: Text.NativeRendering; anchors.centerIn: parent; text: ring.letter; font.family: Style.font.family; font.bold: true; font.pixelSize: ring.letterPx; color: Util.alpha(ring.ink, ring.percent < 0 ? 0.45 : 1) }
+  }
+
   // Rings: one arc per tracked quota, provider initial inside.
   Component {
     id: ringsView
@@ -241,23 +393,13 @@ Item {
       spacing: Style.space(5)
       height: root.barSize
       Repeater {
-        model: root.quotaItems
-        Canvas {
-          id: ring
+        model: root.ringItems
+        Ring {
           required property var modelData
           anchors.verticalCenter: parent.verticalCenter
           width: Math.round(root.barSize * 0.66); height: width
-          onPaint: {
-            var c = getContext("2d"); c.reset()
-            var r = width / 2 - 2
-            c.lineWidth = Math.max(2, width * 0.13)
-            c.strokeStyle = Util.alpha(root.fg, 0.15)
-            c.beginPath(); c.arc(width / 2, height / 2, r, 0, Math.PI * 2); c.stroke()
-            c.strokeStyle = root.tone(modelData.percent)
-            c.beginPath(); c.arc(width / 2, height / 2, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0.03, Math.min(1, modelData.percent))); c.stroke()
-          }
-          Connections { target: root; function onItemsChanged() { ring.requestPaint() } }
-          Text { renderType: Text.NativeRendering; anchors.centerIn: parent; text: root.letters[modelData.provider] || "?"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.caption - 1; color: root.fg }
+          percent: modelData.missing ? -1 : modelData.percent
+          letter: root.letters[modelData.provider] || "?"
         }
       }
     }
@@ -293,6 +435,19 @@ Item {
   function closeForPopoutSwitch() { popoutSwitchClosing = true; popupOpen = false; Qt.callLater(function() { root.popoutSwitchClosing = false }) }
 
 
+  // Popup text pieces.
+  readonly property color popInk: Color.popups.text
+  component Caption: Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Util.alpha(root.popInk, 0.55) }
+  component Section: Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; font.family: Style.font.family; font.pixelSize: Math.max(10, Style.font.body - 3); font.letterSpacing: Style.space(2.5); color: Util.alpha(root.popInk, 0.6); topPadding: Style.space(4) }
+  component Meter: Rectangle {
+    id: meter
+    property real value: 0
+    property color fill: root.popInk
+    height: Style.space(6)
+    color: Util.alpha(root.popInk, 0.12)
+    Rectangle { width: meter.width * Math.min(1, Math.max(0, meter.value)); height: meter.height; color: meter.fill }
+  }
+
   KeyboardPanel {
     id: popup
     anchorItem: root
@@ -310,34 +465,193 @@ Item {
       id: popupKeys
       anchors.fill: parent
       focus: true
-      Keys.onEscapePressed: function(e) { root.close(); e.accepted = true }
+      readonly property color ink: root.popInk
+      readonly property var rec: root.shown
+      readonly property var lims: root.limitsOf(rec)
+      readonly property var status: root.statusOf(rec)
+      readonly property var today: rec ? root.topModels(rec.todayTokensByModel, 3) : []
+      readonly property var days: root.lastDays(rec)
+      readonly property real dayMax: Math.max(1, Math.max.apply(null, days.map(function(d) { return d.tokens }).concat([0])))
+      readonly property bool localStats: !!rec && rec.hasLocalStats !== false && (root.num(rec.totalPrompts) > 0 || root.num(rec.todayTotalTokens) > 0 || days.length > 0)
+
+      Keys.onPressed: function(e) {
+        if (e.key === Qt.Key_Escape) root.close()
+        else if (e.key === Qt.Key_Left || e.key === Qt.Key_H || e.key === Qt.Key_Backtab) root.step(-1)
+        else if (e.key === Qt.Key_Right || e.key === Qt.Key_L || e.key === Qt.Key_Tab) root.step(1)
+        else if (e.key === Qt.Key_R) { if (root.bar) root.bar.run("omarchy-agent-usage-update --force") }
+        else if (e.key >= Qt.Key_1 && e.key <= Qt.Key_9 && e.key - Qt.Key_1 < root.agentIds.length) root.selectedId = root.agentIds[e.key - Qt.Key_1]
+        else return
+        e.accepted = true
+      }
+      WheelHandler { onWheel: function(e) { root.step(e.angleDelta.y > 0 ? -1 : 1) } }
+
       Column {
         id: list
         width: parent.width
         spacing: Style.space(8)
-        Text { renderType: Text.NativeRendering; text: "AI quotas"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.title; color: Color.popups.text }
+
+        // The agents: a ring each (its fullest window), the shown one named.
+        Row {
+          id: tabs
+          spacing: Style.space(4)
+          Repeater {
+            model: root.agentIds
+            Rectangle {
+              id: tab
+              required property string modelData
+              required property int index
+              readonly property bool current: modelData === root.shownId
+              readonly property var r: root.providers[modelData]
+              width: tabRow.implicitWidth + Style.space(14)
+              height: Style.space(30)
+              radius: Math.min(Style.cornerRadius, 3)
+              color: current ? Util.alpha(popupKeys.ink, 0.1) : tabMouse.containsMouse ? Util.alpha(popupKeys.ink, 0.05) : "transparent"
+              Row {
+                id: tabRow
+                anchors.centerIn: parent
+                spacing: Style.space(6)
+                Ring {
+                  anchors.verticalCenter: parent.verticalCenter
+                  width: Style.space(20); height: width
+                  ink: popupKeys.ink
+                  letterPx: Math.max(8, Style.font.caption - 2)
+                  percent: root.peakOf(tab.r)
+                  letter: root.letters[tab.modelData] || "?"
+                }
+                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter
+                  text: root.names[tab.modelData] || (tab.r ? tab.r.name : tab.modelData)
+                  font.family: Style.font.family; font.bold: tab.current; font.pixelSize: Style.font.bodySmall
+                  color: Util.alpha(popupKeys.ink, tab.current ? 1 : 0.6) }
+              }
+              Rectangle { visible: tab.current; anchors.bottom: parent.bottom; x: Style.space(7); width: parent.width - Style.space(14); height: 2; color: popupKeys.ink }
+              MouseArea { id: tabMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.selectedId = tab.modelData }
+            }
+          }
+        }
+
+        Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; visible: !popupKeys.rec; width: list.width; wrapMode: Text.WordWrap
+          text: "No AI usage records yet. They appear in ~/.local/state/omarchy/agents/usage once an agent has run."
+          font.family: Style.font.family; font.pixelSize: Style.font.body; color: popupKeys.ink }
+
+        // Name, plan, freshness.
+        Item {
+          visible: !!popupKeys.rec
+          width: list.width
+          height: Math.max(nameRow.implicitHeight, ago.implicitHeight)
+          Row {
+            id: nameRow
+            spacing: Style.space(8)
+            width: parent.width - ago.implicitWidth - Style.space(8)
+            Text { id: agentName; renderType: Text.NativeRendering; textFormat: Text.PlainText; text: popupKeys.rec ? popupKeys.rec.name : ""; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.title; color: popupKeys.ink }
+            Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.baseline: agentName.baseline
+              text: popupKeys.rec ? String(popupKeys.rec.tierLabel || "") : ""; font.family: Style.font.family; font.pixelSize: Style.font.body; color: Util.alpha(popupKeys.ink, 0.6) }
+          }
+          Caption { id: ago; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: popupKeys.rec ? root.agoText(popupKeys.rec.updatedAt) : "" }
+        }
+        Text { renderType: Text.NativeRendering; textFormat: Text.PlainText
+          visible: popupKeys.status.text !== ""
+          width: list.width; wrapMode: Text.WordWrap
+          text: popupKeys.status.text
+          font.family: Style.font.family; font.pixelSize: Style.font.bodySmall
+          color: popupKeys.status.urgent ? Color.urgent : Util.alpha(popupKeys.ink, 0.7) }
+
+        // Limits: label and reset on one line, the meter and the level under it;
+        // a prepaid balance shows its value and the ledger note instead.
+        Section { visible: popupKeys.lims.length > 0; text: popupKeys.lims.some(function(l) { return !l.noQuota }) ? "LIMITS" : "BALANCE" }
         Repeater {
-          model: root.items
+          model: popupKeys.lims
+          Column {
+            required property var modelData
+            width: list.width
+            spacing: Style.space(3)
+            Item {
+              width: parent.width
+              height: Math.max(limLabel.implicitHeight, limReset.implicitHeight)
+              Text { id: limLabel; renderType: Text.NativeRendering; textFormat: Text.PlainText; width: parent.width - limReset.implicitWidth - Style.space(8); elide: Text.ElideRight
+                text: modelData.label; font.family: Style.font.family; font.pixelSize: Style.font.body; color: popupKeys.ink }
+              Caption { id: limReset; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: modelData.noQuota ? "" : root.resetLine(modelData) }
+            }
+            Row {
+              visible: !modelData.noQuota
+              width: parent.width
+              spacing: Style.space(8)
+              Meter { anchors.verticalCenter: parent.verticalCenter; width: parent.width - limPct.width - Style.space(8); value: modelData.percent; fill: root.tone(modelData.percent) }
+              Text { id: limPct; renderType: Text.NativeRendering; textFormat: Text.PlainText; width: Style.space(40); horizontalAlignment: Text.AlignRight
+                text: Math.round(modelData.percent * 100) + "%"; font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.body; color: popupKeys.ink }
+            }
+            Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; visible: modelData.noQuota && modelData.value !== ""
+              text: modelData.value.replace(/^USD\s*/, "$"); font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.title; color: popupKeys.ink }
+            Caption { visible: modelData.noQuota && modelData.detail !== ""; width: parent.width; wrapMode: Text.WordWrap; text: modelData.detail }
+          }
+        }
+
+        // Today: prompts, sessions, tokens, and the models that used them.
+        Section { visible: popupKeys.localStats && root.num(popupKeys.rec.todayTotalTokens) + root.num(popupKeys.rec.todayPrompts) > 0; text: "TODAY" }
+        Text { renderType: Text.NativeRendering; textFormat: Text.PlainText
+          visible: popupKeys.localStats && root.num(popupKeys.rec.todayTotalTokens) + root.num(popupKeys.rec.todayPrompts) > 0
+          width: list.width; wrapMode: Text.WordWrap
+          text: popupKeys.rec ? [root.count(popupKeys.rec.todayPrompts) + " prompts", root.count(popupKeys.rec.todaySessions) + " sessions",
+                                 root.tokens(popupKeys.rec.todayTotalTokens) + " tokens"].join("  ·  ") : ""
+          font.family: Style.font.family; font.pixelSize: Style.font.body; color: popupKeys.ink }
+        Repeater {
+          model: popupKeys.localStats ? popupKeys.today : []
           Row {
             required property var modelData
             width: list.width
             spacing: Style.space(8)
-            Text { renderType: Text.NativeRendering; width: Style.space(150); elide: Text.ElideRight; text: modelData.name + " · " + root.shortLabel(modelData.label); font.family: Style.font.family; font.pixelSize: Style.font.body; color: Color.popups.text }
-            Rectangle {
-              visible: modelData.percent >= 0
-              anchors.verticalCenter: parent.verticalCenter
-              width: Style.space(120); height: Style.space(6)
-              color: Util.alpha(Color.popups.text, 0.12)
-              Rectangle { width: parent.width * Math.min(1, Math.max(0, modelData.percent)); height: parent.height; color: root.tone(modelData.percent) }
-            }
-            Text { renderType: Text.NativeRendering;
-              text: modelData.percent >= 0 ? Math.round(modelData.percent * 100) + "%" : modelData.value
-              font.family: Style.font.family; font.pixelSize: Style.font.body; color: Color.popups.text
-            }
-            Text { renderType: Text.NativeRendering; text: modelData.expired ? "reset · refreshing" : root.resetText(modelData.resetsAt); font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Util.alpha(Color.popups.text, 0.55) }
+            Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; width: Style.space(120); elide: Text.ElideRight; anchors.verticalCenter: parent.verticalCenter
+              text: modelData.name; font.family: Style.font.family; font.pixelSize: Style.font.bodySmall; color: Util.alpha(popupKeys.ink, 0.8) }
+            Meter { anchors.verticalCenter: parent.verticalCenter; height: Style.space(4); width: parent.width - Style.space(120) - todayTok.width - Style.space(16)
+              value: modelData.tokens / Math.max(1, popupKeys.today[0].tokens); fill: Util.alpha(popupKeys.ink, 0.6) }
+            Caption { id: todayTok; width: Style.space(48); horizontalAlignment: Text.AlignRight; anchors.verticalCenter: parent.verticalCenter; text: root.tokens(modelData.tokens) }
           }
         }
-        Text { renderType: Text.NativeRendering; text: "Middle click refreshes · same selection as the AI usage widget"; font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Util.alpha(Color.popups.text, 0.5) }
+
+        // The last seven days: tokens per day.
+        Item {
+          visible: popupKeys.localStats && popupKeys.days.length > 1
+          width: list.width
+          height: weekTitle.implicitHeight
+          Section { id: weekTitle; text: "LAST 7 DAYS" }
+          Caption { anchors.right: parent.right; anchors.bottom: parent.bottom
+            text: root.tokens(popupKeys.days.reduce(function(a, d) { return a + d.tokens }, 0)) + " tokens" }
+        }
+        Row {
+          visible: popupKeys.localStats && popupKeys.days.length > 1
+          width: list.width
+          spacing: Style.space(6)
+          Repeater {
+            model: popupKeys.localStats ? popupKeys.days : []
+            Column {
+              required property var modelData
+              required property int index
+              width: (list.width - Style.space(6) * (popupKeys.days.length - 1)) / Math.max(1, popupKeys.days.length)
+              spacing: Style.space(3)
+              Item {
+                width: parent.width; height: Style.space(30)
+                Rectangle {
+                  anchors.bottom: parent.bottom
+                  width: parent.width; height: Math.max(1, parent.height * modelData.tokens / popupKeys.dayMax)
+                  color: Util.alpha(popupKeys.ink, index === popupKeys.days.length - 1 ? 0.85 : 0.35)
+                }
+              }
+              Caption { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: modelData.day }
+            }
+          }
+        }
+
+        // All time.
+        Section { visible: popupKeys.localStats && root.num(popupKeys.rec.totalPrompts) + root.num(popupKeys.rec.activeDays) > 0; text: "ALL TIME" }
+        Text { renderType: Text.NativeRendering; textFormat: Text.PlainText
+          visible: popupKeys.localStats && root.num(popupKeys.rec.totalPrompts) + root.num(popupKeys.rec.activeDays) > 0
+          width: list.width; wrapMode: Text.WordWrap
+          text: popupKeys.rec ? [root.count(popupKeys.rec.totalPrompts) + " prompts", root.count(popupKeys.rec.totalSessions) + " sessions",
+                                 root.count(popupKeys.rec.activeDays) + " active days"].join("  ·  ") : ""
+          font.family: Style.font.family; font.pixelSize: Style.font.bodySmall; color: Util.alpha(popupKeys.ink, 0.8) }
+        Caption { visible: popupKeys.localStats && root.favourite(popupKeys.rec) !== ""; text: "Most used model: " + root.favourite(popupKeys.rec) }
+
+        Caption { topPadding: Style.space(2); width: list.width; wrapMode: Text.WordWrap
+          text: (root.agentIds.length > 1 ? "← → or scroll: agents  ·  " : "") + "r: refresh" }
       }
     }
   }

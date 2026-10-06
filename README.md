@@ -177,6 +177,16 @@ widget's interval and disabled providers (retrying advised limits after 30 s),
 and fetches limits when the quota popup opens. A limit past its reset time
 always counts as reset (0 %), even before a fresh record arrives.
 
+The bar shows the AI usage selection (`~/.config/omarchy/ai-usage-deepseek.json`
+`tracked`); in the rings variant a tracked agent without numbers right now
+(Antigravity while its app is closed) keeps a quiet empty ring. Left click
+opens a card per agent – every agent with a record that has numbers, limits or
+a plan, the tracked ones first: name, plan and freshness, sign-in or app notes,
+each limit window with its meter and reset time (a prepaid balance with its
+ledger note), today's prompts, sessions, tokens and top models, tokens over the
+last seven days, and all-time figures with the most used model. ←/→ (Tab), the
+scroll wheel, 1–9 or a click on the row of agents switch cards; r refreshes.
+
 ## Logos: Arch and the Nerdibeard seal
 
 Expressive only once, when the logo arrives (the bar starts or the option
@@ -263,7 +273,7 @@ group may differ) and `state` reports it in `lastResult`.
 ## IPC
 
 - `omarchy-shell tusche-bar options` (Control Center, toggle) · `cc quick|bar|island|cards|health` · `preset today|tidy|focus` · `set <element> <variant>` · `save|load <name>` · `menu` (drop-down) · `search` (drop-down as a launcher) · `apps` (drop-down on the Apps list) · `recaptureBase` · `state`.
-- Module IPC (tests, keybinds): `tusche-quota toggle|state`, `tusche-status group net|phone|system|all`, `tusche-status member <widget-id>`, `tusche-centre state`.
+- Module IPC (tests, keybinds): `tusche-quota toggle|select <agent>|state`, `tusche-status group net|phone|system|all`, `tusche-status member <widget-id>`, `tusche-centre state`.
 - `tusche-bar ask <payload>` is the menu shims' entry (an `omarchy-menu-select`/`-input` payload; answers `ok` when a drop-down took it).
 
 ## Develop

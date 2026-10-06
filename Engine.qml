@@ -550,7 +550,9 @@ Item {
   IpcHandler {
     target: "tusche-quota"
     function toggle(): void { var i = Bridge.ModuleBus.pick("quota"); if (i) i.togglePopup() }
-    function state(): string { var i = Bridge.ModuleBus.pick("quota"); return i ? JSON.stringify({ variant: i.variant, items: i.items, open: i.popupOpen }) : "{}" }
+    // Open the popup on one agent's card (claude, codex, antigravity, deepseek …).
+    function select(id: string): string { var i = Bridge.ModuleBus.pick("quota"); if (!i) return "no quota widget"; var r = i.select(id); if (r === "ok") i.open(); return r }
+    function state(): string { var i = Bridge.ModuleBus.pick("quota"); return i ? JSON.stringify({ variant: i.variant, items: i.items, rings: i.ringItems, agents: i.agentIds, shown: i.shownId, open: i.popupOpen }) : "{}" }
   }
 
   IpcHandler {

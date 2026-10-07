@@ -475,6 +475,8 @@ Item {
     id: meter
     property real value: 0
     property color fill: root.popInk
+    // a quota (the signal colour from 90 %) or just a share (the models of the day)
+    property bool alarm: true
     height: Style.space(6)
     readonly property var metal: Bridge.ModuleBus.metal && Bridge.ModuleBus.metal.meters !== false ? Bridge.ModuleBus.metal : null
     Rectangle {
@@ -492,7 +494,7 @@ Item {
       width: meter.width + 4; height: meter.height + 4
       arc: Math.min(1, Math.max(0, meter.value))
       track: meter.metal && meter.metal.track ? meter.metal.track : Util.alpha(root.popInk, 0.12)
-      tint: meter.value >= 0.9 ? Color.urgent : (meter.metal && meter.metal.tint ? meter.metal.tint : "#f2f3f7")
+      tint: meter.alarm && meter.value >= 0.9 ? Color.urgent : (meter.metal && meter.metal.tint ? meter.metal.tint : "#f2f3f7")
     }
   }
 
@@ -650,7 +652,7 @@ Item {
             Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; width: Style.space(120); elide: Text.ElideRight; anchors.verticalCenter: parent.verticalCenter
               text: modelData.name; font.family: Style.font.family; font.pixelSize: Style.font.bodySmall; color: Util.alpha(popupKeys.ink, 0.8) }
             Meter { anchors.verticalCenter: parent.verticalCenter; height: Style.space(4); width: parent.width - Style.space(120) - todayTok.width - Style.space(16)
-              value: modelData.tokens / Math.max(1, popupKeys.today[0].tokens); fill: Util.alpha(popupKeys.ink, 0.6) }
+              value: modelData.tokens / Math.max(1, popupKeys.today[0].tokens); fill: Util.alpha(popupKeys.ink, 0.6); alarm: false }
             Caption { id: todayTok; width: Style.space(48); horizontalAlignment: Text.AlignRight; anchors.verticalCenter: parent.verticalCenter; text: root.tokens(modelData.tokens) }
           }
         }

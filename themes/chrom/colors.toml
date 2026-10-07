@@ -1,0 +1,36 @@
+# Chrom – the metal family (design round 07.10.2026). One signal colour: red.
+mode = "dark"
+accent = "#ffffff"
+selection = "#2c2e32"
+muted = "#747679"
+
+background = "#000000"
+dark_background = "#090a0b"
+darker_background = "#050505"
+lighter_background = "#111214"
+
+foreground = "#e0e0e1"
+dark_foreground = "#a5a6a8"
+light_foreground = "#ececec"
+bright_foreground = "#ffffff"
+
+red = "#ff4a2b"
+orange = "#bcbdbf"
+yellow = "#ffffff"
+green = "#ffffff"
+blue = "#afb0b2"
+cyan = "#929497"
+magenta = "#c3c4c5"
+purple = "#c3c4c5"
+brown = "#5a5c60"
+
+bright_red = "#ff6b50"
+bright_orange = "#cfd0d1"
+bright_yellow = "#ffffff"
+bright_green = "#ffffff"
+bright_blue = "#c7c8c9"
+bright_cyan = "#abacae"
+bright_magenta = "#d7d8d9"
+
+hyprland_active_border = "rgba(f2f3f7ff) rgba(8a8c92ff) rgba(3b3c41ff) rgba(8a8c92ff) rgba(f2f3f7ff) 90deg"
+hyprland_inactive_border = "rgba(26272aff)"

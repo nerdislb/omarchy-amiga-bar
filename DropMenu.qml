@@ -57,7 +57,9 @@ KeyboardPanel {
   // Theme material (edge "theme"): the hovered row inverts (Tusche/Papier) or
   // gets a brush stroke (Lavur: card.brush, a PNG in the theme folder)
   readonly property var src: Bridge.ModuleBus.material ? Bridge.ModuleBus.material.source || null : null
-  readonly property bool inverting: !!src
+  // metal family (material.metal.hover "tube"): a chrome tube around the hovered row instead
+  readonly property var metalHover: Bridge.ModuleBus.metal && Bridge.ModuleBus.metal.hover === "tube" ? Bridge.ModuleBus.metal : null
+  readonly property bool inverting: !!src && !metalHover
   readonly property string brushFile: inverting && Bridge.ModuleBus.material.card && Bridge.ModuleBus.material.card.brush
     ? Bridge.ModuleBus.material.card.brush : ""
   // the stamp in the URL: both Lavur themes name their brush the same – a new theme reloads it
@@ -629,6 +631,17 @@ KeyboardPanel {
             visible: row.hot && !menu.inverting
             radius: menu.rowRadius
             color: Util.alpha(menu.ink, 0.09)
+          }
+          // metal: a chrome tube around the row (pill-shaped, a little inside it)
+          MetalShape {
+            visible: row.hot && !!menu.metalHover
+            spec: menu.metalHover
+            pad: 3
+            x: Style.space(4) - pad
+            y: Style.space(2) - pad
+            width: parent.width - 2 * Style.space(4) + 2 * pad
+            height: parent.height - 2 * Style.space(2) + 2 * pad
+            radius: height / 2
           }
           // material: hard inversion (also while the brush is missing) …
           Rectangle {

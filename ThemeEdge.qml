@@ -5,6 +5,7 @@ import Quickshell.Hyprland
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
+import "bridge" as Bridge
 
 // The bar's light and shadow from the current theme (option `edge theme`).
 // A theme opts in with bar-material.json; its `edge` object decides what
@@ -18,6 +19,10 @@ import qs.Ui
 //   kind "lavur" – `texture`: a pre-rendered wash (PNG in the theme folder,
 //                  1920 px wide, starting `top` px above the bar's lower
 //                  edge); `fallback` (a dry edge) while the image is missing.
+//   kind "metal" – a chrome tube along the bar's lower edge (MetalShape, the
+//                  theme's material.metal: Chrom & Platin) that stands still
+//                  and runs a glint along once when something changes;
+//                  `haze` below the bar as with "dry".
 //
 // Below the bar lives on the Top layer: on Bottom, Hyprland here blends a
 // layer surface additively (alpha ignored – a black haze never shows). So
@@ -36,7 +41,8 @@ Scope {
   property int barHeight: Style.bar.sizeHorizontal
 
   readonly property bool lavur: !!spec && spec.kind === "lavur" && !!spec.texture
-  readonly property var dry: !spec ? null : (spec.kind === "dry" ? spec : (lavur && texture.status === Image.Error ? spec.fallback || null : null))
+  readonly property var metal: !!spec && spec.kind === "metal" ? Bridge.ModuleBus.metal : null
+  readonly property var dry: !spec ? null : (spec.kind === "dry" || spec.kind === "metal" ? spec : (lavur && texture.status === Image.Error ? spec.fallback || null : null))
 
   function rgba(hex, alpha) {
     var c = Qt.color(hex || "#000000")
@@ -49,7 +55,9 @@ Scope {
     screen: root.modelData
     readonly property var line: root.dry ? root.dry.line || null : null
     readonly property real scale: devicePixelRatio > 0 ? devicePixelRatio : 1
-    readonly property int px: line ? Math.max(1, Math.round((line.width || 1) * scale)) : 1
+    // metal: room for the tube and its soft edge
+    readonly property real tube: root.metal ? Number(root.metal.rim || 1.6) : 0
+    readonly property int px: root.metal ? Math.max(2, Math.round((tube + 1) * scale)) : line ? Math.max(1, Math.round((line.width || 1) * scale)) : 1
     readonly property var geometry: {
       // one transparent device pixel above the line: a 1 px tall layer surface is never drawn
       var bottom = Math.round(root.barHeight * scale)
@@ -59,7 +67,7 @@ Scope {
     }
     readonly property var hyprMonitor: Hyprland.monitorFor(screen)
     readonly property bool fullscreen: !hyprMonitor || !hyprMonitor.activeWorkspace || hyprMonitor.activeWorkspace.hasFullscreen
-    visible: !!line && !lineGuard.remapping && !fullscreen
+    visible: (!!line || !!root.metal) && !lineGuard.remapping && !fullscreen
     color: "transparent"
     surfaceFormat.opaque: false
     anchors { top: true; left: true; right: true }
@@ -75,10 +83,27 @@ Scope {
     ScreenMoveRemap { id: lineGuard; window: lineWin }
 
     Rectangle {
+      visible: !root.metal
       y: lineWin.geometry.lineY
       width: parent.width
       height: lineWin.px / lineWin.scale
       color: lineWin.line ? root.rgba(lineWin.line.color, lineWin.line.alpha) : "transparent"
+    }
+    // the chrome tube: the lower rim of a shape far wider and taller than the
+    // window, so only its bottom edge shows, ending on the bar's lower edge
+    MetalShape {
+      id: edgeMetal
+      visible: !!root.metal
+      spec: root.metal
+      tube: lineWin.tube
+      x: -40
+      width: parent.width + 80
+      height: 400
+      y: parent.height - height + pad
+      Connections {
+        target: Bridge.ModuleBus
+        function onMetalPulse() { edgeMetal.play() }
+      }
     }
   }
 

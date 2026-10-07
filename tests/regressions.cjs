@@ -1159,3 +1159,61 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.equal(qc.statusOf({name: 'Grok', ready: false, limits: [], usageStatusText: 'Waiting for auth', authHelpText: 'Run grok login.'}).urgent, true);
   console.log('PASS: AI quota popup (agent cards, switching, empty rings, formatting)');
 }
+
+// Metal family (Chrom & Platin, design round 07.10.2026): one shader and one
+// MetalShape in both repos, the themes complete, every metal place wired.
+{
+  const read = f => fs.readFileSync(path.join(root, f), 'utf8');
+  const strip = t => t.replace(/^\/\/ \(Same component in the Tusche (Island|Bar): keep both copies alike\.\)$/m, '');
+  const ms = read('MetalShape.qml'), frag = read('shaders/metal.frag');
+  assert.ok(fs.existsSync(path.join(root, 'shaders/metal.frag.qsb')), 'compiled metal shader');
+  const islandShape = path.join(islandDir, 'views/MetalShape.qml');
+  if (fs.existsSync(path.join(islandDir, 'views/MaterialCard.qml')) && /metalRim/.test(fs.readFileSync(path.join(islandDir, 'views/MaterialCard.qml'), 'utf8'))) {
+    assert.equal(strip(fs.readFileSync(islandShape, 'utf8')), strip(ms), 'both MetalShape copies alike');
+    assert.equal(fs.readFileSync(path.join(islandDir, 'views/shaders/metal.frag'), 'utf8'), frag, 'one metal shader');
+    assert.ok(fs.existsSync(path.join(islandDir, 'views/shaders/metal.frag.qsb')));
+  }
+  // every uniform of the shader is a property of MetalShape (ShaderEffect binds them by name)
+  const block = frag.slice(frag.indexOf('uniform buf {'), frag.indexOf('};'));
+  const uniforms = [...block.matchAll(/^\s*(?:float|vec2|vec4|mat4)\s+(\w+);/gm)].map(m => m[1]).filter(n => !n.startsWith('qt_'));
+  assert.ok(uniforms.length >= 15);
+  for (const u of uniforms) assert.match(ms, new RegExp(`property [\\w.]+ ${u}\\b`), `MetalShape provides ${u}`);
+  assert.match(ms, /FrameAnimation \{\n\s*running: m\.visible && !m\.reduced && m\.flowRate > 0/, 'flow only when asked for, never with Reduced Motion');
+  assert.match(ms, /function play\(\) \{\n\s*if \(reduced \|\| !visible \|\| width <= 0\) return/, 'no glint with Reduced Motion');
+  // the themes
+  for (const t of ['chrom', 'platin']) {
+    for (const f of ['colors.toml', 'hyprland.lua', 'bar-material.json', 'neovim.lua', 'icons.theme', 'shell.bar.toml', 'shell.launcher.toml', 'shell.menu.toml', 'unlock.png'])
+      assert.ok(fs.existsSync(path.join(root, 'themes', t, f)), `${t}/${f}`);
+    assert.ok(fs.readdirSync(path.join(root, 'themes', t, 'backgrounds')).some(f => /^1-.*\.jpg$/.test(f)), `${t}: a first background`);
+    const mat = JSON.parse(fs.readFileSync(path.join(root, 'themes', t, 'bar-material.json'), 'utf8'));
+    assert.equal(mat.edge.kind, 'metal');
+    assert.equal(mat.metal.flow, 0, `${t}: the metal stands still by default`);
+    for (const k of ['rim', 'ring', 'tint', 'disp', 'spark', 'sharp', 'sweepMs', 'track']) assert.ok(mat.metal[k] !== undefined, `${t}: metal.${k}`);
+    assert.equal(mat.card.roll, true, `${t}: cards still roll`);
+    const hypr = fs.readFileSync(path.join(root, 'themes', t, 'hyprland.lua'), 'utf8');
+    assert.match(hypr, /hl\.animation\(\{ leaf = "borderangle", enabled = true/, `${t}: the border turns on focus`);
+    assert.doesNotMatch(hypr.replace(/^--.*$/gm, ''), /loop/, `${t}: no looping border (it would redraw all the time)`);
+    const colors = fs.readFileSync(path.join(root, 'themes', t, 'colors.toml'), 'utf8');
+    const reds = [...colors.matchAll(/"#([0-9a-f]{6})"/g)].map(m => m[1]).filter(h => parseInt(h.slice(0, 2), 16) - Math.max(parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)) > 60);
+    assert.ok(reds.length >= 1 && new Set(reds).size <= 2, `${t}: red is the one signal colour`);
+  }
+  assert.match(read('setup/install.sh'), /themes=\(tusche papier tusche-lavur papier-lavur chrom platin\)/);
+  // the wiring
+  const edge = read('ThemeEdge.qml');
+  assert.match(edge, /readonly property var metal: !!spec && spec\.kind === "metal" \? Bridge\.ModuleBus\.metal : null/);
+  assert.match(edge, /MetalShape \{\n\s*id: edgeMetal/);
+  const mc = read('MaterialCard.qml');
+  assert.match(mc, /readonly property bool metalOn: matOn && !!metalSpec/);
+  assert.match(mc, /height: fp\.frameH \* \(fp\.rolls \? fp\.roll : 1\) \+ 2 \* pad/, 'the rim rolls out with the card');
+  assert.match(mc, /if \(fp\.panel\.open && fp\.metalRim\) fp\.metalRim\.play\(\)/, 'a card glints as it opens');
+  const q = read('modules/Quota.qml');
+  assert.match(q, /Root\.MetalShape \{\n\s*id: metalRing\n\s*visible: !!ring\.metal\n\s*spec: ring\.metal\n\s*kind: "ring"/);
+  assert.match(q, /tint: ring\.percent >= 0\.9 \? Color\.urgent/, 'a nearly spent quota takes the signal colour');
+  assert.match(q, /kind: "pill"/);
+  assert.match(read('DropMenu.qml'), /readonly property bool inverting: !!src && !metalHover/);
+  assert.match(read('modules/Workspaces.qml'), /id: logoMetal/);
+  const en = read('Engine.qml');
+  assert.match(en, /n === "activewindowv2" \|\| n === "workspacev2" \|\| n === "openlayer"/, 'focus, workspace and popups pulse the metal');
+  assert.match(read('bridge/ModuleBus.qml'), /function pulse\(\) \{ if \(metal\) metalPulse\(\) \}/);
+  console.log('PASS: metal family (one shader in both repos, Chrom & Platin complete, rims, rings, meters, hover, logo, pulse)');
+}

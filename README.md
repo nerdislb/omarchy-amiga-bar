@@ -1,13 +1,13 @@
 # Tusche Bar
 
-Presets, modules and motion for the **native** Omarchy bar, made for the Tusche & Papier themes (included). It adds:
+Presets, modules and motion for the **native** Omarchy bar, made for the Tusche & Papier themes and the metal pair Chrom & Platin (all included). It adds:
 
 - **Logo and workspaces:** a compact workspace row with your own logo (Omarchy, the Arch mark or the Nerdibeard seal);
 - **Status:** AI quota gauges and status groups (network, phone, system);
 - **Menu:** a drop-down logo menu that holds the whole Omarchy menu, searchable;
-- **Popups:** your popups and Omarchy's own ones (volume, battery, Wi-Fi …) in the theme's material: rolling cards on Papier and Tusche, an ink bloom with a dried rim on the Lavur themes.
+- **Popups:** your popups and Omarchy's own ones (volume, battery, Wi-Fi …) in the theme's material: rolling cards on Papier and Tusche, an ink bloom with a dried rim on the Lavur themes, thin liquid-chrome rims on Chrom and Platin.
 
-Everything is switchable in its own Control Center. The bar stays Omarchy's own: every widget keeps its own service. It works with any Omarchy theme; the material comes with themes that ship a `bar-material.json` (the four Tusche & Papier themes in `themes/`).
+Everything is switchable in its own Control Center. The bar stays Omarchy's own: every widget keeps its own service. It works with any Omarchy theme; the material comes with themes that ship a `bar-material.json` (the six themes in `themes/`).
 
 ![The bar in Tusche Lavur](docs/screenshots/bar-tusche-lavur.png)
 ![The bar in Papier](docs/screenshots/bar-papier.png)
@@ -28,7 +28,7 @@ Companions: [Tusche Island](https://github.com/nerdislb/omarchy-tusche-island) (
 
 ### The whole look
 
-Installs the four Tusche & Papier themes, this bar, the Tusche Island and the Card Picker, with the author's bar combination `paper`:
+Installs the six themes (Tusche & Papier with their Lavur variants, Chrom & Platin), this bar, the Tusche Island and the Card Picker, with the author's bar combination `paper`:
 
 ```sh
 git clone https://github.com/nerdislb/omarchy-tusche-bar.git ~/src/omarchy-tusche-bar
@@ -43,7 +43,7 @@ The script:
 - puts the island in the place of Omarchy's clock;
 - restarts the shell and switches to Papier.
 
-Options: `--theme tusche|papier-lavur|tusche-lavur`, `--no-card-picker` and `--boot-logo` (the seal on the boot screen, asks for sudo). Details are in [setup/README.md](setup/README.md). Undo with `setup/revert.sh <backup folder>`, which the script names at the end.
+Options: `--theme tusche|papier-lavur|tusche-lavur|chrom|platin`, `--no-card-picker` and `--boot-logo` (the seal on the boot screen, asks for sudo). Details are in [setup/README.md](setup/README.md). Undo with `setup/revert.sh <backup folder>`, which the script names at the end.
 
 ### Only the bar
 
@@ -136,14 +136,15 @@ The sections below are the reference: how it is built, every option, IPC and tes
 Presets: `today` (your bar), `tidy` (pips · gauge · groups), `focus` (stack · on demand · deviations).
 
 **Edge from the theme** (`edge: theme`) reads `bar-material.json` from the
-current Omarchy theme (the Tusche & Papier themes ship one; other themes show
+current Omarchy theme (the six themes here ship one; other themes show
 no edge) and follows theme switches. `edge.kind` `dry`: a line over the bar's
 lower edge on Overlay (light in Tusche, ink in Papier), and under it a short
 hard shadow, a glow and a still haze on the Top layer — while the workspace
 has windows only in the gap above them (`general:gaps_out`), in full on an
 empty one (on the Bottom layer Hyprland blends layer surfaces additively, so
 a dark haze would never show). `kind` `lavur`: a pre-rendered wash
-(`bar-lavur.png` in the theme) instead.
+(`bar-lavur.png` in the theme) instead. `kind` `metal` (Chrom, Platin): a
+chrome tube along the bar's lower edge, with the `haze` below it.
 
 With the material, popups (drop menu, quota, status, and Omarchy's own) roll
 out of the bar from the top in the theme's frame with its shadow (Papier: hard
@@ -169,6 +170,28 @@ folder). With `tones.strong` the bar's own text is the quieter tone (the
 theme sets it) and logo and the active workspace's number stay strong. The
 Tusche Island takes the same material for its notes. Reduced Motion: the
 roll and the bloom jump, the content fades.
+
+**Metal: Chrom & Platin** (design round 07.10.2026). Chrom is Tusche's black
+with a cool steel tint, Platin a cool platinum grey; red stays the one signal
+colour. Their `bar-material.json` carries a `metal` object, and everything
+metal is one shader (`shaders/metal.frag`, `MetalShape.qml`, in both repos): a
+chrome tube along a rounded rect, a ring with a filled arc, or a cylinder bar.
+Its studio's light stripes lie around the outline; at their brightest edges a
+small per-channel offset gives orange/blue fringes. Chrome frames the bar's
+lower edge, the cards and the island's notes and segment (`rim` px), the
+logo (`logo`), the hovered menu row (`hover: "tube"`); the AI rings are chrome
+with the quota as the bright arc (`rings`, `ring` px) and the meters chrome
+cylinders over a `track` (`meters`); from 90 % the metal takes the signal
+colour. The metal stands still – nothing redraws at rest. When something
+changes (a popup or note opens, focus or workspace moves) a glint runs once
+along the edge, the rings and the logo, and a card glints as it opens
+(`sweepMs`, 900); only then do the fringes spark. `flow` > 0 (rad/s) makes the
+highlights flow all the time instead, like the liquid-metal video that started
+the round (costs a redraw every frame while visible). Other keys: `tint`,
+`light`, `disp`, `spark`, `sharp`, `gain`, `base`. Window borders are
+Hyprland's own: a resting chrome gradient that turns once on focus
+(`borderangle`, no loop). `tools/build-metal-themes.py` builds both themes
+from Tusche and Papier. Reduced Motion: no glint, no flow.
 
 AI usage records (`~/.local/state/omarchy/agents/usage`) are refreshed by
 `omarchy.agents` only while it sits in the bar. When a variant folds the AI

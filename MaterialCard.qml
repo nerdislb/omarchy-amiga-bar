@@ -14,6 +14,9 @@ import qs.Commons
 // at its calm edge (frame round 03.10.2026), standing still once dry. The
 // content fades in last. Closing: the content fades, the sheet shrinks back
 // into the bar and a faint trace lingers for a moment. Top bars only.
+// The metal family (Chrom & Platin: material.metal) keeps the rolling card
+// and frames it with a chrome tube (MetalShape) instead of Omarchy's line; a
+// glint runs along it once when the card opens.
 // Without a material the card stays Omarchy's own, with a faint line and a
 // soft shadow (`edge`).
 // Declare it inside the panel.
@@ -79,6 +82,9 @@ Item {
   readonly property var mat: material && material.card ? material.card : null
   readonly property bool matOn: !!mat && mat.bloom !== true && !!card && !!surface && !!panel
   readonly property bool rolls: matOn && mat.roll !== false && panel.barPos === "top"
+  // metal family: a chrome rim around the card
+  readonly property var metalSpec: material && material.metal ? material.metal : null
+  readonly property bool metalOn: matOn && !!metalSpec
   property real roll: 0      // 0 = rolled up into the bar, 1 = open
   // only while it is out or on its way, and on closing until the rolled-in
   // card has faded: released earlier, the whole card flashed up at full
@@ -142,6 +148,8 @@ Item {
   Binding { target: fp.card; property: "color"; value: "transparent"; when: fp.active }
   Binding { target: fp.card; property: "borderSpec"; value: Border.flat("transparent", Math.max(1, Style.space(2))); when: fp.active }
   Binding { target: fp.card; property: "opacity"; value: Math.max(fp.ink, fp.grow > 0.001 ? 0.004 : 0); when: fp.active }
+  // metal: the chrome rim replaces the card's own frame
+  Binding { target: fp.card; property: "borderSpec"; value: Border.flat("transparent", Math.max(1, Style.space(2))); when: fp.metalOn }
   // Rolling (material): the card stays up while it rolls back into the bar;
   // a mask on the card's layer shows only the rolled-out part.
   Binding { target: fp.card; property: "opacity"; value: fp.panel && (fp.panel.open || fp.roll > 0.001) ? 1 : 0; when: fp.rolls }
@@ -250,7 +258,7 @@ Item {
   }
   Connections {
     target: fp.panel
-    function onOpenChanged() { fp.keepSnap(); fp.follow() }
+    function onOpenChanged() { fp.keepSnap(); fp.follow(); if (fp.panel.open && fp.metalRim) fp.metalRim.play() }
   }
   onActiveChanged: follow()
 
@@ -378,6 +386,22 @@ Item {
       }
     }
   }
+  // the chrome rim (metal family): rolls out with the card, fades with it
+  property Item metalRim: null
+  Component {
+    id: metalRimComponent
+    MetalShape {
+      spec: fp.metalSpec
+      visible: fp.metalOn && !!fp.card && fp.card.opacity > 0
+      opacity: fp.card ? fp.card.opacity : 0
+      pad: 3
+      radius: fp.card ? fp.card.radius : 0
+      x: fp.frameX - pad
+      y: fp.frameY - pad
+      width: fp.frameW + 2 * pad
+      height: fp.frameH * (fp.rolls ? fp.roll : 1) + 2 * pad
+    }
+  }
   Component {
     id: cardLineComponent
     Rectangle {
@@ -397,6 +421,7 @@ Item {
       stage = stageComponent.createObject(surface, { z: card.z - 1 })
       rollMask = rollMaskComponent.createObject(surface, { z: card.z - 3 })
       rollSnap = rollSnapComponent.createObject(surface, { z: card.z + 1 })
+      metalRim = metalRimComponent.createObject(surface, { z: card.z + 2 })
     }
     keepSnap()
     if (card) cardLine = cardLineComponent.createObject(card)
@@ -408,5 +433,6 @@ Item {
     if (cardLine) cardLine.destroy()
     if (rollMask) rollMask.destroy()
     if (rollSnap) rollSnap.destroy()
+    if (metalRim) metalRim.destroy()
   }
 }

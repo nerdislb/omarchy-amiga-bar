@@ -1,5 +1,6 @@
 #!/bin/bash
-# Install the Tusche look on this machine: the Tusche & Papier themes, the
+# Install the Tusche look on this machine: the Tusche & Papier themes and the
+# metal pair Chrom & Platin, the
 # Tusche Bar and the Tusche Island with all their motion (logo arrival, seal
 # tab, rolling cards, wet bloom, dried rim, system chip ...), the card picker,
 # the saved bar combinations and the island settings from setup/look.json.
@@ -53,7 +54,7 @@ done
 
 theme="${theme:-$(jq -r '.theme // "papier"' "$look")}"
 combo="${combo:-$(jq -r '.barCombination // "paper"' "$look")}"
-themes=(tusche papier tusche-lavur papier-lavur)
+themes=(tusche papier tusche-lavur papier-lavur chrom platin)
 repos=(omarchy-tusche-bar omarchy-tusche-island)
 $card_picker && repos+=(omarchy-card-picker)
 plugins_dir="$HOME/.config/omarchy/plugins"
@@ -72,7 +73,7 @@ step "Preflight"
 for cmd in omarchy omarchy-shell git jq python3 rsync; do
   command -v "$cmd" >/dev/null || die "$cmd is missing"
 done
-[[ $theme =~ ^(tusche|papier|tusche-lavur|papier-lavur)$ ]] || die "--theme must be one of: ${themes[*]}"
+[[ $theme =~ ^(tusche|papier|tusche-lavur|papier-lavur|chrom|platin)$ ]] || die "--theme must be one of: ${themes[*]}"
 jq -e --arg c "$combo" '.barCombinations | any(.name == $c)' "$look" >/dev/null || die "no saved combination named '$combo' in look.json"
 note "user $USER · Omarchy at ${OMARCHY_PATH:-?} · $(omarchy version 2>/dev/null | head -1 || echo 'version unknown')"
 pgrep -x quickshell >/dev/null || $dry || die "run this inside the desktop session (the Omarchy shell is not running)"
@@ -105,7 +106,7 @@ if ! $dry; then
   for r in "${repos[@]}"; do plugin_id "$r"; done >"$backup/plugins.installed"
   touch "$backup/themes.list" "$backup/plugins.list" "$backup/files.list"
 fi
-note "shell.json, menu extension, saved combinations, the four themes and the plugin folders (if present)"
+note "shell.json, menu extension, saved combinations, the six themes and the plugin folders (if present)"
 
 # ---------------------------------------------------------------- 2 · repositories
 step "Repositories in $SRC"

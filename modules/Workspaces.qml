@@ -260,6 +260,22 @@ Item {
       y: Math.round((root.barSize - 16) / 2) + 1
       width: 16; height: 16
     }
+    // metal family (material.metal.logo): a chrome frame around the logo that
+    // glints with the bar's pulse
+    Root.MetalShape {
+      id: logoMetal
+      readonly property var m: Bridge.ModuleBus.metal && Bridge.ModuleBus.metal.logo ? Bridge.ModuleBus.metal : null
+      visible: !!m && root.variant !== "logo"
+      spec: m
+      pad: 2
+      tube: 1.4
+      radius: 3
+      x: sealSpot.x - 3 - pad
+      y: sealSpot.y - 3 - pad
+      width: 22 + 2 * pad
+      height: 22 + 2 * pad
+      Connections { target: Bridge.ModuleBus; function onMetalPulse() { logoMetal.play() } }
+    }
     Loader {
       active: root.variant !== "logo" && root.logo === "arch"
       sourceComponent: Component {

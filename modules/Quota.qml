@@ -285,7 +285,9 @@ Item {
   }
 
   MouseArea {
+    id: area
     anchors.fill: parent
+    hoverEnabled: true
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton
     cursorShape: Qt.PointingHandCursor
     onClicked: function(m) {
@@ -364,25 +366,50 @@ Item {
 
   // A quota ring with the agent's initial: the bar's rings and the popup's tabs.
   // percent < 0 (no numbers): only the track, the initial dimmed.
-  component Ring: Canvas {
+  // Metal family (material.metal.rings): a chrome ring whose bright arc is
+  // the quota, the rest of it dark chrome; from 90 % the metal turns the
+  // signal colour. It glints with the bar's pulse and brightens on hover.
+  component Ring: Item {
     id: ring
     property real percent: -1
     property string letter: "?"
     property color ink: root.fg
     property int letterPx: Style.font.caption - 1
-    onPercentChanged: requestPaint()
-    onInkChanged: requestPaint()
-    onPaint: {
-      var c = getContext("2d"); c.reset()
-      var r = width / 2 - 2
-      c.lineWidth = Math.max(2, width * 0.13)
-      c.strokeStyle = Util.alpha(ink, percent < 0 ? 0.22 : 0.15)
-      c.beginPath(); c.arc(width / 2, height / 2, r, 0, Math.PI * 2); c.stroke()
-      if (percent < 0) return
-      c.strokeStyle = root.tone(percent)
-      c.beginPath(); c.arc(width / 2, height / 2, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0.03, Math.min(1, percent))); c.stroke()
+    property real boost: 0
+    readonly property var metal: Bridge.ModuleBus.metal && Bridge.ModuleBus.metal.rings !== false ? Bridge.ModuleBus.metal : null
+    function play() { metalRing.play() }
+    Canvas {
+      id: cv
+      anchors.fill: parent
+      visible: !ring.metal
+      onPaint: {
+        var c = getContext("2d"); c.reset()
+        var r = width / 2 - 2
+        c.lineWidth = Math.max(2, width * 0.13)
+        c.strokeStyle = Util.alpha(ring.ink, ring.percent < 0 ? 0.22 : 0.15)
+        c.beginPath(); c.arc(width / 2, height / 2, r, 0, Math.PI * 2); c.stroke()
+        if (ring.percent < 0) return
+        c.strokeStyle = root.tone(ring.percent)
+        c.beginPath(); c.arc(width / 2, height / 2, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0.03, Math.min(1, ring.percent))); c.stroke()
+      }
     }
-    Connections { target: root; function onPalChanged() { ring.requestPaint() } }
+    onPercentChanged: cv.requestPaint()
+    onInkChanged: cv.requestPaint()
+    Connections { target: root; function onPalChanged() { cv.requestPaint() } }
+    Root.MetalShape {
+      id: metalRing
+      visible: !!ring.metal
+      spec: ring.metal
+      kind: "ring"
+      pad: 2
+      x: -1; y: -1
+      width: ring.width + 2; height: ring.height + 2
+      tube: ring.metal ? Number(ring.metal.ring || 2.6) : 2.6
+      arc: ring.percent < 0 ? 0 : Math.max(0.03, Math.min(1, ring.percent))
+      dim: ring.percent < 0 ? 0.32 : 0.2
+      boost: ring.boost
+      tint: ring.percent >= 0.9 ? Color.urgent : (ring.metal && ring.metal.tint ? ring.metal.tint : "#f2f3f7")
+    }
     Text { renderType: Text.NativeRendering; anchors.centerIn: parent; text: ring.letter; font.family: Style.font.family; font.bold: true; font.pixelSize: ring.letterPx; color: Util.alpha(ring.ink, ring.percent < 0 ? 0.45 : 1) }
   }
 
@@ -395,11 +422,14 @@ Item {
       Repeater {
         model: root.ringItems
         Ring {
+          id: barRing
           required property var modelData
           anchors.verticalCenter: parent.verticalCenter
           width: Math.round(root.barSize * 0.66); height: width
           percent: modelData.missing ? -1 : modelData.percent
           letter: root.letters[modelData.provider] || "?"
+          boost: area.containsMouse ? 0.35 : 0
+          Connections { target: Bridge.ModuleBus; function onMetalPulse() { barRing.play() } }
         }
       }
     }
@@ -439,13 +469,31 @@ Item {
   readonly property color popInk: Color.popups.text
   component Caption: Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Util.alpha(root.popInk, 0.55) }
   component Section: Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; font.family: Style.font.family; font.pixelSize: Math.max(10, Style.font.body - 3); font.letterSpacing: Style.space(2.5); color: Util.alpha(root.popInk, 0.6); topPadding: Style.space(4) }
-  component Meter: Rectangle {
+  // Metal family (material.metal.meters): a chrome cylinder filled up to the
+  // value, the rest the material's track; 0 % shows the track only.
+  component Meter: Item {
     id: meter
     property real value: 0
     property color fill: root.popInk
     height: Style.space(6)
-    color: Util.alpha(root.popInk, 0.12)
-    Rectangle { width: meter.width * Math.min(1, Math.max(0, meter.value)); height: meter.height; color: meter.fill }
+    readonly property var metal: Bridge.ModuleBus.metal && Bridge.ModuleBus.metal.meters !== false ? Bridge.ModuleBus.metal : null
+    Rectangle {
+      visible: !meter.metal
+      anchors.fill: parent
+      color: Util.alpha(root.popInk, 0.12)
+      Rectangle { width: meter.width * Math.min(1, Math.max(0, meter.value)); height: meter.height; color: meter.fill }
+    }
+    Root.MetalShape {
+      visible: !!meter.metal
+      spec: meter.metal
+      kind: "pill"
+      pad: 2
+      x: -2; y: -2
+      width: meter.width + 4; height: meter.height + 4
+      arc: Math.min(1, Math.max(0, meter.value))
+      track: meter.metal && meter.metal.track ? meter.metal.track : Util.alpha(root.popInk, 0.12)
+      tint: meter.value >= 0.9 ? Color.urgent : (meter.metal && meter.metal.tint ? meter.metal.tint : "#f2f3f7")
+    }
   }
 
   KeyboardPanel {

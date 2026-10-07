@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import qs.Commons
@@ -222,6 +223,17 @@ Item {
   Binding { target: Bridge.ModuleBus; property: "material"; value: root.materialOn ? root.material : null }
   Binding { target: Bridge.ModuleBus; property: "themeDir"; value: root.themeDir }
   Binding { target: Bridge.ModuleBus; property: "themeStamp"; value: root.themeStamp }
+  // Metal family: focus, workspace and a new layer surface (a popup, a note)
+  // each count as a change; a burst of events gives one glint.
+  Connections {
+    target: Hyprland
+    enabled: !!Bridge.ModuleBus.metal
+    function onRawEvent(event) {
+      var n = event ? event.name : ""
+      if (n === "activewindowv2" || n === "workspacev2" || n === "openlayer") metalPulseTimer.restart()
+    }
+  }
+  Timer { id: metalPulseTimer; interval: 90; onTriggered: Bridge.ModuleBus.pulse() }
 
   // ---------------------------------------------------------------- AI usage refresh
   // omarchy.agents (and the AI usage widget) keep ~/.local/state/omarchy/

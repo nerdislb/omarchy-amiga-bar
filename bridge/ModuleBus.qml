@@ -18,6 +18,12 @@ QtObject {
   // the current theme's bar material (bar-material.json) while the edge option
   // is "theme"; null otherwise. MaterialCard styles cards with it.
   property var material: null
+  // the metal family (Chrom & Platin): material.metal, null for other themes.
+  // pulse(): something changed (a popup opened, focus or workspace moved) –
+  // the metal shows it once with a glint along the bar's edge and the rings.
+  readonly property var metal: material && material.metal ? material.metal : null
+  signal metalPulse()
+  function pulse() { if (metal) metalPulse() }
   // the current theme folder and a counter bumped on every theme switch (reload images
   // that keep their file name, e.g. the Lavur menu brush)
   property string themeDir: ""

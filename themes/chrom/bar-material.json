@@ -1,0 +1,56 @@
+{
+  "family": "metall",
+  "edge": {
+    "kind": "metal",
+    "haze": {
+      "color": "#000000",
+      "height": 22,
+      "stops": [
+        [
+          0,
+          0.8
+        ],
+        [
+          0.5,
+          0.32
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    }
+  },
+  "card": {
+    "roll": true,
+    "glow": {
+      "color": "#ffffff",
+      "alpha": 0.07,
+      "blur": 18
+    }
+  },
+  "metal": {
+    "rim": 1.6,
+    "ring": 2.6,
+    "tint": "#f2f3f7",
+    "disp": 0.8,
+    "spark": 0.35,
+    "sharp": 0.78,
+    "gain": 1,
+    "base": 1,
+    "flow": 0,
+    "sweepMs": 900,
+    "track": "#1c1c1f",
+    "rings": true,
+    "meters": true,
+    "hover": "tube",
+    "logo": true
+  },
+  "source": {
+    "fill": "#f2f3f7",
+    "text": "#020203"
+  },
+  "tones": {
+    "strong": "#e0e1e5"
+  }
+}

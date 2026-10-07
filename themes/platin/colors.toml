@@ -1,0 +1,36 @@
+# Platin – the metal family (design round 07.10.2026). One signal colour: red.
+mode = "light"
+accent = "#0f1113"
+selection = "#c0c3c7"
+muted = "#646568"
+
+background = "#dde0e4"
+dark_background = "#cdd0d4"
+darker_background = "#c0c3c7"
+lighter_background = "#eaedf1"
+
+foreground = "#27292b"
+dark_foreground = "#414346"
+light_foreground = "#17191b"
+bright_foreground = "#000000"
+
+red = "#b02614"
+orange = "#353739"
+yellow = "#000000"
+green = "#000000"
+blue = "#353739"
+cyan = "#535457"
+magenta = "#414346"
+purple = "#414346"
+brown = "#818488"
+
+bright_red = "#b02614"
+bright_orange = "#2e2f32"
+bright_yellow = "#000000"
+bright_green = "#000000"
+bright_blue = "#2e2f32"
+bright_cyan = "#494a4d"
+bright_magenta = "#383a3d"
+
+hyprland_active_border = "rgba(1a1b1dff) rgba(7a7d82ff) rgba(c9ccd0ff) rgba(7a7d82ff) rgba(1a1b1dff) 90deg"
+hyprland_inactive_border = "rgba(b0b3b8ff)"

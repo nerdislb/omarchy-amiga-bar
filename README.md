@@ -16,6 +16,16 @@ Everything is switchable in its own Control Center. The bar stays Omarchy's own:
 |---|---|---|
 | ![Drop-down menu blooming open](docs/screenshots/menu-tusche-lavur.gif) | ![Drop-down menu in Papier](docs/screenshots/menu-papier.png) | ![Volume popup in the ink material](docs/screenshots/audio-tusche-lavur.png) |
 
+### Chrom & Platin
+
+Two liquid-metal themes: **Chrom** (liquid chrome on black) and **Platin** (polished platinum, the light one). Thin chrome rims run along the bar's edge, the popups, the AI rings and the menu. The metal stands still, and a glint runs along it once whenever something changes. Window borders turn their chrome gradient on focus. Switch with `setup/install.sh --theme chrom` (or `platin`). Details are under [Metal: Chrom & Platin](#elements-and-variants) below; there is also a [short video](docs/screenshots/chrom-platin.mp4).
+
+![Chrom (left) and Platin (right)](docs/screenshots/chrom-platin.jpg)
+
+| Logo menu, Chrom · Platin | AI quota card, Chrom · Platin |
+|---|---|
+| ![Drop-down menu with the chrome hover tube](docs/screenshots/chrom-platin-menu.gif) | ![Quota card with chrome rings and meters](docs/screenshots/chrom-platin-quota.png) |
+
 Companions: [Tusche Island](https://github.com/nerdislb/omarchy-tusche-island) (clock, live activities and notifications) and [Card Picker](https://github.com/nerdislb/omarchy-card-picker) (themes and wallpapers as a hand of cards).
 
 ## Requirements

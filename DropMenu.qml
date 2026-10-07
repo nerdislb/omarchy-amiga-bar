@@ -60,6 +60,8 @@ KeyboardPanel {
   // metal family (material.metal.hover "tube"): a chrome tube around the hovered row instead
   readonly property var metalHover: Bridge.ModuleBus.metal && Bridge.ModuleBus.metal.hover === "tube" ? Bridge.ModuleBus.metal : null
   readonly property bool inverting: !!src && !metalHover
+  // the tube's corner radius: metal.hoverRadius px, or a pill without it
+  function hoverRadius(h) { return metalHover && metalHover.hoverRadius !== undefined ? Math.min(h / 2, Number(metalHover.hoverRadius)) : h / 2 }
   readonly property string brushFile: inverting && Bridge.ModuleBus.material.card && Bridge.ModuleBus.material.card.brush
     ? Bridge.ModuleBus.material.card.brush : ""
   // the stamp in the URL: both Lavur themes name their brush the same – a new theme reloads it
@@ -635,7 +637,7 @@ KeyboardPanel {
             width: parent.width - 2 * x
             height: parent.height - 2 * y
             visible: row.hot && !menu.inverting
-            radius: tube ? height / 2 : menu.rowRadius
+            radius: tube ? menu.hoverRadius(height) : menu.rowRadius
             color: Util.alpha(menu.ink, tube ? 0.07 : 0.09)
           }
           // metal: a chrome tube around the row (pill-shaped, a little inside it)
@@ -647,7 +649,7 @@ KeyboardPanel {
             y: Style.space(2) - pad
             width: parent.width - 2 * Style.space(4) + 2 * pad
             height: parent.height - 2 * Style.space(2) + 2 * pad
-            radius: height / 2
+            radius: menu.hoverRadius(height - 2 * pad)
           }
           // material: hard inversion (also while the brush is missing) …
           Rectangle {

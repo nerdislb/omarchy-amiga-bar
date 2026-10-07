@@ -30,7 +30,10 @@ layout(std140, binding = 0) uniform buf {
     float base;     // studio brightness
     float lightOn;  // 1 = light theme (bright studio)
     vec4 tint;      // metal colour
-    vec4 track;     // pill: the unfilled part's colour
+    vec4 track;     // pill, and rings in style 1/2: the unfilled part's colour (with its alpha)
+    float ringStyle; // rings: 0 chrome all round (the rest dimmed), 1 chrome arc on a flat track,
+                     // 2 a solid arc in `ink` with a chrome glint at its head, on a flat track
+    vec4 ink;       // ring style 2: the arc's colour
 };
 
 const float PI = 3.14159265, TAU = 6.2831853;
@@ -110,7 +113,22 @@ void main() {
         vec2 n2 = g * sign(dc) * a;
         vec3 N = normalize(vec3(n2.x, -n2.y, h + 0.05));
         col = shade(N, phi, along, sweepPos) * mix(0.55, 1.0, h);
-        if (mode > 0.5 && arc < 0.999) col = mix(col * dim, col, step(along, arc));
+        if (mode > 0.5) {
+            float inArc = arc >= 0.999 ? 1.0 : step(along, arc);
+            if (ringStyle < 0.5) {
+                if (arc < 0.999) col = mix(col * dim, col, inArc);
+            } else {
+                vec3 arcCol = col;
+                if (ringStyle > 1.5) {
+                    // solid: the arc in ink, shaded as a tube, a chrome glint at its head
+                    float hd = abs(fract(along - arc + 0.5) - 0.5);
+                    float head = arc >= 0.999 ? 0.0 : exp(-hd * hd / 0.0018);
+                    arcCol = ink.rgb * mix(0.78, 1.0, h) + col * head;
+                }
+                col = mix(track.rgb, arcCol, inArc);
+                alphaMul = mix(track.a, 1.0, inArc);
+            }
+        }
     } else {
         cov = clamp(0.5 - d, 0.0, 1.0);
         if (cov <= 0.0) { fragColor = vec4(0.0); return; }

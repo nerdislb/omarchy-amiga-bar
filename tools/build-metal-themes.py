@@ -152,7 +152,7 @@ MATERIAL = {
         },
         'card': {'roll': True, 'glow': {'color': '#ffffff', 'alpha': 0.07, 'blur': 18}},
         'metal': {
-            'rim': 1.6, 'ring': 2.6, 'tint': '#f2f3f7', 'disp': 0.8, 'spark': 0.35, 'sharp': 0.78,
+            'rim': 1.6, 'ring': 3.4, 'ringSize': 22, 'ringStyle': 2, 'tint': '#f2f3f7', 'disp': 0.8, 'spark': 0.35, 'sharp': 0.78,
             'gain': 1, 'base': 1, 'flow': 0, 'sweepMs': 900, 'track': '#1c1c1f',
             'rings': True, 'meters': True, 'hover': 'tube', 'hoverRadius': 3, 'logo': True,
         },
@@ -167,7 +167,7 @@ MATERIAL = {
         },
         'card': {'roll': True, 'shadow': {'color': '#2a2d32', 'alpha': 0.28, 'dx': 0, 'dy': 4}},
         'metal': {
-            'rim': 1.4, 'ring': 2.6, 'tint': '#f7f8fa', 'light': True, 'disp': 0.35, 'spark': 0.15, 'sharp': 0.6,
+            'rim': 1.4, 'ring': 3.4, 'ringSize': 22, 'ringStyle': 2, 'tint': '#f7f8fa', 'light': True, 'disp': 0.35, 'spark': 0.15, 'sharp': 0.6,
             'gain': 1, 'base': 1, 'flow': 0, 'sweepMs': 900, 'track': '#b9bcc0',
             'rings': True, 'meters': True, 'hover': 'tube', 'hoverRadius': 3, 'logo': True,
         },

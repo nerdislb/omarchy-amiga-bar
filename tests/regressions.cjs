@@ -1191,6 +1191,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     for (const k of ['rim', 'ring', 'tint', 'disp', 'spark', 'sharp', 'sweepMs', 'track']) assert.ok(mat.metal[k] !== undefined, `${t}: metal.${k}`);
     assert.equal(mat.card.roll, true, `${t}: cards still roll`);
     assert.equal(mat.metal.hoverRadius, 3, `${t}: the hover tube is nearly square like the cards (owner, 07.10.)`);
+    assert.equal(mat.metal.ringStyle, 2, `${t}: quota rings as a solid arc with a chrome head (readable at bar size)`);
     const hypr = fs.readFileSync(path.join(root, 'themes', t, 'hyprland.lua'), 'utf8');
     assert.match(hypr, /hl\.animation\(\{ leaf = "borderangle", enabled = true/, `${t}: the border turns on focus`);
     assert.doesNotMatch(hypr.replace(/^--.*$/gm, ''), /loop/, `${t}: no looping border (it would redraw all the time)`);
@@ -1218,6 +1219,8 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.match(q, /Root\.MetalShape \{\n\s*id: metalRing\n\s*visible: !!ring\.metal\n\s*spec: ring\.metal\n\s*kind: "ring"/);
   assert.match(q, /tint: ring\.percent >= 0\.9 \? Color\.urgent/, 'a nearly spent quota takes the signal colour');
   assert.match(q, /kind: "pill"/);
+  assert.match(q, /ringStyle: ring\.metal && ring\.metal\.ringStyle !== undefined \? Number\(ring\.metal\.ringStyle\) : 0/);
+  assert.match(frag, /float ringStyle;/);
   assert.match(read('DropMenu.qml'), /readonly property bool inverting: !!src && !metalHover/);
   assert.match(read('DropMenu.qml'), /radius: tube \? menu\.hoverRadius\(height\) : menu\.rowRadius/, 'the hover fill takes the tube\'s shape');
   assert.match(read('DropMenu.qml'), /radius: menu\.hoverRadius\(height - 2 \* pad\)/, 'fill and tube share one radius');

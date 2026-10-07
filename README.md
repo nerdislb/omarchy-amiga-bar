@@ -189,8 +189,9 @@ chrome tube along a rounded rect, a ring with a filled arc, or a cylinder bar.
 Its studio's light stripes lie around the outline; at their brightest edges a
 small per-channel offset gives orange/blue fringes. Chrome frames the bar's
 lower edge, the cards and the island's notes and segment (`rim` px), the
-logo (`logo`), the hovered menu row (`hover: "tube"`, a pill or `hoverRadius` px corners); the AI rings are chrome
-with the quota as the bright arc (`rings`, `ring` px) and the meters chrome
+logo (`logo`), the hovered menu row (`hover: "tube"`, a pill or `hoverRadius` px corners); the AI rings show the quota
+as a solid arc with a chrome head on a flat track (`ringStyle` 2; 1 = chrome
+arc, 0 = chrome all round; `rings`, `ring` px tube, `ringSize` px) and the meters chrome
 cylinders over a `track` (`meters`); from 90 % the metal takes the signal
 colour. The metal stands still – nothing redraws at rest. When something
 changes (a popup or note opens, focus or workspace moves) a glint runs once

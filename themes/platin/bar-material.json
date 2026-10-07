@@ -32,7 +32,9 @@
   },
   "metal": {
     "rim": 1.4,
-    "ring": 2.6,
+    "ring": 3.4,
+    "ringSize": 22,
+    "ringStyle": 2,
     "tint": "#f7f8fa",
     "light": true,
     "disp": 0.35,

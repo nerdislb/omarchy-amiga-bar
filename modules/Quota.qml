@@ -409,6 +409,11 @@ Item {
       dim: ring.percent < 0 ? 0.32 : 0.2
       boost: ring.boost
       tint: ring.percent >= 0.9 ? Color.urgent : (ring.metal && ring.metal.tint ? ring.metal.tint : "#f2f3f7")
+      // material.metal.ringStyle 2 (readable at bar size): a solid arc in the ink with a chrome
+      // head on a flat track; 1: chrome arc on a flat track; 0: chrome all round
+      ringStyle: ring.metal && ring.metal.ringStyle !== undefined ? Number(ring.metal.ringStyle) : 0
+      track: Util.alpha(ring.ink, ring.metal && ring.metal.light ? (ring.percent < 0 ? 0.22 : 0.16) : (ring.percent < 0 ? 0.3 : 0.26))
+      ink: ring.percent >= 0.9 ? Color.urgent : (ring.metal && ring.metal.light ? "#1d1e21" : "#e6e7eb")
     }
     Text { renderType: Text.NativeRendering; anchors.centerIn: parent; text: ring.letter; font.family: Style.font.family; font.bold: true; font.pixelSize: ring.letterPx; color: Util.alpha(ring.ink, ring.percent < 0 ? 0.45 : 1) }
   }
@@ -425,7 +430,7 @@ Item {
           id: barRing
           required property var modelData
           anchors.verticalCenter: parent.verticalCenter
-          width: Math.round(root.barSize * 0.66); height: width
+          width: Bridge.ModuleBus.metal && Number(Bridge.ModuleBus.metal.ringSize) > 0 ? Number(Bridge.ModuleBus.metal.ringSize) : Math.round(root.barSize * 0.66); height: width
           percent: modelData.missing ? -1 : modelData.percent
           letter: root.letters[modelData.provider] || "?"
           boost: area.containsMouse ? 0.35 : 0

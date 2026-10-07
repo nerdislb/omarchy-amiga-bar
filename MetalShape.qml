@@ -23,6 +23,9 @@ ShaderEffect {
   property real arc: 1
   property real dim: 0.2
   property color track: "transparent"
+  // rings: 0 chrome all round (the rest dimmed), 1 chrome arc on a flat track, 2 solid arc (ink) with a chrome head
+  property real ringStyle: 0
+  property color ink: light ? "#1d1e21" : "#e6e7eb"
   property real boost: 0
   property real sweep: 0
   property real sweepAmt: 0

@@ -626,11 +626,17 @@ KeyboardPanel {
             anchors.verticalCenter: parent.verticalCenter
             color: Util.alpha(menu.ink, 0.12)
           }
+          // the hovered row's fill; with the metal tube it takes the tube's
+          // pill shape exactly, so fill and chrome are one form
           Rectangle {
-            anchors.fill: parent
+            readonly property bool tube: !!menu.metalHover
+            x: tube ? Style.space(4) : 0
+            y: tube ? Style.space(2) : 0
+            width: parent.width - 2 * x
+            height: parent.height - 2 * y
             visible: row.hot && !menu.inverting
-            radius: menu.rowRadius
-            color: Util.alpha(menu.ink, 0.09)
+            radius: tube ? height / 2 : menu.rowRadius
+            color: Util.alpha(menu.ink, tube ? 0.07 : 0.09)
           }
           // metal: a chrome tube around the row (pill-shaped, a little inside it)
           MetalShape {

@@ -1218,6 +1218,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.match(q, /tint: ring\.percent >= 0\.9 \? Color\.urgent/, 'a nearly spent quota takes the signal colour');
   assert.match(q, /kind: "pill"/);
   assert.match(read('DropMenu.qml'), /readonly property bool inverting: !!src && !metalHover/);
+  assert.match(read('DropMenu.qml'), /radius: tube \? height \/ 2 : menu\.rowRadius/, 'the hover fill takes the tube\'s pill shape');
   assert.match(read('modules/Workspaces.qml'), /id: logoMetal/);
   const en = read('Engine.qml');
   assert.match(en, /n === "activewindowv2" \|\| n === "workspacev2" \|\| n === "openlayer"/, 'focus, workspace and popups pulse the metal');

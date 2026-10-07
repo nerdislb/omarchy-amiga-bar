@@ -1190,6 +1190,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     assert.equal(mat.metal.flow, 0, `${t}: the metal stands still by default`);
     for (const k of ['rim', 'ring', 'tint', 'disp', 'spark', 'sharp', 'sweepMs', 'track']) assert.ok(mat.metal[k] !== undefined, `${t}: metal.${k}`);
     assert.equal(mat.card.roll, true, `${t}: cards still roll`);
+    assert.equal(mat.metal.hoverRadius, 3, `${t}: the hover tube is nearly square like the cards (owner, 07.10.)`);
     const hypr = fs.readFileSync(path.join(root, 'themes', t, 'hyprland.lua'), 'utf8');
     assert.match(hypr, /hl\.animation\(\{ leaf = "borderangle", enabled = true/, `${t}: the border turns on focus`);
     assert.doesNotMatch(hypr.replace(/^--.*$/gm, ''), /loop/, `${t}: no looping border (it would redraw all the time)`);

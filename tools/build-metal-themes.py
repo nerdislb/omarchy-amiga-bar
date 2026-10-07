@@ -154,7 +154,7 @@ MATERIAL = {
         'metal': {
             'rim': 1.6, 'ring': 2.6, 'tint': '#f2f3f7', 'disp': 0.8, 'spark': 0.35, 'sharp': 0.78,
             'gain': 1, 'base': 1, 'flow': 0, 'sweepMs': 900, 'track': '#1c1c1f',
-            'rings': True, 'meters': True, 'hover': 'tube', 'logo': True,
+            'rings': True, 'meters': True, 'hover': 'tube', 'hoverRadius': 3, 'logo': True,
         },
         'source': {'fill': '#f2f3f7', 'text': '#020203'},
         'tones': {'strong': '#e0e1e5'},
@@ -169,7 +169,7 @@ MATERIAL = {
         'metal': {
             'rim': 1.4, 'ring': 2.6, 'tint': '#f7f8fa', 'light': True, 'disp': 0.35, 'spark': 0.15, 'sharp': 0.6,
             'gain': 1, 'base': 1, 'flow': 0, 'sweepMs': 900, 'track': '#b9bcc0',
-            'rings': True, 'meters': True, 'hover': 'tube', 'logo': True,
+            'rings': True, 'meters': True, 'hover': 'tube', 'hoverRadius': 3, 'logo': True,
         },
         'source': {'fill': '#111214', 'text': '#e1e3e6'},
         'tones': {'strong': '#141517'},

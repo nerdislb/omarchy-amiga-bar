@@ -1205,7 +1205,14 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   const mc = read('MaterialCard.qml');
   assert.match(mc, /readonly property bool metalOn: matOn && !!metalSpec/);
   assert.match(mc, /height: fp\.frameH \* \(fp\.rolls \? fp\.roll : 1\) \+ 2 \* pad/, 'the rim rolls out with the card');
-  assert.match(mc, /if \(fp\.panel\.open && fp\.metalRim\) fp\.metalRim\.play\(\)/, 'a card glints as it opens');
+  assert.match(mc, /function onOpenChanged\(\) \{ fp\.keepSnap\(\); fp\.follow\(\); fp\.glintPending = fp\.panel\.open; fp\.glint\(\) \}/, 'a card glints as it opens');
+  assert.match(mc, /onVisibleChanged: fp\.glint\(\)/, '… once its rim is visible (the card starts at opacity 0)');
+  assert.match(frag, /g = gl > 1e-4 \? g \/ gl : vec2\(0\.0, -1\.0\);/, 'no atan(0, 0) on a bar\'s centre line');
+  assert.match(frag, /col = mix\(track\.rgb, col, filled\);\n\s*alphaMul = mix\(track\.a, 1\.0, filled\);/, '0 % = the track only');
+  assert.match(frag, /float d = ring \? abs\(fract\(sweepPos - sweep \+ 0\.5\) - 0\.5\) : abs\(sweepPos - sweep\);/, 'one glint across a rect, wrapping only on rings');
+  const islandBar = path.join(islandDir, 'BarWidget.qml');
+  if (fs.existsSync(islandBar) && /chipMetal/.test(fs.readFileSync(islandBar, 'utf8')))
+    assert.match(fs.readFileSync(islandBar, 'utf8'), /onSegKeyChanged: if \(segKey !== ""\) chipMetal\.play\(\)/, 'the segment glints by kind, not on every timer tick');
   const q = read('modules/Quota.qml');
   assert.match(q, /Root\.MetalShape \{\n\s*id: metalRing\n\s*visible: !!ring\.metal\n\s*spec: ring\.metal\n\s*kind: "ring"/);
   assert.match(q, /tint: ring\.percent >= 0\.9 \? Color\.urgent/, 'a nearly spent quota takes the signal colour');

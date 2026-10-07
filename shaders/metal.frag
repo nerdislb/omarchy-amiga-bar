@@ -56,7 +56,10 @@ float stripes(float ph) {
     }
     return s;
 }
-vec3 shade(vec3 N, float phi, float along) {
+// along: position for the stripes (rings: the angle; rects: a diagonal
+// coordinate in px / 700); sweepPos: the glint's coordinate (rings: the
+// angle, wrapping; rects: 0–1 across the shape, not wrapping – one glint)
+vec3 shade(vec3 N, float phi, float along, float sweepPos) {
     vec3 R = reflect(vec3(0.0, 0.0, -1.0), N);
     float up = R.y, elev = clamp(R.z, 0.0, 1.0);
     float b = lightOn > 0.5 ? mix(0.30, 0.95, smoothstep(-0.75, 0.85, up))
@@ -69,7 +72,11 @@ vec3 shade(vec3 N, float phi, float along) {
     float k = mix(0.75, 1.35, 1.0 - elev) * gain * (1.0 + boost);
     vec3 col = vec3(b + L * k);
     float sw = 0.0;
-    if (sweepAmt > 0.0) { float d = abs(fract(along - sweep + 0.5) - 0.5); sw = sweepAmt * exp(-d * d / 0.0025); }
+    if (sweepAmt > 0.0) {
+        bool ring = mode > 0.5 && mode < 1.5;
+        float d = ring ? abs(fract(sweepPos - sweep + 0.5) - 0.5) : abs(sweepPos - sweep);
+        sw = sweepAmt * exp(-d * d / (ring ? 0.0025 : 0.0016));
+    }
     float sp = (sr - sb) * k * smoothstep(0.15, 0.9, L);
     col += spark * (1.0 + 4.0 * sw) * (max(sp, 0.0) * vec3(1.0, 0.5, 0.12) + max(-sp, 0.0) * vec3(0.18, 0.5, 1.0));
     col += sw * vec3(1.15);
@@ -81,13 +88,18 @@ void main() {
     float d = field(p);
     vec2 e = vec2(0.6, 0.0);
     vec2 g = vec2(field(p + e.xy) - field(p - e.xy), field(p + e.yx) - field(p - e.yx));
-    g = g / max(length(g), 1e-5);
+    float gl = length(g);
+    // a zero gradient (the centre line of a bar) has no direction: atan(0, 0) is undefined
+    g = gl > 1e-4 ? g / gl : vec2(0.0, -1.0);
     float phi = atan(-g.y, g.x);
     vec2 c = rect.xy + rect.zw * 0.5;
+    bool ringMode = mode > 0.5 && mode < 1.5;
     // rings: angle from the top, clockwise; rects: a continuous diagonal coordinate (no seam)
-    float along = (mode > 0.5 && mode < 1.5) ? fract(atan(p.x - c.x, -(p.y - c.y)) / TAU + 1.0) : (p.x * 0.9 + p.y * 0.45) / 700.0;
+    float along = ringMode ? fract(atan(p.x - c.x, -(p.y - c.y)) / TAU + 1.0) : (p.x * 0.9 + p.y * 0.45) / 700.0;
+    float sweepPos = ringMode ? along : ((p.x - rect.x) + 0.5 * (p.y - rect.y)) / max(1.0, rect.z + 0.5 * rect.w);
     vec3 col;
     float cov;
+    float alphaMul = 1.0;
     if (mode < 1.5) {
         float hw = tube * 0.5;
         float dc = d + hw;
@@ -97,7 +109,7 @@ void main() {
         float h = sqrt(max(0.0, 1.0 - a * a));
         vec2 n2 = g * sign(dc) * a;
         vec3 N = normalize(vec3(n2.x, -n2.y, h + 0.05));
-        col = shade(N, phi, along) * mix(0.55, 1.0, h);
+        col = shade(N, phi, along, sweepPos) * mix(0.55, 1.0, h);
         if (mode > 0.5 && arc < 0.999) col = mix(col * dim, col, step(along, arc));
     } else {
         cov = clamp(0.5 - d, 0.0, 1.0);
@@ -106,9 +118,14 @@ void main() {
         float slope = 1.0 - clamp(-d / bev, 0.0, 1.0);
         float hz = sqrt(max(0.03, 1.0 - slope * slope));
         vec3 N = normalize(vec3(g.x * slope, -g.y * slope, hz));
-        col = shade(N, phi, along);
-        if (arc < 0.999) col = mix(track.rgb + col * 0.12, col, step((p.x - rect.x) / rect.z, arc));
+        col = shade(N, phi, along, sweepPos);
+        // the unfilled part is the track only (its own alpha), no metal
+        if (arc < 0.999) {
+            float filled = arc > 0.0 ? step((p.x - rect.x) / rect.z, arc) : 0.0;
+            col = mix(track.rgb, col, filled);
+            alphaMul = mix(track.a, 1.0, filled);
+        }
     }
-    float alpha = cov * qt_Opacity;
+    float alpha = cov * alphaMul * qt_Opacity;
     fragColor = vec4(col * alpha, alpha);
 }

@@ -258,7 +258,7 @@ Item {
   }
   Connections {
     target: fp.panel
-    function onOpenChanged() { fp.keepSnap(); fp.follow(); if (fp.panel.open && fp.metalRim) fp.metalRim.play() }
+    function onOpenChanged() { fp.keepSnap(); fp.follow(); fp.glintPending = fp.panel.open; fp.glint() }
   }
   onActiveChanged: follow()
 
@@ -386,8 +386,16 @@ Item {
       }
     }
   }
-  // the chrome rim (metal family): rolls out with the card, fades with it
+  // the chrome rim (metal family): rolls out with the card, fades with it;
+  // it glints once as the card opens – deferred until the rim is visible
+  // (the card's opacity is still 0 at the moment `open` turns true)
   property Item metalRim: null
+  property bool glintPending: false
+  function glint() {
+    if (!glintPending || !metalRim || !metalRim.visible || metalRim.width <= 0) return
+    glintPending = false
+    metalRim.play()
+  }
   Component {
     id: metalRimComponent
     MetalShape {
@@ -400,6 +408,7 @@ Item {
       y: fp.frameY - pad
       width: fp.frameW + 2 * pad
       height: fp.frameH * (fp.rolls ? fp.roll : 1) + 2 * pad
+      onVisibleChanged: fp.glint()
     }
   }
   Component {

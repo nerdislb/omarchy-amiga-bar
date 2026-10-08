@@ -63,7 +63,8 @@ KeyboardPanel {
   readonly property bool inverting: !!src && !metalHover
   // the tube's corner radius: metal.hoverRadius px, or a pill without it
   function hoverRadius(h) { return metalHover && metalHover.hoverRadius !== undefined ? Math.min(h / 2, Number(metalHover.hoverRadius)) : h / 2 }
-  readonly property string brushFile: inverting && Bridge.ModuleBus.material.card && Bridge.ModuleBus.material.card.brush
+  // (material is briefly null during a theme switch, before `inverting` follows)
+  readonly property string brushFile: inverting && Bridge.ModuleBus.material && Bridge.ModuleBus.material.card && Bridge.ModuleBus.material.card.brush
     ? Bridge.ModuleBus.material.card.brush : ""
   // the stamp in the URL: both Lavur themes name their brush the same – a new theme reloads it
   readonly property string brushUrl: brushFile ? "file://" + Bridge.ModuleBus.themeDir + "/" + brushFile + "#" + Bridge.ModuleBus.themeStamp : ""

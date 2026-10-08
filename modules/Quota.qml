@@ -34,16 +34,27 @@ Item {
 
   // ---------------------------------------------------------------- theme tones
   property var pal: ({})
+  // `omarchy theme set` replaces the theme folder, which ends a watch on the
+  // file inside it after the first switch (the rings kept the start theme's
+  // green: black from Papier on Tusche's black bar). The name file is
+  // rewritten in place each time, so it triggers the reload.
   FileView {
+    id: palFile
     path: Commons.Color.currentThemePath + "/colors.toml"
-    watchChanges: true
-    onFileChanged: reload()
+    printErrors: false
     onLoaded: {
       var out = {}, re = /^\s*([A-Za-z0-9_]+)\s*=\s*"(#[0-9A-Fa-f]{6,8})"/gm, m
       var t = text()
       while ((m = re.exec(t)) !== null) out[m[1]] = m[2]
       root.pal = out
     }
+  }
+  FileView {
+    path: root.home + "/.local/state/omarchy/current/theme.name"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: palFile.reload()
   }
   function tone(p) {
     if (p >= 0.9) return Commons.Color.urgent

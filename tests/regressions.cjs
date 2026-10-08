@@ -1248,3 +1248,16 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   }
   console.log('PASS: palette references qualified for Qt 6.12 (Commons.Color)');
 }
+
+// `omarchy theme set` replaces the theme folder: a watch on a file inside it
+// dies with the first switch. Files read from the current theme reload when
+// theme.name changes (rewritten in place each time).
+{
+  const q = fs.readFileSync(path.join(root, 'modules/Quota.qml'), 'utf8');
+  assert.match(q, /id: palFile\n\s*path: Commons\.Color\.currentThemePath \+ "\/colors\.toml"/);
+  assert.match(q, /current\/theme\.name"\n\s*watchChanges: true\n\s*printErrors: false\n\s*onFileChanged: reload\(\)\n\s*onLoaded: palFile\.reload\(\)/, 'the ring tones follow a theme switch');
+  const isl = path.join(islandDir, 'Island.qml');
+  if (fs.existsSync(isl))
+    assert.match(fs.readFileSync(isl, 'utf8'), /onLoaded: \{ materialFile\.reload\(\); themeColorsFile\.reload\(\) \}/, 'the island\'s green/orange follow a theme switch');
+  console.log('PASS: theme colours reload on theme switch (theme.name)');
+}

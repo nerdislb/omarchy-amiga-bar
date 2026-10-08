@@ -24,4 +24,4 @@ hl.config({
   },
 })
 
-hl.animation({ leaf = "borderangle", enabled = true, speed = 9, bezier = "easeOutQuint" })
+hl.animation({ leaf = "borderangle", enabled = true, speed = 35, bezier = "easeInOutCubic" })

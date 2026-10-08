@@ -89,7 +89,8 @@ def recolor_rgba(text, fn):
 # Active window border (08.10.2026, the owner's pick "V1 Streifen"): the bar's studio
 # stripes on a diagonal – several highlights around the frame instead of one light/dark
 # ramp; the focus turn (borderangle once) carries them round the frame once, the frame's
-# glint. Hyprland borders are a linear gradient of up to 10 stops: a highlight travelling
+# glint – slowly (3.5 s, ease in and out): at 0.9 s easeOutQuint it went unnoticed.
+# Hyprland borders are a linear gradient of up to 10 stops: a highlight travelling
 # along the frame, the fringes or a tube's shading would take a Hyprland plugin.
 BORDER = {
     'chrom': (['3b3c41', 'f2f3f7', '6a6c72', '1c1d20', '2a2b2f', 'e8e9ed', '8a8c92', '1c1d20', '5a5c62', 'f2f3f7'], 45, '26272a'),
@@ -135,7 +136,7 @@ hl.config({
   },
 })
 
-hl.animation({ leaf = "borderangle", enabled = true, speed = 9, bezier = "easeOutQuint" })
+hl.animation({ leaf = "borderangle", enabled = true, speed = 35, bezier = "easeInOutCubic" })
 ''',
     'platin': '''-- platin: a resting polished-steel border, the bar's studio stripes on a diagonal, that turns
 -- once when a window takes focus (borderangle, no loop); the window shadow a soft dark.
@@ -162,7 +163,7 @@ hl.config({
   },
 })
 
-hl.animation({ leaf = "borderangle", enabled = true, speed = 9, bezier = "easeOutQuint" })
+hl.animation({ leaf = "borderangle", enabled = true, speed = 35, bezier = "easeInOutCubic" })
 ''',
 }
 

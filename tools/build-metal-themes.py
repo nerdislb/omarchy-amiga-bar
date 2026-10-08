@@ -5,8 +5,8 @@ The metal family (design round 07.10.2026, recommendation): Chrom is Tusche's
 black with a cool steel tint, Platin is Papier turned into cool platinum grey;
 red stays the one signal colour. The palette, terminal and launcher files are
 derived from Tusche/Papier through one colour function (equal colours stay
-equal), the rest is written here: hyprland.lua (a resting chrome gradient that
-turns once on focus), bar-material.json (material.metal for the Tusche Bar),
+equal), the rest is written here: hyprland.lua (a still, striped chrome
+border), bar-material.json (material.metal for the Tusche Bar),
 the lock screen symbols in chrome, and the backgrounds.
 
   tools/build-metal-themes.py [--backgrounds DIR]
@@ -88,10 +88,11 @@ def recolor_rgba(text, fn):
 
 # Active window border (08.10.2026, the owner's pick "V1 Streifen"): the bar's studio
 # stripes on a diagonal – several highlights around the frame instead of one light/dark
-# ramp; the focus turn (borderangle once) carries them round the frame once, the frame's
-# glint – slowly (2.8 s, ease in and out): at 0.9 s easeOutQuint it went unnoticed.
-# Hyprland borders are a linear gradient of up to 10 stops: a highlight travelling
-# along the frame, the fringes or a tube's shading would take a Hyprland plugin.
+# ramp. The border stands still ("ruhig"): Hyprland only turns a linear gradient
+# (borderangle), in 1° steps, and a turning line races along a rectangle's edges and
+# lingers at its corners – it looked uneven at any speed or curve (08.10.: measured).
+# Focus shows as Hyprland's own border fade; the Tusche Bar's option `frames glint`
+# runs a real glint along the frame instead (WindowGlint.qml).
 BORDER = {
     'chrom': (['3b3c41', 'f2f3f7', '6a6c72', '1c1d20', '2a2b2f', 'e8e9ed', '8a8c92', '1c1d20', '5a5c62', 'f2f3f7'], 45, '26272a'),
     # light: the highlights stay below white, or they vanish against the paper-grey
@@ -110,9 +111,9 @@ def border_toml(name):
 
 
 HYPR = {
-    'chrom': '''-- chrom: a resting chrome border, the bar's studio stripes on a diagonal, that turns once when
--- a window takes focus (borderangle, no loop: a loop would redraw all the time) – the frame's
--- glint; the window shadow a faint light.
+    'chrom': '''-- chrom: a still chrome border, the bar's studio stripes on a diagonal (no borderangle turn:
+-- it looked uneven; focus shows as the border fade, or as the Tusche Bar's frame glint);
+-- the window shadow a faint light.
 local active_border_color = ''' + border_lua('chrom') + '''
 local inactive_border_color = "rgba(26272aff)"
 
@@ -136,10 +137,10 @@ hl.config({
   },
 })
 
-hl.animation({ leaf = "borderangle", enabled = true, speed = 28, bezier = "easeInOutCubic" })
+hl.animation({ leaf = "borderangle", enabled = false })
 ''',
-    'platin': '''-- platin: a resting polished-steel border, the bar's studio stripes on a diagonal, that turns
--- once when a window takes focus (borderangle, no loop); the window shadow a soft dark.
+    'platin': '''-- platin: a still polished-steel border, the bar's studio stripes on a diagonal (no
+-- borderangle turn, as Chrom); the window shadow a soft dark.
 local active_border_color = ''' + border_lua('platin') + '''
 local inactive_border_color = "rgba(b0b3b8ff)"
 
@@ -163,7 +164,7 @@ hl.config({
   },
 })
 
-hl.animation({ leaf = "borderangle", enabled = true, speed = 28, bezier = "easeInOutCubic" })
+hl.animation({ leaf = "borderangle", enabled = false })
 ''',
 }
 

@@ -3,8 +3,9 @@ import qs.Commons
 
 // Liquid metal for the Chrom & Platin themes (design round 07.10.2026): a
 // chrome tube along a rounded rect (kind "rim"), a ring with a filled arc
-// ("ring", the quota rings) or a cylinder bar ("pill", meters), drawn by
-// shaders/metal.frag. The shape sits `pad` px inside the item, so the tube's
+// ("ring", the quota rings), a cylinder bar ("pill", meters) or only a glint
+// running along a rounded rect ("frame", window frames: `arc` is the glint's
+// lead, the caller drives `sweep`/`sweepAmt`), drawn by shaders/metal.frag. The shape sits `pad` px inside the item, so the tube's
 // soft edge has room.
 // The metal stands still – a static picture, nothing redraws. play() runs a
 // glint once along it (material `sweepMs`, 900 ms) with the coloured sparks of
@@ -37,7 +38,7 @@ ShaderEffect {
 
   readonly property vector2d size: Qt.vector2d(width, height)
   readonly property vector4d rect: Qt.vector4d(pad, pad, Math.max(1, width - 2 * pad), Math.max(1, height - 2 * pad))
-  readonly property real mode: kind === "ring" ? 1 : kind === "pill" ? 2 : 0
+  readonly property real mode: kind === "ring" ? 1 : kind === "pill" ? 2 : kind === "frame" ? 3 : 0
   readonly property real disp: spec && spec.disp !== undefined ? Number(spec.disp) : 0.8
   readonly property real spark: spec && spec.spark !== undefined ? Number(spec.spark) : 0.35
   readonly property real sharp: spec && spec.sharp !== undefined ? Number(spec.sharp) : 0.75

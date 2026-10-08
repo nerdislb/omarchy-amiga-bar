@@ -18,7 +18,7 @@ Everything is switchable in its own Control Center. The bar stays Omarchy's own:
 
 ### Chrom & Platin
 
-Two liquid-metal themes: **Chrom** (liquid chrome on black) and **Platin** (polished platinum, the light one). Thin chrome rims run along the bar's edge, the popups, the AI rings and the menu. The metal stands still: a popup glints once as it opens, the rings and the logo when you switch workspace. Window borders carry chrome stripes that turn once on focus. Switch with `setup/install.sh --theme chrom` (or `platin`). Details are under [Metal: Chrom & Platin](#elements-and-variants) below; there is also a [short video](docs/screenshots/chrom-platin.mp4).
+Two liquid-metal themes: **Chrom** (liquid chrome on black) and **Platin** (polished platinum, the light one). Thin chrome rims run along the bar's edge, the popups, the AI rings and the menu. The metal stands still: a popup glints once as it opens, the rings and the logo when you switch workspace. Window borders carry still chrome stripes; the option *Window frames → glint* runs a chrome glint once round the focused window. Switch with `setup/install.sh --theme chrom` (or `platin`). Details are under [Metal: Chrom & Platin](#elements-and-variants) below; there is also a [short video](docs/screenshots/chrom-platin.mp4).
 
 ![Chrom (left) and Platin (right)](docs/screenshots/chrom-platin.jpg)
 
@@ -142,6 +142,7 @@ The sections below are the reference: how it is built, every option, IPC and tes
 | Logo (`ArchLogo.qml`, `SealLogo.qml`) | omarchy, arch (the official Arch Linux mark, unaltered, in the bar's ink), nerdibeard (the seal: nb cut out of a 16 px ink block); with native workspaces only the menu logo is replaced; the drop-down's title follows the logo |
 | Centre (`Centre.qml`) | today, calm (temperature at the weather glyph) |
 | Super+Space (`bin/keybinds.py`) | omarchy (Omarchy's menus, default), bar (the logo menu with the search line; Super+Alt+Space on the Apps list) — kept by presets |
+| Window frames (`WindowGlint.qml`) | hyprland (Hyprland's own border, default), glint (a chrome glint once round the focused window; metal themes) — kept by presets |
 
 Presets: `today` (your bar), `tidy` (pips · gauge · groups), `focus` (stack · on demand · deviations).
 
@@ -200,9 +201,16 @@ at most every `pulseGapMs` (4000); the bar's edge stays still unless
 highlights flow all the time instead, like the liquid-metal video that started
 the round (costs a redraw every frame while visible). Other keys: `tint`,
 `light`, `disp`, `spark`, `sharp`, `gain`, `base`. Window borders are
-Hyprland's own: the bar's studio stripes as a diagonal 10-stop gradient, so
-several highlights sit around the frame, turning once on focus (`borderangle`,
-no loop). `tools/build-metal-themes.py` builds both themes
+Hyprland's own: the bar's studio stripes as a still, diagonal 10-stop gradient.
+Hyprland can only turn that gradient (`borderangle`), in 1° steps, and a turning
+line races along a rectangle's edges and lingers at its corners, so it stays
+still. The option **Window frames → glint** (`omarchy-shell tusche-bar set
+frames glint`, `WindowGlint.qml`) runs a chrome glint once round the focused
+window instead: drawn by the bar on a click-through layer the size of the frame,
+placed by arc length (an even pace round the corners), slowing towards the end
+and fading out (`frameGlintMs`, 2800). It starts once the window has settled and
+stops when the window moves or the workspace changes; `omarchy-shell tusche-bar
+glintWindow` runs it on demand, for other events. `tools/build-metal-themes.py` builds both themes
 from Tusche and Papier. Reduced Motion: no glint, no flow.
 
 AI usage records (`~/.local/state/omarchy/agents/usage`) are refreshed by

@@ -117,9 +117,11 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   console.log('PASS: base reconstruction');
 }
 
-// The edge (and the Super+Space keys) are look options: presets keep them, preset matching ignores them.
+// The edge (and the Super+Space keys, the window frames) are look options: presets keep them, preset matching ignores them.
 {
-  assert.deepEqual(plain(ctx.LOOK), ['edge', 'keys']);
+  assert.deepEqual(plain(ctx.LOOK), ['edge', 'keys', 'frames']);
+  assert.equal(ctx.matchPreset(Object.assign({}, ctx.presetById('tidy').options, {frames: 'glint'})), 'tidy');
+  assert.equal(ctx.layoutDiffers(Object.assign({}, ctx.presetById('tidy').options, {frames: 'glint'}), ctx.presetById('tidy').options), false, 'the frame glint never rebuilds the bar');
   const tidy = ctx.presetById('tidy').options;
   assert.equal(tidy.edge, undefined);
   assert.equal(ctx.keepLook(tidy, {edge: 'theme'}).edge, 'theme', 'a preset without an edge keeps the current one');
@@ -482,7 +484,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.deepEqual(handlers, {
     'tusche-status': ['group', 'member', 'close', 'state'],
     'tusche-quota': ['toggle', 'select', 'state'],
-    'tusche-bar': ['options', 'cc', 'save', 'load', 'ask', 'menu', 'search', 'apps', 'preset', 'set', 'recaptureBase', 'state']});
+    'tusche-bar': ['options', 'cc', 'save', 'load', 'ask', 'menu', 'search', 'apps', 'preset', 'set', 'glintWindow', 'recaptureBase', 'state']});
   assert(en.includes('Quickshell.env("HOME") + "/.local/state/tusche-bar"'));
   assert(en.includes('"nerdibeard.tusche-bar"'));
   // logo: left = the drop-down, right = Omarchy's own menu, middle = the Control Center
@@ -1080,7 +1082,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert(ws.includes('m.searchMode = true') && ws.includes('function openApps()'));
   assert(engine.includes('function search(): void { root.toggleMenu("search") }') && engine.includes('function apps(): void { root.toggleMenu("apps") }'));
   assert(engine.includes('keysProc.action = keysOption === "bar" ? "bar" : "omarchy"'), 'the bindings follow the option');
-  assert.deepEqual(plain(ctx.LOOK), ['edge', 'keys']);
+  assert.deepEqual(plain(ctx.LOOK), ['edge', 'keys', 'frames']);
   assert.equal(ctx.normalizeOptions({}).keys, 'omarchy', 'plugin alone: Omarchy\'s keys stay');
   assert.equal(ctx.keepLook(ctx.presetById('tidy').options, {keys: 'bar'}).keys, 'bar', 'presets keep the keys');
   // look options only: the options are saved, the bar keeps its arrangement
@@ -1193,7 +1195,10 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     assert.equal(mat.metal.hoverRadius, 3, `${t}: the hover tube is nearly square like the cards (owner, 07.10.)`);
     assert.equal(mat.metal.ringStyle, 2, `${t}: quota rings as a solid arc with a chrome head (readable at bar size)`);
     const hypr = fs.readFileSync(path.join(root, 'themes', t, 'hyprland.lua'), 'utf8');
-    assert.match(hypr, /hl\.animation\(\{ leaf = "borderangle", enabled = true/, `${t}: the border turns on focus`);
+    // a turning linear gradient looked uneven (1° steps, racing edges): the border stands still;
+    // the bar's `frames glint` runs a glint along it instead (owner, 08.10.)
+    assert.match(hypr, /hl\.animation\(\{ leaf = "borderangle", enabled = false \}\)/, `${t}: the border stands still`);
+    assert.match(hypr, /angle = 45 \}/, `${t}: the striped chrome border (V1)`);
     assert.doesNotMatch(hypr.replace(/^--.*$/gm, ''), /loop/, `${t}: no looping border (it would redraw all the time)`);
     const colors = fs.readFileSync(path.join(root, 'themes', t, 'colors.toml'), 'utf8');
     const reds = [...colors.matchAll(/"#([0-9a-f]{6})"/g)].map(m => m[1]).filter(h => parseInt(h.slice(0, 2), 16) - Math.max(parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)) > 60);
@@ -1211,7 +1216,19 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.match(mc, /onVisibleChanged: fp\.glint\(\)/, '… once its rim is visible (the card starts at opacity 0)');
   assert.match(frag, /g = gl > 1e-4 \? g \/ gl : vec2\(0\.0, -1\.0\);/, 'no atan(0, 0) on a bar\'s centre line');
   assert.match(frag, /col = mix\(track\.rgb, col, filled\);\n\s*alphaMul = mix\(track\.a, 1\.0, filled\);/, '0 % = the track only');
-  assert.match(frag, /float d = ring \? abs\(fract\(sweepPos - sweep \+ 0\.5\) - 0\.5\) : abs\(sweepPos - sweep\);/, 'one glint across a rect, wrapping only on rings');
+  assert.match(frag, /bool wrap = \(mode > 0\.5 && mode < 1\.5\) \|\| mode > 2\.5;\n\s*float d = wrap \? abs\(fract\(sweepPos - sweep \+ 0\.5\) - 0\.5\) : abs\(sweepPos - sweep\);/, 'one glint across a rect, wrapping on rings and frame glints');
+  // window frames (option `frames glint`): a glint by arc length, only while it runs
+  assert.match(frag, /: frameMode \? perimeterPos\(p\)/, 'the frame glint is placed by arc length (an even pace round the corners)');
+  assert.match(frag, /if \(frameMode && sweepAmt <= 0\.0\) \{ fragColor = vec4\(0\.0\); return; \}/);
+  assert.match(ms, /kind === "frame" \? 3 : 0/);
+  const wg = read('WindowGlint.qml');
+  assert.match(wg, /visible: root\.running && root\.screenName === modelData\.name/, 'a surface only while the glint runs');
+  assert.match(wg, /mask: Region \{\}/, 'click-through');
+  assert.match(wg, /n === "workspacev2" \|\| n === "movewindowv2" \|\| n === "fullscreen" \|\| n === "changefloatingmode" \|\| n === "closewindow"/, 'it never trails a moving window');
+  assert.match(wg, /if \(!w \|\| !w\.address \|\| !w\.size \|\| w\.fullscreen > 0 \|\| w\.hidden\) return/);
+  assert.match(wg, /easing\.type: Easing\.OutCubic/, 'one turn, slowing towards the end');
+  assert.match(read('Engine.qml'), /enabled: root\.options\.frames === "glint" && !!Bridge\.ModuleBus\.metal/);
+  assert.deepEqual(plain(ctx.ELEMENTS.frames.variants.map(v => v.id)), ['hyprland', 'glint'], 'off by default');
   const islandBar = path.join(islandDir, 'BarWidget.qml');
   if (fs.existsSync(islandBar) && /chipMetal/.test(fs.readFileSync(islandBar, 'utf8')))
     assert.match(fs.readFileSync(islandBar, 'utf8'), /onSegKeyChanged: if \(segKey !== ""\) chipMetal\.play\(\)/, 'the segment glints by kind, not on every timer tick');

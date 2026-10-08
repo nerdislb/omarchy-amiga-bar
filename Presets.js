@@ -49,6 +49,14 @@ var ELEMENTS = {
       { id: "calm", label: "Temperature at the weather" }
     ]
   },
+  // not a layout option: a chrome glint round the focused window (WindowGlint.qml)
+  frames: {
+    label: "Window frames",
+    variants: [
+      { id: "hyprland", label: "Hyprland's own" },
+      { id: "glint", label: "Chrome glint on focus (metal themes)" }
+    ]
+  },
   // not a layout option: Super+Space opens the bar's menu (bin/keybinds.py)
   keys: {
     label: "Super+Space",
@@ -61,7 +69,7 @@ var ELEMENTS = {
 
 // Look options that sit on top of any preset: presets keep the current
 // value, and preset matching ignores them.
-var LOOK = ["edge", "keys"]
+var LOOK = ["edge", "keys", "frames"]
 
 // Presets.
 var PRESETS = [
@@ -247,8 +255,8 @@ function matchPreset(options) {
 }
 
 // Whether two option sets build different bars. The look options (edge,
-// keys) never change bar.layout, so switching only those keeps the bar as the
-// user arranged it.
+// keys, frames) never change bar.layout, so switching only those keeps the bar
+// as the user arranged it.
 function layoutDiffers(a, b) {
   var x = normalizeOptions(a), y = normalizeOptions(b)
   for (var key in ELEMENTS) if (LOOK.indexOf(key) === -1 && x[key] !== y[key]) return true

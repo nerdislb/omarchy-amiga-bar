@@ -3,6 +3,7 @@ import "../bridge" as Bridge
 import ".." as Root
 import Quickshell.Hyprland
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 // Workspaces (and optionally the Omarchy menu logo) in one compact module.
@@ -33,13 +34,13 @@ Item {
   readonly property bool showMenu: setting("menu", true) !== false
   readonly property string logo: String(setting("logo", "omarchy"))
   readonly property int barSize: bar && bar.barSize ? bar.barSize : Style.bar.sizeHorizontal
-  readonly property color fg: bar && bar.barForeground ? bar.barForeground : Color.bar.text
-  readonly property color accent: Color.accent
+  readonly property color fg: bar && bar.barForeground ? bar.barForeground : Commons.Color.bar.text
+  readonly property color accent: Commons.Color.accent
   // Theme material `tones.strong` (Tusche & Papier): the bar's text is the
   // quieter tone there; logo and the active workspace's number stay strong
   readonly property color strong: Bridge.ModuleBus.material && Bridge.ModuleBus.material.tones && Bridge.ModuleBus.material.tones.strong
     ? Qt.color(Bridge.ModuleBus.material.tones.strong) : fg
-  readonly property color urgentColor: Color.urgent
+  readonly property color urgentColor: Commons.Color.urgent
   readonly property color dim: Util.alpha(fg, 0.45)
 
   // ---------------------------------------------------------------- data

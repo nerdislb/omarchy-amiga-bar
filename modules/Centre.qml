@@ -3,6 +3,7 @@ import "../bridge" as Bridge
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 
 // Current temperature next to the native weather widget (same location as
 // the weather panel, from Open-Meteo). Custom QML module of the Tusche Bar:
@@ -16,7 +17,7 @@ Item {
   property string moduleName: "tusche.centre"
   property var settings: ({})
   readonly property int barSize: bar && bar.barSize ? bar.barSize : Style.bar.sizeHorizontal
-  readonly property color fg: bar && bar.barForeground ? bar.barForeground : Color.bar.text
+  readonly property color fg: bar && bar.barForeground ? bar.barForeground : Commons.Color.bar.text
   readonly property string home: Quickshell.env("HOME")
 
   visible: temperature !== ""

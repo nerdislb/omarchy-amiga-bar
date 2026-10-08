@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Bluetooth
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 // The right side, compact. Custom QML module of the Tusche Bar:
@@ -29,7 +30,7 @@ Item {
   readonly property string variant: String(setting("variant", "groups"))
   readonly property var embeds: setting("embeds", {})
   readonly property int barSize: bar && bar.barSize ? bar.barSize : Style.bar.sizeHorizontal
-  readonly property color fg: bar && bar.barForeground ? bar.barForeground : Color.bar.text
+  readonly property color fg: bar && bar.barForeground ? bar.barForeground : Commons.Color.bar.text
   readonly property string home: Quickshell.env("HOME")
   readonly property string omarchyPath: Quickshell.env("OMARCHY_PATH") || (home + "/.local/share/omarchy")
 
@@ -260,12 +261,12 @@ Item {
   // Deviations: what is worth showing right now.
   readonly property var deviations: {
     var out = []
-    if (!wifiUp) out.push({ glyph: "\u{f05aa}", color: Color.urgent, member: "omarchy.network" })
-    if (vpnUp) out.push({ glyph: "\u{f099d}", color: Color.accent, member: "io.github.iamfitsum.omarchy-proton-vpn" })
+    if (!wifiUp) out.push({ glyph: "\u{f05aa}", color: Commons.Color.urgent, member: "omarchy.network" })
+    if (vpnUp) out.push({ glyph: "\u{f099d}", color: Commons.Color.accent, member: "io.github.iamfitsum.omarchy-proton-vpn" })
     if (!tailscaleUp) out.push({ glyph: "\u{f0570}", color: Util.alpha(fg, 0.5), member: "omarchy.tailscale" })
     if (btConnected.length) out.push({ glyph: "\u{f02cb}", color: fg, member: "omarchy.bluetooth" })
-    if (phone && phone.online && phone.charge >= 0 && phone.charge <= 20 && !phone.charging) out.push({ glyph: "\u{f011c}", color: Color.urgent, member: "flux" })
-    if (sysHot) out.push({ chip: true, color: Color.urgent, member: "bitr0t.system-monitor" })
+    if (phone && phone.online && phone.charge >= 0 && phone.charge <= 20 && !phone.charging) out.push({ glyph: "\u{f011c}", color: Commons.Color.urgent, member: "flux" })
+    if (sysHot) out.push({ chip: true, color: Commons.Color.urgent, member: "bitr0t.system-monitor" })
     return out
   }
 
@@ -329,8 +330,8 @@ Item {
     Rectangle {
       anchors.fill: parent; anchors.topMargin: Style.space(3); anchors.bottomMargin: Style.space(3)
       radius: Math.min(Style.cornerRadius, 3)
-      color: cell.active ? Style.selectedFillFor(root.fg, Color.accent, Color.urgent)
-        : hover.hovered ? Style.hoverFillFor(root.fg, Color.accent, Color.urgent) : "transparent"
+      color: cell.active ? Style.selectedFillFor(root.fg, Commons.Color.accent, Commons.Color.urgent)
+        : hover.hovered ? Style.hoverFillFor(root.fg, Commons.Color.accent, Commons.Color.urgent) : "transparent"
     }
     HoverHandler { id: hover }
     MouseArea {
@@ -353,15 +354,15 @@ Item {
       visible: parent.group === "net"
       anchors.centerIn: parent; anchors.verticalCenterOffset: -Style.space(2)
       text: root.wifiUp ? "\u{f0928}" : "\u{f05aa}"
-      color: root.wifiUp ? root.fg : Color.urgent
+      color: root.wifiUp ? root.fg : Commons.Color.urgent
     }
     Row {
       visible: parent.group === "net"
       anchors.horizontalCenter: parent.horizontalCenter
       y: root.barSize - Style.space(7)
       spacing: Style.space(2)
-      Rectangle { width: Style.space(3); height: width; color: root.vpnUp ? Color.accent : Util.alpha(root.fg, 0.25) }
-      Rectangle { width: Style.space(3); height: width; color: root.tailscaleUp ? (Color.popups.border || root.fg) : Util.alpha(root.fg, 0.25) }
+      Rectangle { width: Style.space(3); height: width; color: root.vpnUp ? Commons.Color.accent : Util.alpha(root.fg, 0.25) }
+      Rectangle { width: Style.space(3); height: width; color: root.tailscaleUp ? (Commons.Color.popups.border || root.fg) : Util.alpha(root.fg, 0.25) }
       Rectangle { width: Style.space(3); height: width; color: root.btConnected.length ? root.fg : Util.alpha(root.fg, 0.25) }
     }
     Row {
@@ -373,7 +374,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: root.phone && root.phone.charge >= 0 ? root.phone.charge + "%" : "–"
         font.family: Style.font.family; font.pixelSize: Style.font.bodySmall
-        color: root.phone && root.phone.charge >= 0 && root.phone.charge <= 20 && !root.phone.charging ? Color.urgent : Util.alpha(root.fg, 0.75)
+        color: root.phone && root.phone.charge >= 0 && root.phone.charge <= 20 && !root.phone.charging ? Commons.Color.urgent : Util.alpha(root.fg, 0.75)
       }
     }
     ChipFace {
@@ -393,7 +394,7 @@ Item {
     property real level: 0
     readonly property int u: Math.max(1, Math.round((Style.font.icon + 2) / 18))
     readonly property color ink: root.fg
-    readonly property color fillInk: root.sysHot ? Color.urgent : root.fg
+    readonly property color fillInk: root.sysHot ? Commons.Color.urgent : root.fg
     width: 16 * u; height: 16 * u
     Repeater {
       model: 12
@@ -479,7 +480,7 @@ Item {
         Text { renderType: Text.NativeRendering; textFormat: Text.PlainText;
           text: root.popupTitle
           font.family: Style.font.family; font.bold: true; font.pixelSize: Style.font.title
-          color: Color.popups.text
+          color: Commons.Color.popups.text
           bottomPadding: Style.space(4)
         }
 
@@ -489,18 +490,18 @@ Item {
             required property string modelData
             width: content.width; height: Style.space(40)
             radius: Math.min(Style.cornerRadius, 3)
-            color: rowHover.hovered ? Style.hoverFillFor(Color.popups.text, Color.accent, Color.urgent) : "transparent"
+            color: rowHover.hovered ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent, Commons.Color.urgent) : "transparent"
             Row {
               anchors.fill: parent; anchors.leftMargin: Style.space(8)
               spacing: Style.space(10)
-              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; width: Style.space(20); text: root.catalogue[modelData].glyph; font.family: Style.font.family; font.pixelSize: Style.font.icon + 2; color: root.memberAlert(modelData) ? Color.urgent : Color.popups.text }
+              Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.verticalCenter: parent.verticalCenter; width: Style.space(20); text: root.catalogue[modelData].glyph; font.family: Style.font.family; font.pixelSize: Style.font.icon + 2; color: root.memberAlert(modelData) ? Commons.Color.urgent : Commons.Color.popups.text }
               Column {
                 anchors.verticalCenter: parent.verticalCenter
-                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; text: root.catalogue[modelData].name; font.family: Style.font.family; font.pixelSize: Style.font.body; color: Color.popups.text }
-                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; visible: text !== ""; text: root.memberState(modelData); font.family: Style.font.family; font.pixelSize: Style.font.caption; color: root.memberAlert(modelData) ? Color.urgent : Util.alpha(Color.popups.text, 0.6) }
+                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; text: root.catalogue[modelData].name; font.family: Style.font.family; font.pixelSize: Style.font.body; color: Commons.Color.popups.text }
+                Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; visible: text !== ""; text: root.memberState(modelData); font.family: Style.font.family; font.pixelSize: Style.font.caption; color: root.memberAlert(modelData) ? Commons.Color.urgent : Util.alpha(Commons.Color.popups.text, 0.6) }
               }
             }
-            Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.right: parent.right; anchors.rightMargin: Style.space(10); anchors.verticalCenter: parent.verticalCenter; text: "›"; font.family: Style.font.family; font.pixelSize: Style.font.title; color: Util.alpha(Color.popups.text, 0.5) }
+            Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; anchors.right: parent.right; anchors.rightMargin: Style.space(10); anchors.verticalCenter: parent.verticalCenter; text: "›"; font.family: Style.font.family; font.pixelSize: Style.font.title; color: Util.alpha(Commons.Color.popups.text, 0.5) }
             HoverHandler { id: rowHover }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.openMember(parent.modelData) }
           }

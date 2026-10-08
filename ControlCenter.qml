@@ -5,6 +5,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui as Ui
 import "Presets.js" as Presets
 import "ControlCenter.js" as CC
@@ -94,9 +95,9 @@ PanelWindow {
     : changeList.length ? changeList.length + (changeList.length === 1 ? " change" : " changes") + " staged, not applied · Use tries it live, Save applies and closes"
     : usedLive ? "Live, not saved yet · Save keeps it, Cancel restores the state from opening"
     : "Ctrl+K search · ↑↓ areas · Esc cancels"
-  readonly property color footerTone: !working && message !== "" && messageError ? Color.urgent
-    : working || message !== "" || changeList.length || usedLive ? Color.accent
-    : Util.alpha(Color.popups.text, 0.6)
+  readonly property color footerTone: !working && message !== "" && messageError ? Commons.Color.urgent
+    : working || message !== "" || changeList.length || usedLive ? Commons.Color.accent
+    : Util.alpha(Commons.Color.popups.text, 0.6)
 
   function presetName(options) {
     var p = Presets.presetById(Presets.matchPreset(options))
@@ -503,8 +504,8 @@ PanelWindow {
       height: Math.min(win.height - y - Style.space(12), Style.space(640))
       x: Math.round((win.width - width) / 2)
       y: Style.bar.sizeHorizontal + Style.gapsOut
-      color: Color.popups.background
-      borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
+      color: Commons.Color.popups.background
+      borderSpec: Border.surfaceSpec("popups", "border", Commons.Color.popups.border, Math.max(1, Style.space(2)))
       radius: Style.cornerRadius
 
       MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
@@ -537,9 +538,9 @@ PanelWindow {
           Rectangle {
             anchors.fill: parent
             radius: Math.min(Style.cornerRadius, 3)
-            color: closeMouse.containsMouse ? Style.hoverFillFor(Color.popups.text, Color.accent, Color.urgent) : "transparent"
+            color: closeMouse.containsMouse ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent, Commons.Color.urgent) : "transparent"
           }
-          Strong { anchors.centerIn: parent; text: "×"; font.pixelSize: Style.font.title; color: Util.alpha(Color.popups.text, 0.75) }
+          Strong { anchors.centerIn: parent; text: "×"; font.pixelSize: Style.font.title; color: Util.alpha(Commons.Color.popups.text, 0.75) }
           MouseArea { id: closeMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.cancel() }
         }
       }
@@ -568,18 +569,18 @@ PanelWindow {
             width: Math.max(Style.space(160), Math.min(Style.space(520), healthRow.x - x - Style.space(16)))
             height: Math.max(Style.space(30), searchField.implicitHeight)
             anchors.verticalCenter: parent.verticalCenter
-            Face { anchors.fill: parent; inset: true; fill: Qt.darker(Color.popups.background, 1.25) }
+            Face { anchors.fill: parent; inset: true; fill: Qt.darker(Commons.Color.popups.background, 1.25) }
             Rectangle {
               anchors.fill: parent; anchors.margins: -1
-              color: "transparent"; border.width: 1; border.color: Color.accent
+              color: "transparent"; border.width: 1; border.color: Commons.Color.accent
               visible: searchField.activeFocus
             }
             Item {
               id: lens
               x: Style.space(9); width: Style.space(14); height: width
               anchors.verticalCenter: parent.verticalCenter
-              Rectangle { width: Math.round(parent.width * 0.72); height: width; radius: width / 2; color: "transparent"; border.width: Math.max(1, Style.space(1.5)); border.color: Util.alpha(Color.popups.text, 0.6) }
-              Rectangle { x: parent.width * 0.62; y: parent.height * 0.62; width: parent.width * 0.42; height: Math.max(1, Style.space(2)); rotation: 45; transformOrigin: Item.Left; color: Util.alpha(Color.popups.text, 0.6) }
+              Rectangle { width: Math.round(parent.width * 0.72); height: width; radius: width / 2; color: "transparent"; border.width: Math.max(1, Style.space(1.5)); border.color: Util.alpha(Commons.Color.popups.text, 0.6) }
+              Rectangle { x: parent.width * 0.62; y: parent.height * 0.62; width: parent.width * 0.42; height: Math.max(1, Style.space(2)); rotation: 45; transformOrigin: Item.Left; color: Util.alpha(Commons.Color.popups.text, 0.6) }
             }
             TextField {
               id: searchField
@@ -589,11 +590,11 @@ PanelWindow {
               padding: 0
               verticalAlignment: TextInput.AlignVCenter
               placeholderText: "Search settings and values"
-              placeholderTextColor: Util.alpha(Color.popups.text, 0.45)
+              placeholderTextColor: Util.alpha(Commons.Color.popups.text, 0.45)
               renderType: Text.NativeRendering
               selectByMouse: true
               font.family: Style.font.family; font.pixelSize: Style.font.body
-              color: Color.popups.text
+              color: Commons.Color.popups.text
               background: Item {}
               onTextChanged: win.searchSel = 0
               Keys.onPressed: function(e) { win.searchKey(e) }
@@ -615,7 +616,7 @@ PanelWindow {
             Caption { anchors.verticalCenter: parent.verticalCenter; text: "Health" }
             Rectangle {
               id: healthChip
-              readonly property color tone: win.health.issues ? Color.urgent : win.health.unknown ? Util.alpha(Color.popups.text, 0.6) : Color.accent
+              readonly property color tone: win.health.issues ? Commons.Color.urgent : win.health.unknown ? Util.alpha(Commons.Color.popups.text, 0.6) : Commons.Color.accent
               width: chipText.implicitWidth + Style.space(14)
               height: chipText.implicitHeight + Style.space(6)
               color: Util.alpha(tone, 0.16)
@@ -626,7 +627,7 @@ PanelWindow {
           }
         }
 
-        Rectangle { id: rule; y: header.height + Style.space(10); width: parent.width; height: 1; color: Util.alpha(Color.popups.text, 0.12) }
+        Rectangle { id: rule; y: header.height + Style.space(10); width: parent.width; height: 1; color: Util.alpha(Commons.Color.popups.text, 0.12) }
 
         // ---- body: areas left, editor right
         Item {
@@ -647,13 +648,13 @@ PanelWindow {
                 readonly property bool current: win.area === modelData.id
                 width: areaList.width
                 height: Math.max(Style.space(32), areaLabel.implicitHeight + Style.space(12))
-                color: current ? Util.alpha(Color.accent, 0.18)
-                  : areaMouse.containsMouse ? Style.hoverFillFor(Color.popups.text, Color.accent, Color.urgent) : "transparent"
-                Rectangle { width: Style.space(3); height: parent.height; color: Color.accent; visible: areaRow.current }
+                color: current ? Util.alpha(Commons.Color.accent, 0.18)
+                  : areaMouse.containsMouse ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent, Commons.Color.urgent) : "transparent"
+                Rectangle { width: Style.space(3); height: parent.height; color: Commons.Color.accent; visible: areaRow.current }
                 Rectangle {
                   x: Style.space(8); anchors.verticalCenter: parent.verticalCenter
                   width: Math.max(4, Style.space(5)); height: width
-                  color: Color.accent
+                  color: Commons.Color.accent
                   visible: win.areaHasEdits(areaRow.modelData.id)
                 }
                 // The area name wins; its note gets what is left.
@@ -672,13 +673,13 @@ PanelWindow {
                   anchors.verticalCenter: parent.verticalCenter
                   visible: implicitWidth <= parent.width - areaLabel.x - areaLabel.width - Style.space(18)
                   text: win.areaMeta(areaRow.modelData.id)
-                  color: areaRow.modelData.id === "health" && win.health.issues ? Color.urgent : Util.alpha(Color.popups.text, 0.6)
+                  color: areaRow.modelData.id === "health" && win.health.issues ? Commons.Color.urgent : Util.alpha(Commons.Color.popups.text, 0.6)
                 }
                 MouseArea { id: areaMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.showArea(areaRow.modelData.id) }
               }
             }
           }
-          Rectangle { x: areaList.width + Style.space(10); width: 1; height: parent.height; color: Util.alpha(Color.popups.text, 0.12) }
+          Rectangle { x: areaList.width + Style.space(10); width: 1; height: parent.height; color: Util.alpha(Commons.Color.popups.text, 0.12) }
 
           Flickable {
             id: editor
@@ -701,7 +702,7 @@ PanelWindow {
                 Strong {
                   id: areaHead
                   text: CC.areaLabel(win.area)
-                  color: Color.accent
+                  color: Commons.Color.accent
                   font.pixelSize: Style.font.title
                   font.bold: true
                 }
@@ -752,19 +753,19 @@ PanelWindow {
                       id: nameBox
                       width: parent.width - saveCombo.width - Style.space(8)
                       height: Math.max(Style.space(30), comboName.implicitHeight)
-                      Face { anchors.fill: parent; inset: true; fill: Qt.darker(Color.popups.background, 1.25) }
+                      Face { anchors.fill: parent; inset: true; fill: Qt.darker(Commons.Color.popups.background, 1.25) }
                       TextField {
                         id: comboName
                         x: Style.space(8); width: parent.width - Style.space(16); height: parent.height
                         padding: 0
                         verticalAlignment: TextInput.AlignVCenter
                         placeholderText: "Name this combination (saves the options as shown, staged ones included)"
-                        placeholderTextColor: Util.alpha(Color.popups.text, 0.45)
+                        placeholderTextColor: Util.alpha(Commons.Color.popups.text, 0.45)
                         maximumLength: 48
                         renderType: Text.NativeRendering
                         selectByMouse: true
                         font.family: Style.font.family; font.pixelSize: Style.font.body
-                        color: Color.popups.text
+                        color: Commons.Color.popups.text
                         background: Item {}
                         onAccepted: win.saveCombination(text)
                         Keys.onPressed: function(e) {
@@ -794,7 +795,7 @@ PanelWindow {
                     visible: text !== ""
                     width: parent.width; wrapMode: Text.WordWrap
                     text: win.host ? win.host.saveResult : ""
-                    color: Color.popups.text
+                    color: Commons.Color.popups.text
                   }
                   Caption {
                     width: parent.width; wrapMode: Text.WordWrap
@@ -836,7 +837,7 @@ PanelWindow {
                 Caption {
                   visible: text !== ""
                   width: parent.width; wrapMode: Text.WordWrap
-                  color: win.cardsStatus === "error" ? Color.urgent : Util.alpha(Color.popups.text, 0.6)
+                  color: win.cardsStatus === "error" ? Commons.Color.urgent : Util.alpha(Commons.Color.popups.text, 0.6)
                   text: win.cardsStatus === "" ? "Checking the menu override …"
                     : win.cardsStatus === "missing" ? "The card picker is not installed (no menu-override.py)."
                     : win.cardsStatus === "error" ? "menu-override.py status failed." : ""
@@ -860,7 +861,7 @@ PanelWindow {
                     id: healthSummaryText
                     anchors.verticalCenter: parent.verticalCenter
                     text: win.health.issues ? win.health.label + " · details below" : win.health.unknown ? "Checking …" : "All checks pass"
-                    color: win.health.issues ? Color.urgent : Color.popups.text
+                    color: win.health.issues ? Commons.Color.urgent : Commons.Color.popups.text
                     font.bold: true
                   }
                   CcButton { id: recheck; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; label: "Check again"; onPicked: win.refreshHealth() }
@@ -880,7 +881,7 @@ PanelWindow {
                       width: Style.space(20)
                       text: check.modelData.state === "ok" ? "✓" : check.modelData.state === "issue" ? "!" : "·"
                       font.bold: true
-                      color: check.modelData.state === "issue" ? Color.urgent : check.modelData.state === "ok" ? Color.accent : Util.alpha(Color.popups.text, 0.5)
+                      color: check.modelData.state === "issue" ? Commons.Color.urgent : check.modelData.state === "ok" ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.5)
                     }
                     Column {
                       id: checkText
@@ -907,7 +908,7 @@ PanelWindow {
           width: parent.width
           height: statusLine.implicitHeight + buttons.height + Style.space(14)
           y: parent.height - height
-          Rectangle { width: parent.width; height: 1; color: Util.alpha(Color.popups.text, 0.12) }
+          Rectangle { width: parent.width; height: 1; color: Util.alpha(Commons.Color.popups.text, 0.12) }
           Body {
             id: statusLine
             y: Style.space(7)
@@ -936,8 +937,8 @@ PanelWindow {
           y: header.y + searchBox.y + searchBox.height + Style.space(4)
           width: Math.max(searchBox.width, Style.space(420))
           height: resultsColumn.implicitHeight + results.borderTop + results.borderBottom + Style.space(8)
-          color: Color.popups.background
-          borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
+          color: Commons.Color.popups.background
+          borderSpec: Border.surfaceSpec("popups", "border", Commons.Color.popups.border, Math.max(1, Style.space(2)))
           radius: Style.cornerRadius
           MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
           Column {
@@ -953,8 +954,8 @@ PanelWindow {
                 required property int index
                 width: resultsColumn.width
                 height: Math.max(Style.space(30), hitLabel.implicitHeight + Style.space(10))
-                color: win.searchSel === index ? Util.alpha(Color.accent, 0.22)
-                  : hitMouse.containsMouse ? Style.hoverFillFor(Color.popups.text, Color.accent, Color.urgent) : "transparent"
+                color: win.searchSel === index ? Util.alpha(Commons.Color.accent, 0.22)
+                  : hitMouse.containsMouse ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent, Commons.Color.urgent) : "transparent"
                 Body {
                   id: hitLabel
                   x: Style.space(10)
@@ -970,7 +971,7 @@ PanelWindow {
                   width: Math.min(implicitWidth, hit.width * 0.45)
                   elide: Text.ElideRight
                   text: hit.modelData.value
-                  color: hit.modelData.matchedValue ? Color.accent : Util.alpha(Color.popups.text, 0.6)
+                  color: hit.modelData.matchedValue ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.6)
                 }
                 MouseArea { id: hitMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.pickResult(hit.index) }
               }
@@ -980,7 +981,7 @@ PanelWindow {
               leftPadding: Style.space(10); topPadding: Style.space(6); bottomPadding: Style.space(6)
               text: "No setting matches"
             }
-            Rectangle { width: parent.width; height: 1; color: Util.alpha(Color.popups.text, 0.1) }
+            Rectangle { width: parent.width; height: 1; color: Util.alpha(Commons.Color.popups.text, 0.1) }
             Caption {
               leftPadding: Style.space(10); topPadding: Style.space(5); bottomPadding: Style.space(2)
               text: "Enter opens · ↑↓ choose · Esc closes the search"
@@ -1015,11 +1016,11 @@ PanelWindow {
     textFormat: Text.PlainText
     font.family: Style.font.family
     font.pixelSize: Style.font.body
-    color: Color.popups.text
+    color: Commons.Color.popups.text
   }
   component Caption: Body {
     font.pixelSize: Style.font.caption
-    color: Util.alpha(Color.popups.text, 0.6)
+    color: Util.alpha(Commons.Color.popups.text, 0.6)
   }
   // Titles, section heads, buttons and marks.
   component Strong: Text {
@@ -1027,12 +1028,12 @@ PanelWindow {
     textFormat: Text.PlainText
     font.family: Style.font.family
     font.pixelSize: Style.font.body
-    color: Color.popups.text
+    color: Commons.Color.popups.text
   }
   component SectionHead: Strong {
     font.pixelSize: Style.font.caption
     font.bold: true
-    color: Color.accent
+    color: Commons.Color.accent
     topPadding: Style.space(10)
     bottomPadding: Style.space(3)
   }
@@ -1045,13 +1046,13 @@ PanelWindow {
     color: fill
     radius: Math.min(Style.cornerRadius, 3)
     border.width: 1
-    border.color: Util.alpha(Color.popups.text, inset ? 0.3 : 0.14)
+    border.color: Util.alpha(Commons.Color.popups.text, inset ? 0.3 : 0.14)
   }
 
   component FlashBg: Rectangle {
     property string forId: ""
     anchors.fill: parent
-    color: win.flashId !== "" && win.flashId === forId ? Util.alpha(Color.accent, 0.24) : "transparent"
+    color: win.flashId !== "" && win.flashId === forId ? Util.alpha(Commons.Color.accent, 0.24) : "transparent"
     Behavior on color { ColorAnimation { duration: Style.duration(260) } }
   }
 
@@ -1070,17 +1071,17 @@ PanelWindow {
     Face {
       anchors.fill: parent
       inset: btn.selected || btnMouse.pressed
-      fill: btn.selected ? Color.accent
-        : btnMouse.pressed ? Util.alpha(Color.accent, 0.4)
-        : btnMouse.containsMouse ? Util.alpha(Color.accent, 0.16)
-        : Util.alpha(Color.popups.text, btn.primary ? 0.1 : 0.05)
+      fill: btn.selected ? Commons.Color.accent
+        : btnMouse.pressed ? Util.alpha(Commons.Color.accent, 0.4)
+        : btnMouse.containsMouse ? Util.alpha(Commons.Color.accent, 0.16)
+        : Util.alpha(Commons.Color.popups.text, btn.primary ? 0.1 : 0.05)
     }
     Strong {
       id: btnText
       anchors.centerIn: parent
       text: btn.label
       font.bold: btn.selected || btn.primary
-      color: btn.selected ? Color.popups.background : Color.popups.text
+      color: btn.selected ? Commons.Color.popups.background : Commons.Color.popups.text
     }
     MouseArea { id: btnMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: btn.picked() }
   }
@@ -1092,13 +1093,13 @@ PanelWindow {
     implicitHeight: capText.implicitHeight + Style.space(4)
     width: implicitWidth
     height: implicitHeight
-    Face { anchors.fill: parent; fill: Util.alpha(Color.popups.text, 0.08) }
+    Face { anchors.fill: parent; fill: Util.alpha(Commons.Color.popups.text, 0.08) }
     Strong {
       id: capText
       anchors.centerIn: parent
       text: cap.label
       font.pixelSize: Style.font.caption
-      color: Util.alpha(Color.popups.text, 0.75)
+      color: Util.alpha(Commons.Color.popups.text, 0.75)
     }
   }
 
@@ -1119,10 +1120,10 @@ PanelWindow {
     Face {
       anchors.fill: parent
       inset: chip.selected || chipMouse.pressed
-      fill: chip.selected ? Color.accent
-        : chipMouse.pressed ? Style.pressedFillFor(Color.popups.text, Color.accent, Color.urgent)
-        : chipMouse.containsMouse ? Style.hoverFillFor(Color.popups.text, Color.accent, Color.urgent)
-        : Util.alpha(Color.popups.text, 0.06)
+      fill: chip.selected ? Commons.Color.accent
+        : chipMouse.pressed ? Style.pressedFillFor(Commons.Color.popups.text, Commons.Color.accent, Commons.Color.urgent)
+        : chipMouse.containsMouse ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent, Commons.Color.urgent)
+        : Util.alpha(Commons.Color.popups.text, 0.06)
     }
     Column {
       id: chipColumn
@@ -1131,20 +1132,20 @@ PanelWindow {
         anchors.horizontalCenter: parent.horizontalCenter
         text: chip.label
         font.bold: chip.selected
-        color: chip.selected ? Color.popups.background : Color.popups.text
+        color: chip.selected ? Commons.Color.popups.background : Commons.Color.popups.text
       }
       Caption {
         anchors.horizontalCenter: parent.horizontalCenter
         visible: chip.note !== ""
         text: chip.note
-        color: chip.selected ? Util.alpha(Color.popups.background, 0.8) : Util.alpha(Color.popups.text, 0.55)
+        color: chip.selected ? Util.alpha(Commons.Color.popups.background, 0.8) : Util.alpha(Commons.Color.popups.text, 0.55)
       }
     }
     Rectangle {
       visible: chip.liveMark
       x: parent.width - width - 3; y: 3
       width: Math.max(4, Style.space(5)); height: width
-      color: Color.accent
+      color: Commons.Color.accent
     }
     MouseArea { id: chipMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: chip.picked() }
   }
@@ -1170,7 +1171,7 @@ PanelWindow {
       width: row.labelWidth
       spacing: Style.space(1)
       Body { width: parent.width; wrapMode: Text.WordWrap; text: row.label }
-      Caption { visible: row.changed; width: parent.width; wrapMode: Text.WordWrap; color: Color.accent; text: "not applied" }
+      Caption { visible: row.changed; width: parent.width; wrapMode: Text.WordWrap; color: Commons.Color.accent; text: "not applied" }
       Caption { visible: row.hint !== ""; width: parent.width; wrapMode: Text.WordWrap; text: row.hint }
     }
     Flow {

@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "bridge" as Bridge
 
@@ -48,7 +49,7 @@ KeyboardPanel {
   readonly property bool searching: query !== "" && !inputLevel
   // the empty search line of a launcher opening, on the first level only
   readonly property bool launcherLine: searchMode && query === "" && !level
-  readonly property color ink: Color.popups.text
+  readonly property color ink: Commons.Color.popups.text
   readonly property string labelFamily: Style.font.family
   readonly property int labelPx: Style.font.body
   readonly property int rowH: Math.max(Style.space(30), labelPx + Style.space(14))

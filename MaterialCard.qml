@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import qs.Commons
+import qs.Commons as Commons
 
 // The theme material for an Omarchy KeyboardPanel's card. With a theme
 // material (edge option "theme": the theme's bar-material.json, Tusche &
@@ -26,13 +27,13 @@ Item {
 
   property var panel: null
   // The colour the bar ends in (opaque).
-  property color color: Qt.rgba(Color.bar.background.r, Color.bar.background.g, Color.bar.background.b, 1)
+  property color color: Qt.rgba(Commons.Color.bar.background.r, Commons.Color.bar.background.g, Commons.Color.bar.background.b, 1)
   // Edge: a faint line in the text colour and a soft shadow, so a popup in
   // the bar's colour still stands apart from windows of the same colour
   // behind it.
   property bool edge: true
-  readonly property bool lightTheme: 0.2126 * Color.popups.background.r + 0.7152 * Color.popups.background.g + 0.0722 * Color.popups.background.b > 0.55
-  readonly property color rimColor: Util.alpha(Color.popups.text, lightTheme ? 0.24 : 0.22)
+  readonly property bool lightTheme: 0.2126 * Commons.Color.popups.background.r + 0.7152 * Commons.Color.popups.background.g + 0.0722 * Commons.Color.popups.background.b > 0.55
+  readonly property color rimColor: Util.alpha(Commons.Color.popups.text, lightTheme ? 0.24 : 0.22)
   // the bloom's pigment: the tide colour
   readonly property var tide: bloom && material && material.card ? material.card.tide || null : null
 
@@ -43,7 +44,7 @@ Item {
   property real clearing: 1  // 0 = all ink, 1 = cleared up to the edge
   property real wet: 0       // 1 = wet, 0 = dry
   property real phase: 0     // the wet edge's movement
-  readonly property color inkColor: tide ? rgba(tide.color, 1) : Color.popups.text
+  readonly property color inkColor: tide ? rgba(tide.color, 1) : Commons.Color.popups.text
   // the clearing front's reach: the farthest corner of the card seen from the source, plus a margin
   readonly property real clearFar: {
     if (!card) return 1

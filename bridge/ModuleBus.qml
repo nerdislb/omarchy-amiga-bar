@@ -3,12 +3,13 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import qs.Commons
+import qs.Commons as Commons
 
 QtObject {
   property var instances: ({})
-  // The bar colour as an opaque ink/fill (Color.bar.background has alpha 0
+  // The bar colour as an opaque ink/fill (Commons.Color.bar.background has alpha 0
   // while Omarchy's bar is transparent).
-  readonly property color barColor: Qt.rgba(Color.bar.background.r, Color.bar.background.g, Color.bar.background.b, 1)
+  readonly property color barColor: Qt.rgba(Commons.Color.bar.background.r, Commons.Color.bar.background.g, Commons.Color.bar.background.b, 1)
   // Light themes (Papier …): Qt.lighter() runs into white there, so raised
   // and sunken parts are drawn the other way round.
   function isLight(c) { return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b > 0.55 }

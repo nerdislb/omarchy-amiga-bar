@@ -934,12 +934,12 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
                    [0, 0, 0, 1, 1, 2, 3, 3, 4, 6, 6, 6, 0, 0]);
   assert(st.includes('readonly property bool sysHot: cpu > 0.85 || mem > 0.9'));
   assert(st.includes('if (id === "bitr0t.system-monitor") return sysHot'));
-  assert(st.includes('if (sysHot) out.push({ chip: true, color: Color.urgent, member: "bitr0t.system-monitor" })'));
+  assert(st.includes('if (sysHot) out.push({ chip: true, color: Commons.Color.urgent, member: "bitr0t.system-monitor" })'));
   assert(st.includes('width: modelData.id === "phone" ? Style.space(58) : root.barSize + Style.space(2)'), 'the system group is a single-icon cell');
   const face = st.slice(st.indexOf('component GroupFace'), st.indexOf('component ChipFace'));
   assert(!face.includes('\\u{f061a}') && face.includes('ChipFace {'), 'no filled chip glyph, no meters');
   const chip = st.slice(st.indexOf('component ChipFace'));
-  assert(/readonly property color ink: root\.fg/.test(chip) && /readonly property color fillInk: root\.sysHot \? Color\.urgent : root\.fg/.test(chip),
+  assert(/readonly property color ink: root\.fg/.test(chip) && /readonly property color fillInk: root\.sysHot \? Commons\.Color\.urgent : root\.fg/.test(chip),
          'the outline stays the bar ink; only the fill takes the alarm tone');
   assert(/border\.width: 2 \* chip\.u/.test(chip) && /model: 12/.test(chip), '2 px stroke, three pins per side');
   console.log('PASS: system face (chip outline, fill rows, warning, single cell)');
@@ -1217,7 +1217,7 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
     assert.match(fs.readFileSync(islandBar, 'utf8'), /onSegKeyChanged: if \(segKey !== ""\) chipMetal\.play\(\)/, 'the segment glints by kind, not on every timer tick');
   const q = read('modules/Quota.qml');
   assert.match(q, /Root\.MetalShape \{\n\s*id: metalRing\n\s*visible: !!ring\.metal\n\s*spec: ring\.metal\n\s*kind: "ring"/);
-  assert.match(q, /tint: ring\.percent >= 0\.9 \? Color\.urgent/, 'a nearly spent quota takes the signal colour');
+  assert.match(q, /tint: ring\.percent >= 0\.9 \? Commons\.Color\.urgent/, 'a nearly spent quota takes the signal colour');
   assert.match(q, /kind: "pill"/);
   assert.match(q, /ringStyle: ring\.metal && ring\.metal\.ringStyle !== undefined \? Number\(ring\.metal\.ringStyle\) : 0/);
   assert.match(frag, /float ringStyle;/);
@@ -1229,4 +1229,22 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.match(en, /n === "activewindowv2" \|\| n === "workspacev2" \|\| n === "openlayer"/, 'focus, workspace and popups pulse the metal');
   assert.match(read('bridge/ModuleBus.qml'), /function pulse\(\) \{ if \(metal\) metalPulse\(\) \}/);
   console.log('PASS: metal family (one shader in both repos, Chrom & Platin complete, rims, rings, meters, hover, logo, pulse)');
+}
+
+// Qt 6.12 brings its own `Color` type in QtQuick that shadows the shell's
+// palette singleton: every palette reference is `Commons.Color` (Omarchy
+// b83d3df0), in the bar, the island and the card picker alike.
+{
+  const bare = /(?<![\w.])Color(?![\w])/;
+  const roots = [root, islandDir, path.resolve(root, '../omarchy-card-picker')].filter(d => fs.existsSync(d));
+  const walk = d => fs.readdirSync(d, {withFileTypes: true}).flatMap(e => e.isDirectory()
+    ? (['vendor', 'tests', '.git', 'node_modules'].includes(e.name) ? [] : walk(path.join(d, e.name)))
+    : (e.name.endsWith('.qml') ? [path.join(d, e.name)] : []));
+  for (const r of roots) for (const f of walk(r)) {
+    const lines = fs.readFileSync(f, 'utf8').split('\n').filter(l => !l.trimStart().startsWith('import ') && !l.trimStart().startsWith('//'));
+    const hit = lines.find(l => bare.test(l));
+    assert(!hit, `${path.relative(path.dirname(root), f)}: bare Color (Qt 6.12 shadows it): ${hit && hit.trim()}`);
+    if (lines.some(l => /Commons\.Color/.test(l))) assert.match(fs.readFileSync(f, 'utf8'), /^import qs\.Commons as Commons$/m, `${f}: Commons alias`);
+  }
+  console.log('PASS: palette references qualified for Qt 6.12 (Commons.Color)');
 }

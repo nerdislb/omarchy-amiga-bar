@@ -4,6 +4,7 @@ import ".." as Root
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 // AI quotas, compact. Custom QML module of the Tusche Bar:
@@ -27,14 +28,14 @@ Item {
 
   readonly property string variant: String(setting("variant", "gauge"))
   readonly property int barSize: bar && bar.barSize ? bar.barSize : Style.bar.sizeHorizontal
-  readonly property color fg: bar && bar.barForeground ? bar.barForeground : Color.bar.text
+  readonly property color fg: bar && bar.barForeground ? bar.barForeground : Commons.Color.bar.text
   readonly property string home: Quickshell.env("HOME")
   readonly property string usageDir: (Quickshell.env("XDG_STATE_HOME") || home + "/.local/state") + "/omarchy/agents/usage"
 
   // ---------------------------------------------------------------- theme tones
   property var pal: ({})
   FileView {
-    path: Color.currentThemePath + "/colors.toml"
+    path: Commons.Color.currentThemePath + "/colors.toml"
     watchChanges: true
     onFileChanged: reload()
     onLoaded: {
@@ -45,9 +46,9 @@ Item {
     }
   }
   function tone(p) {
-    if (p >= 0.9) return Color.urgent
-    if (p >= 0.75) return Color.accent
-    if (p >= 0.5) return pal.yellow || Color.accent
+    if (p >= 0.9) return Commons.Color.urgent
+    if (p >= 0.75) return Commons.Color.accent
+    if (p >= 0.5) return pal.yellow || Commons.Color.accent
     return pal.green || fg
   }
 
@@ -348,7 +349,7 @@ Item {
                 readonly property int seg: 7 - index
                 width: Style.space(7); height: Math.max(1, Math.round(root.barSize * 0.055))
                 color: parent.parent.modelData.percent * 8 > seg + 0.001 || (seg === 0 && parent.parent.modelData.percent > 0)
-                  ? (seg >= 7 ? Color.urgent : seg >= 5 ? (root.pal.yellow || Color.accent) : (root.pal.green || root.fg))
+                  ? (seg >= 7 ? Commons.Color.urgent : seg >= 5 ? (root.pal.yellow || Commons.Color.accent) : (root.pal.green || root.fg))
                   : Util.alpha(root.fg, 0.12)
               }
             }
@@ -408,12 +409,12 @@ Item {
       arc: ring.percent < 0 ? 0 : Math.max(0.03, Math.min(1, ring.percent))
       dim: ring.percent < 0 ? 0.32 : 0.2
       boost: ring.boost
-      tint: ring.percent >= 0.9 ? Color.urgent : (ring.metal && ring.metal.tint ? ring.metal.tint : "#f2f3f7")
+      tint: ring.percent >= 0.9 ? Commons.Color.urgent : (ring.metal && ring.metal.tint ? ring.metal.tint : "#f2f3f7")
       // material.metal.ringStyle 2 (readable at bar size): a solid arc in the ink with a chrome
       // head on a flat track; 1: chrome arc on a flat track; 0: chrome all round
       ringStyle: ring.metal && ring.metal.ringStyle !== undefined ? Number(ring.metal.ringStyle) : 0
       track: Util.alpha(ring.ink, ring.metal && ring.metal.light ? (ring.percent < 0 ? 0.22 : 0.16) : (ring.percent < 0 ? 0.3 : 0.26))
-      ink: ring.percent >= 0.9 ? Color.urgent : (ring.metal && ring.metal.light ? "#1d1e21" : "#e6e7eb")
+      ink: ring.percent >= 0.9 ? Commons.Color.urgent : (ring.metal && ring.metal.light ? "#1d1e21" : "#e6e7eb")
     }
     Text { renderType: Text.NativeRendering; anchors.centerIn: parent; text: ring.letter; font.family: Style.font.family; font.bold: true; font.pixelSize: ring.letterPx; color: Util.alpha(ring.ink, ring.percent < 0 ? 0.45 : 1) }
   }
@@ -448,7 +449,7 @@ Item {
       height: Math.round(root.barSize * 0.72)
       y: Math.round((root.barSize - height) / 2)
       radius: Math.min(Style.cornerRadius, 3)
-      color: Util.alpha(root.tightest ? root.tone(root.tightest.percent) : Color.accent, 0.16)
+      color: Util.alpha(root.tightest ? root.tone(root.tightest.percent) : Commons.Color.accent, 0.16)
       Row {
         id: chipRow
         anchors.centerIn: parent
@@ -471,7 +472,7 @@ Item {
 
 
   // Popup text pieces.
-  readonly property color popInk: Color.popups.text
+  readonly property color popInk: Commons.Color.popups.text
   component Caption: Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; font.family: Style.font.family; font.pixelSize: Style.font.caption; color: Util.alpha(root.popInk, 0.55) }
   component Section: Text { renderType: Text.NativeRendering; textFormat: Text.PlainText; font.family: Style.font.family; font.pixelSize: Math.max(10, Style.font.body - 3); font.letterSpacing: Style.space(2.5); color: Util.alpha(root.popInk, 0.6); topPadding: Style.space(4) }
   // Metal family (material.metal.meters): a chrome cylinder filled up to the
@@ -499,7 +500,7 @@ Item {
       width: meter.width + 4; height: meter.height + 4
       arc: Math.min(1, Math.max(0, meter.value))
       track: meter.metal && meter.metal.track ? meter.metal.track : Util.alpha(root.popInk, 0.12)
-      tint: meter.alarm && meter.value >= 0.9 ? Color.urgent : (meter.metal && meter.metal.tint ? meter.metal.tint : "#f2f3f7")
+      tint: meter.alarm && meter.value >= 0.9 ? Commons.Color.urgent : (meter.metal && meter.metal.tint ? meter.metal.tint : "#f2f3f7")
     }
   }
 
@@ -608,7 +609,7 @@ Item {
           width: list.width; wrapMode: Text.WordWrap
           text: popupKeys.status.text
           font.family: Style.font.family; font.pixelSize: Style.font.bodySmall
-          color: popupKeys.status.urgent ? Color.urgent : Util.alpha(popupKeys.ink, 0.7) }
+          color: popupKeys.status.urgent ? Commons.Color.urgent : Util.alpha(popupKeys.ink, 0.7) }
 
         // Limits: label and reset on one line, the meter and the level under it;
         // a prepaid balance shows its value and the ledger note instead.

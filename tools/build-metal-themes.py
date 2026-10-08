@@ -86,10 +86,33 @@ def recolor_rgba(text, fn):
     return re.sub(r'rgba\(([0-9a-fA-F]{6})([0-9a-fA-F]{2})\)', sub, text)
 
 
+# Active window border (08.10.2026, the owner's pick "V1 Streifen"): the bar's studio
+# stripes on a diagonal – several highlights around the frame instead of one light/dark
+# ramp; the focus turn (borderangle once) carries them round the frame once, the frame's
+# glint. Hyprland borders are a linear gradient of up to 10 stops: a highlight travelling
+# along the frame, the fringes or a tube's shading would take a Hyprland plugin.
+BORDER = {
+    'chrom': (['3b3c41', 'f2f3f7', '6a6c72', '1c1d20', '2a2b2f', 'e8e9ed', '8a8c92', '1c1d20', '5a5c62', 'f2f3f7'], 45, '26272a'),
+    # light: the highlights stay below white, or they vanish against the paper-grey
+    'platin': (['5a5d62', 'd6d9dd', '8a8d92', '1a1b1d', '2e3034', 'cdd0d4', '7a7d82', '1a1b1d', '4a4d52', 'd6d9dd'], 45, 'b0b3b8'),
+}
+
+
+def border_lua(name):
+    stops, angle, _ = BORDER[name]
+    return '{ colors = { %s }, angle = %d }' % (', '.join('"rgba(%sff)"' % s for s in stops), angle)
+
+
+def border_toml(name):
+    stops, angle, _ = BORDER[name]
+    return ' '.join('rgba(%sff)' % s for s in stops) + ' %ddeg' % angle
+
+
 HYPR = {
-    'chrom': '''-- chrom: a resting chrome gradient on the active border that turns once when a window takes
--- focus (borderangle, no loop: a loop would redraw all the time); the window shadow a faint light.
-local active_border_color = { colors = { "rgba(f2f3f7ff)", "rgba(8a8c92ff)", "rgba(3b3c41ff)", "rgba(8a8c92ff)", "rgba(f2f3f7ff)" }, angle = 90 }
+    'chrom': '''-- chrom: a resting chrome border, the bar's studio stripes on a diagonal, that turns once when
+-- a window takes focus (borderangle, no loop: a loop would redraw all the time) – the frame's
+-- glint; the window shadow a faint light.
+local active_border_color = ''' + border_lua('chrom') + '''
 local inactive_border_color = "rgba(26272aff)"
 
 hl.config({
@@ -114,9 +137,9 @@ hl.config({
 
 hl.animation({ leaf = "borderangle", enabled = true, speed = 9, bezier = "easeOutQuint" })
 ''',
-    'platin': '''-- platin: a resting polished-steel gradient on the active border that turns once when a window
--- takes focus (borderangle, no loop); the window shadow a soft dark.
-local active_border_color = { colors = { "rgba(1a1b1dff)", "rgba(7a7d82ff)", "rgba(c9ccd0ff)", "rgba(7a7d82ff)", "rgba(1a1b1dff)" }, angle = 90 }
+    'platin': '''-- platin: a resting polished-steel border, the bar's studio stripes on a diagonal, that turns
+-- once when a window takes focus (borderangle, no loop); the window shadow a soft dark.
+local active_border_color = ''' + border_lua('platin') + '''
 local inactive_border_color = "rgba(b0b3b8ff)"
 
 hl.config({
@@ -227,12 +250,8 @@ def build(name, source, fn, bgdir):
         text = text.replace('Papier – Tusche & Papier (design round 02.10.2026)', 'Platin – the metal family (design round 07.10.2026)')
         (dst / f).write_text(text)
     colors = (dst / 'colors.toml').read_text()
-    if name == 'chrom':
-        colors = re.sub(r'hyprland_active_border = .*', 'hyprland_active_border = "rgba(f2f3f7ff) rgba(8a8c92ff) rgba(3b3c41ff) rgba(8a8c92ff) rgba(f2f3f7ff) 90deg"', colors)
-        colors = re.sub(r'hyprland_inactive_border = .*', 'hyprland_inactive_border = "rgba(26272aff)"', colors)
-    else:
-        colors = re.sub(r'hyprland_active_border = .*', 'hyprland_active_border = "rgba(1a1b1dff) rgba(7a7d82ff) rgba(c9ccd0ff) rgba(7a7d82ff) rgba(1a1b1dff) 90deg"', colors)
-        colors = re.sub(r'hyprland_inactive_border = .*', 'hyprland_inactive_border = "rgba(b0b3b8ff)"', colors)
+    colors = re.sub(r'hyprland_active_border = .*', 'hyprland_active_border = "%s"' % border_toml(name), colors)
+    colors = re.sub(r'hyprland_inactive_border = .*', 'hyprland_inactive_border = "rgba(%sff)"' % BORDER[name][2], colors)
     (dst / 'colors.toml').write_text(colors)
     (dst / 'hyprland.lua').write_text(HYPR[name])
     (dst / 'bar-material.json').write_text(json.dumps(MATERIAL[name], indent=2) + '\n')

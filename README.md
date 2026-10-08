@@ -18,7 +18,7 @@ Everything is switchable in its own Control Center. The bar stays Omarchy's own:
 
 ### Chrom & Platin
 
-Two liquid-metal themes: **Chrom** (liquid chrome on black) and **Platin** (polished platinum, the light one). Thin chrome rims run along the bar's edge, the popups, the AI rings and the menu. The metal stands still: a popup glints once as it opens, the rings and the logo when you switch workspace. Window borders turn their chrome gradient on focus. Switch with `setup/install.sh --theme chrom` (or `platin`). Details are under [Metal: Chrom & Platin](#elements-and-variants) below; there is also a [short video](docs/screenshots/chrom-platin.mp4).
+Two liquid-metal themes: **Chrom** (liquid chrome on black) and **Platin** (polished platinum, the light one). Thin chrome rims run along the bar's edge, the popups, the AI rings and the menu. The metal stands still: a popup glints once as it opens, the rings and the logo when you switch workspace. Window borders carry chrome stripes that turn once on focus. Switch with `setup/install.sh --theme chrom` (or `platin`). Details are under [Metal: Chrom & Platin](#elements-and-variants) below; there is also a [short video](docs/screenshots/chrom-platin.mp4).
 
 ![Chrom (left) and Platin (right)](docs/screenshots/chrom-platin.jpg)
 
@@ -200,8 +200,9 @@ at most every `pulseGapMs` (4000); the bar's edge stays still unless
 highlights flow all the time instead, like the liquid-metal video that started
 the round (costs a redraw every frame while visible). Other keys: `tint`,
 `light`, `disp`, `spark`, `sharp`, `gain`, `base`. Window borders are
-Hyprland's own: a resting chrome gradient that turns once on focus
-(`borderangle`, no loop). `tools/build-metal-themes.py` builds both themes
+Hyprland's own: the bar's studio stripes as a diagonal 10-stop gradient, so
+several highlights sit around the frame, turning once on focus (`borderangle`,
+no loop). `tools/build-metal-themes.py` builds both themes
 from Tusche and Papier. Reduced Motion: no glint, no flow.
 
 AI usage records (`~/.local/state/omarchy/agents/usage`) are refreshed by

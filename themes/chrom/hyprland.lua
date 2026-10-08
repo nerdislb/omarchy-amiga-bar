@@ -1,6 +1,7 @@
--- chrom: a resting chrome gradient on the active border that turns once when a window takes
--- focus (borderangle, no loop: a loop would redraw all the time); the window shadow a faint light.
-local active_border_color = { colors = { "rgba(f2f3f7ff)", "rgba(8a8c92ff)", "rgba(3b3c41ff)", "rgba(8a8c92ff)", "rgba(f2f3f7ff)" }, angle = 90 }
+-- chrom: a resting chrome border, the bar's studio stripes on a diagonal, that turns once when
+-- a window takes focus (borderangle, no loop: a loop would redraw all the time) – the frame's
+-- glint; the window shadow a faint light.
+local active_border_color = { colors = { "rgba(3b3c41ff)", "rgba(f2f3f7ff)", "rgba(6a6c72ff)", "rgba(1c1d20ff)", "rgba(2a2b2fff)", "rgba(e8e9edff)", "rgba(8a8c92ff)", "rgba(1c1d20ff)", "rgba(5a5c62ff)", "rgba(f2f3f7ff)" }, angle = 45 }
 local inactive_border_color = "rgba(26272aff)"
 
 hl.config({

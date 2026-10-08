@@ -21,7 +21,8 @@ import "bridge" as Bridge
 //                  edge); `fallback` (a dry edge) while the image is missing.
 //   kind "metal" – a chrome tube along the bar's lower edge (MetalShape, the
 //                  theme's material.metal: Chrom & Platin) that stands still
-//                  and runs a glint along once when something changes;
+//                  (a glint along the whole bar on every change was too much;
+//                  material.metal `edgeGlint: true` brings it back);
 //                  `haze` below the bar as with "dry".
 //
 // Below the bar lives on the Top layer: on Bottom, Hyprland here blends a
@@ -102,7 +103,7 @@ Scope {
       y: parent.height - height + pad
       Connections {
         target: Bridge.ModuleBus
-        function onMetalPulse() { edgeMetal.play() }
+        function onMetalPulse() { if (root.metal && root.metal.edgeGlint === true) edgeMetal.play() }
       }
     }
   }

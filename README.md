@@ -18,7 +18,7 @@ Everything is switchable in its own Control Center. The bar stays Omarchy's own:
 
 ### Chrom & Platin
 
-Two liquid-metal themes: **Chrom** (liquid chrome on black) and **Platin** (polished platinum, the light one). Thin chrome rims run along the bar's edge, the popups, the AI rings and the menu. The metal stands still, and a glint runs along it once whenever something changes. Window borders turn their chrome gradient on focus. Switch with `setup/install.sh --theme chrom` (or `platin`). Details are under [Metal: Chrom & Platin](#elements-and-variants) below; there is also a [short video](docs/screenshots/chrom-platin.mp4).
+Two liquid-metal themes: **Chrom** (liquid chrome on black) and **Platin** (polished platinum, the light one). Thin chrome rims run along the bar's edge, the popups, the AI rings and the menu. The metal stands still: a popup glints once as it opens, the rings and the logo when you switch workspace. Window borders turn their chrome gradient on focus. Switch with `setup/install.sh --theme chrom` (or `platin`). Details are under [Metal: Chrom & Platin](#elements-and-variants) below; there is also a [short video](docs/screenshots/chrom-platin.mp4).
 
 ![Chrom (left) and Platin (right)](docs/screenshots/chrom-platin.jpg)
 
@@ -193,10 +193,10 @@ logo (`logo`), the hovered menu row (`hover: "tube"`, a pill or `hoverRadius` px
 as a solid arc with a chrome head on a flat track (`ringStyle` 2; 1 = chrome
 arc, 0 = chrome all round; `rings`, `ring` px tube, `ringSize` px) and the meters chrome
 cylinders over a `track` (`meters`); from 90 % the metal takes the signal
-colour. The metal stands still – nothing redraws at rest. When something
-changes (a popup or note opens, focus or workspace moves) a glint runs once
-along the edge, the rings and the logo, and a card glints as it opens
-(`sweepMs`, 900); only then do the fringes spark. `flow` > 0 (rad/s) makes the
+colour. The metal stands still – nothing redraws at rest. A card glints as it
+opens, and a workspace switch runs a glint once over the rings and the logo,
+at most every `pulseGapMs` (4000); the bar's edge stays still unless
+`edgeGlint` is true (`sweepMs`, 900); only then do the fringes spark. `flow` > 0 (rad/s) makes the
 highlights flow all the time instead, like the liquid-metal video that started
 the round (costs a redraw every frame while visible). Other keys: `tint`,
 `light`, `disp`, `spark`, `sharp`, `gain`, `base`. Window borders are

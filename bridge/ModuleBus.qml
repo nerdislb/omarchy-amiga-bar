@@ -20,8 +20,8 @@ QtObject {
   // is "theme"; null otherwise. MaterialCard styles cards with it.
   property var material: null
   // the metal family (Chrom & Platin): material.metal, null for other themes.
-  // pulse(): something changed (a popup opened, focus or workspace moved) –
-  // the metal shows it once with a glint along the bar's edge and the rings.
+  // pulse(): the workspace changed – the metal shows it once with a glint on
+  // the rings and the logo (the bar's edge only with `edgeGlint`).
   readonly property var metal: material && material.metal ? material.metal : null
   signal metalPulse()
   function pulse() { if (metal) metalPulse() }

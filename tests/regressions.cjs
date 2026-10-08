@@ -1226,7 +1226,10 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.match(read('DropMenu.qml'), /radius: menu\.hoverRadius\(height - 2 \* pad\)/, 'fill and tube share one radius');
   assert.match(read('modules/Workspaces.qml'), /id: logoMetal/);
   const en = read('Engine.qml');
-  assert.match(en, /n === "activewindowv2" \|\| n === "workspacev2" \|\| n === "openlayer"/, 'focus, workspace and popups pulse the metal');
+  assert.match(en, /if \(event && event\.name === "workspacev2"\) metalPulseTimer\.restart\(\)/, 'only a workspace switch pulses the metal (focus and popups were too much)');
+  assert.doesNotMatch(en, /activewindowv2|"openlayer"/);
+  assert.match(en, /if \(now - root\.lastMetalPulse < gap\) return/, 'no second glint within pulseGapMs');
+  assert.match(read('ThemeEdge.qml'), /function onMetalPulse\(\) \{ if \(root\.metal && root\.metal\.edgeGlint === true\) edgeMetal\.play\(\) \}/, 'the bar\'s edge stays still unless edgeGlint');
   assert.match(read('bridge/ModuleBus.qml'), /function pulse\(\) \{ if \(metal\) metalPulse\(\) \}/);
   console.log('PASS: metal family (one shader in both repos, Chrom & Platin complete, rims, rings, meters, hover, logo, pulse)');
 }

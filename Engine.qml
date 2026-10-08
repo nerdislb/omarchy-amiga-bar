@@ -223,17 +223,29 @@ Item {
   Binding { target: Bridge.ModuleBus; property: "material"; value: root.materialOn ? root.material : null }
   Binding { target: Bridge.ModuleBus; property: "themeDir"; value: root.themeDir }
   Binding { target: Bridge.ModuleBus; property: "themeStamp"; value: root.themeStamp }
-  // Metal family: focus, workspace and a new layer surface (a popup, a note)
-  // each count as a change; a burst of events gives one glint.
+  // Metal family: only a workspace switch counts as a change. Focus moves too
+  // often to glint each time (the window border turns for it), and a popup
+  // glints its own rim as it opens. A burst of events gives one glint, and
+  // none follows within material.metal `pulseGapMs` (4000) of the last.
   Connections {
     target: Hyprland
     enabled: !!Bridge.ModuleBus.metal
     function onRawEvent(event) {
-      var n = event ? event.name : ""
-      if (n === "activewindowv2" || n === "workspacev2" || n === "openlayer") metalPulseTimer.restart()
+      if (event && event.name === "workspacev2") metalPulseTimer.restart()
     }
   }
-  Timer { id: metalPulseTimer; interval: 90; onTriggered: Bridge.ModuleBus.pulse() }
+  property double lastMetalPulse: 0
+  Timer {
+    id: metalPulseTimer
+    interval: 90
+    onTriggered: {
+      var m = Bridge.ModuleBus.metal, now = Date.now()
+      var gap = m && Number(m.pulseGapMs) >= 0 ? Number(m.pulseGapMs) : 4000
+      if (now - root.lastMetalPulse < gap) return
+      root.lastMetalPulse = now
+      Bridge.ModuleBus.pulse()
+    }
+  }
 
   // ---------------------------------------------------------------- AI usage refresh
   // omarchy.agents (and the AI usage widget) keep ~/.local/state/omarchy/

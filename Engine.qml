@@ -92,10 +92,12 @@ Item {
       }
     }
   }
-  // option `frames glint` (metal themes): a chrome glint once round the focused window's frame
+  // option `frames glint` (metal themes): a chrome glint once round the focused window's frame;
+  // the theme's metal, whatever the edge option says
   WindowGlint {
     id: windowGlint
-    enabled: root.options.frames === "glint" && !!Bridge.ModuleBus.metal
+    metal: root.material && root.material.metal ? root.material.metal : null
+    enabled: root.options.frames === "glint" && !!metal
   }
 
   // ---------------------------------------------------------------- base layout
@@ -619,7 +621,7 @@ Item {
                               open: root.isOpen, dropMenuOpen: root.dropMenuOpen, saved: root.savedPresets.map(function(p) { return p.name }), lastResult: root.lastResult, moduleDir: root.moduleDir,
                               keys: { option: root.keysOption, bindings: root.keysState },
                               edge: { option: root.options.edge, material: root.material ? (root.material.edge ? root.material.edge.kind : "no edge") : null, themeEdge: root.themeEdgeVisible, barReady: root.barReady },
-                              frames: { option: root.options.frames, glint: windowGlint.enabled, running: windowGlint.running, screen: windowGlint.screenName, frame: [windowGlint.fx, windowGlint.fy, windowGlint.fw, windowGlint.fh] },
+                              frames: { option: root.options.frames, glint: windowGlint.enabled, running: windowGlint.running, frame: [windowGlint.gx, windowGlint.gy, windowGlint.fw, windowGlint.fh], tube: windowGlint.tube },
                               usage: { folded: root.usageFolded, intervalSec: root.usageIntervalSec, running: usageUpdate.running, command: usageUpdate.command },
                               ask: root.askState(),
                               natives: (function() { var s = Bridge.ModuleBus.pick("status"); return s && s.nativeReport ? s.nativeReport() : null })(),

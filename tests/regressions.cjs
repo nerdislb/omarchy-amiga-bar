@@ -1222,12 +1222,18 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.match(frag, /if \(frameMode && sweepAmt <= 0\.0\) \{ fragColor = vec4\(0\.0\); return; \}/);
   assert.match(ms, /kind === "frame" \? 3 : 0/);
   const wg = read('WindowGlint.qml');
-  assert.match(wg, /visible: root\.running && root\.screenName === modelData\.name/, 'a surface only while the glint runs');
+  assert.match(wg, /visible: root\.running && reaches/, 'a surface only while the glint runs, on every monitor the frame reaches');
+  assert.match(wg, /if \(query\.gen !== root\.generation \|\| !root\.eligible\(\)\) return/, 'a late query never restarts a stopped glint');
+  assert.match(wg, /if \(root\.key\(w\) !== root\.geometryKey\) root\.stop\(\)/, 'a drag or resize stops it (watched while it runs)');
+  assert.match(wg, /var b = Math\.round\(root\.borderSize \* sc\) \/ sc/, 'the border on whole device pixels, as Hyprland draws it');
+  assert.match(wg, /function onReduceMotionChanged\(\) \{ if \(Style\.reduceMotion\) root\.stop\(\) \}/);
+  assert.match(ms, /onReducedChanged: if \(reduced && kind !== "frame"\)/, 'Reduced Motion keeps the frame glint\'s binding');
   assert.match(wg, /mask: Region \{\}/, 'click-through');
   assert.match(wg, /n === "workspacev2" \|\| n === "movewindowv2" \|\| n === "fullscreen" \|\| n === "changefloatingmode" \|\| n === "closewindow"/, 'it never trails a moving window');
   assert.match(wg, /if \(!w \|\| !w\.address \|\| !w\.size \|\| w\.fullscreen > 0 \|\| w\.hidden\) return/);
-  assert.match(wg, /easing\.type: Easing\.OutCubic/, 'one turn, slowing towards the end');
-  assert.match(read('Engine.qml'), /enabled: root\.options\.frames === "glint" && !!Bridge\.ModuleBus\.metal/);
+  assert.match(wg, /property: "sweep"; from: 0; to: 1\.06; duration: root\.durationMs; easing\.type: Easing\.OutQuad/, 'one turn and a little past, slowing towards the end (OutCubic crept)');
+  assert.match(wg, /property: "amount"; from: 0; to: 1; duration: 200/, 'the glint fades in');
+  assert.match(read('Engine.qml'), /metal: root\.material && root\.material\.metal \? root\.material\.metal : null\n\s*enabled: root\.options\.frames === "glint" && !!metal/, 'the frame glint follows the theme, not the edge option');
   assert.deepEqual(plain(ctx.ELEMENTS.frames.variants.map(v => v.id)), ['hyprland', 'glint'], 'off by default');
   const islandBar = path.join(islandDir, 'BarWidget.qml');
   if (fs.existsSync(islandBar) && /chipMetal/.test(fs.readFileSync(islandBar, 'utf8')))

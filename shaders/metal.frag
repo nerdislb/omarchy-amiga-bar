@@ -140,7 +140,20 @@ void main() {
         float hw = tube * 0.5;
         float dc = d + hw;
         cov = clamp(hw - abs(dc) + 0.5, 0.0, 1.0);
-        if (cov <= 0.0) { fragColor = vec4(0.0); return; }
+        // frame glints: a comet along the outline (a short lead ahead of the head,
+        // a tail behind it 2.5× as long), dark steel shoulders round it so it
+        // reads over the border's own bright stripes too, and a soft light, 2–3 px
+        float glintMask = 0.0, shoulder = 0.0, halo = 0.0;
+        if (frameMode) {
+            float sd = fract(sweepPos - sweep + 0.5) - 0.5;
+            float len = max(0.002, sd > 0.0 ? arc : arc * 2.5);
+            glintMask = sweepAmt * exp(-sd * sd / (len * len));
+            shoulder = sweepAmt * exp(-sd * sd / (4.8 * len * len));
+            float off = max(0.0, abs(dc) - hw);
+            halo = glintMask * 0.4 * exp(-off * off / 6.0) * (1.0 - cov);
+            if (shoulder < 0.004) { fragColor = vec4(0.0); return; }
+        }
+        if (cov <= 0.0 && halo <= 0.003) { fragColor = vec4(0.0); return; }
         float a = clamp(abs(dc) / hw, 0.0, 1.0);
         float h = sqrt(max(0.0, 1.0 - a * a));
         vec2 n2 = g * sign(dc) * a;
@@ -163,10 +176,13 @@ void main() {
             }
         }
         if (frameMode) {
-            // a comet: a short lead ahead of the head, a tail behind it 2.5× as long
-            float sd = fract(sweepPos - sweep + 0.5) - 0.5;
-            float len = max(0.002, sd > 0.0 ? arc : arc * 2.5);
-            alphaMul = sweepAmt * exp(-sd * sd / (len * len));
+            // the tube: dark steel in the shoulders, the chrome glint in the core
+            vec3 dark = tint.rgb * (lightOn > 0.5 ? 0.16 : 0.07) * mix(0.7, 1.0, h);
+            float core = clamp(glintMask / max(shoulder, 1e-3), 0.0, 1.0);
+            float ta = cov * max(glintMask, 0.85 * shoulder) * qt_Opacity, ha = halo * qt_Opacity;
+            vec3 hc = tint.rgb * (lightOn > 0.5 ? 0.9 : 1.0);
+            fragColor = vec4(mix(dark, col, core) * ta + hc * ha, ta + ha);
+            return;
         }
     } else {
         cov = clamp(0.5 - d, 0.0, 1.0);

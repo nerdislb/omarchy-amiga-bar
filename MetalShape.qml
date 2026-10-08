@@ -60,7 +60,8 @@ ShaderEffect {
     NumberAnimation { target: m; property: "sweep"; from: -0.15; to: 1.15; duration: glint.duration; easing.type: Easing.InOutQuad }
     NumberAnimation { target: m; property: "sweepAmt"; from: 0.95; to: 0; duration: glint.duration; easing.type: Easing.InQuad }
   }
-  onReducedChanged: if (reduced) { glint.stop(); sweepAmt = 0 }
+  // (a frame glint is driven from outside through a binding: leave it be)
+  onReducedChanged: if (reduced && kind !== "frame") { glint.stop(); sweepAmt = 0 }
   FrameAnimation {
     running: m.visible && !m.reduced && m.flowRate > 0
     onTriggered: m.t += frameTime * m.flowRate

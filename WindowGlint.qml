@@ -4,7 +4,6 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import qs.Commons
-import "bridge" as Bridge
 
 // A chrome glint that runs once round the focused window's frame (bar option
 // `frames glint`, metal themes; 08.10.2026). Hyprland can only turn a linear
@@ -14,26 +13,32 @@ import "bridge" as Bridge
 // even pace round the corners, slowing towards the end and fading out.
 //
 // Only while it runs is there a surface: a click-through Overlay layer the
-// size of the frame. It starts once the window has settled (open and
-// workspace animations) and stops when the window moves, resizes, goes
-// fullscreen or closes, or the workspace changes – it never trails a moving
-// window. trigger() glints the focused window on demand (IPC `glintWindow`),
+// size of the frame, on every monitor the frame reaches. It starts once the
+// window has settled (open and workspace animations) and stops as soon as the
+// window moves or resizes (watched while it runs), goes fullscreen or closes,
+// or the workspace changes – it never trails a moving window. A workspace
+// switch shows on the bar (rings and logo), not on the window: one glint at a
+// time. trigger() glints the focused window on demand (IPC `glintWindow`),
 // for other events to reuse.
 Scope {
   id: root
 
   property bool enabled: false
-  readonly property var metal: Bridge.ModuleBus.metal
+  // the theme's material.metal (independent of the bar's edge option)
+  property var metal: null
   // one turn; the glint's lead in px (its tail is 2.5× as long)
   readonly property int durationMs: metal && Number(metal.frameGlintMs) > 0 ? Number(metal.frameGlintMs) : 2800
   readonly property real leadPx: 90
 
-  // the frame being glinted, in the target screen's coordinates
-  property string screenName: ""
-  property real fx: 0
-  property real fy: 0
+  // the frame being glinted, in global layout coordinates (logical px)
+  property real gx: 0
+  property real gy: 0
   property real fw: 0
   property real fh: 0
+  property real tube: 2
+  property var mons: []
+  property string address: ""
+  property string geometryKey: ""
   property bool running: false
   property real sweep: 0
   property real amount: 0
@@ -41,17 +46,28 @@ Scope {
   property int borderSize: 2
   property real rounding: 0
   property bool justOpened: false
+  // every start or stop bumps it: a query that comes back later is stale
+  property int generation: 0
+  property bool manual: false
 
   function stop() {
+    generation++
+    settle.stop()
+    watch.stop()
     anim.stop()
     running = false
     amount = 0
   }
+  function eligible() { return !!metal && !Style.reduceMotion && (manual || enabled) }
+  function schedule(ms) {
+    stop()
+    settle.interval = ms
+    settle.restart()
+  }
   function trigger() {
     if (!metal || Style.reduceMotion) return false
-    stop()
-    settle.interval = 40
-    settle.restart()
+    manual = true
+    schedule(40)
     return true
   }
 
@@ -62,19 +78,28 @@ Scope {
       if (n === "configreloaded") { if (!options.running) options.running = true; return }
       if (n === "openwindow") root.justOpened = true
       if (n === "activewindowv2") {
+        root.manual = false
         root.stop()
-        if (!root.enabled || !root.metal || Style.reduceMotion) return
-        // a new window animates in (windowsIn ~0.4 s), a workspace slides (~0.2 s)
-        settle.interval = root.justOpened ? 480 : 300
+        if (!root.eligible()) return
+        // a new window animates in (windowsIn ~0.4 s)
+        root.schedule(root.justOpened ? 480 : 300)
         root.justOpened = false
-        settle.restart()
-      } else if (n === "workspacev2" || n === "movewindowv2" || n === "fullscreen" || n === "changefloatingmode" || n === "closewindow" || n === "resizewindow") {
-        settle.stop()
+      } else if (n === "workspacev2" || n === "movewindowv2" || n === "fullscreen" || n === "changefloatingmode" || n === "closewindow") {
         root.stop()
       }
     }
   }
-  Timer { id: settle; interval: 300; onTriggered: query.running = true }
+  Connections {
+    target: Style
+    function onReduceMotionChanged() { if (Style.reduceMotion) root.stop() }
+  }
+  onEnabledChanged: if (!enabled && !manual) stop()
+
+  Timer {
+    id: settle
+    interval: 300
+    onTriggered: { query.gen = root.generation; query.running = true }
+  }
 
   // border size and corner rounding, read again on config reloads
   Process {
@@ -90,38 +115,82 @@ Scope {
     }
   }
 
+  function key(w) { return w && w.at && w.size ? [w.address, w.at[0], w.at[1], w.size[0], w.size[1], w.fullscreen, w.workspace ? w.workspace.id : ""].join(",") : "" }
+
   Process {
     id: query
+    property int gen: -1
     command: ["sh", "-c", "hyprctl -j activewindow; printf '\\n---\\n'; hyprctl -j monitors"]
     stdout: StdioCollector {
       onStreamFinished: {
+        if (query.gen !== root.generation || !root.eligible()) return
         var parts = String(text || "").split("\n---\n")
         var w, mons
         try { w = JSON.parse(parts[0]); mons = JSON.parse(parts[1]) } catch (e) { return }
         if (!w || !w.address || !w.size || w.fullscreen > 0 || w.hidden) return
-        var mon = null
-        for (var i = 0; i < mons.length; i++) if (mons[i].id === w.monitor) mon = mons[i]
+        var mon = null, list = []
+        for (var i = 0; i < mons.length; i++) {
+          var m = mons[i], s = Number(m.scale) > 0 ? Number(m.scale) : 1
+          var rot = Number(m.transform) % 2 === 1
+          list.push({ name: m.name, x: m.x, y: m.y, w: (rot ? m.height : m.width) / s, h: (rot ? m.width : m.height) / s })
+          if (m.id === w.monitor) mon = m
+        }
         if (!mon) return
-        var b = root.borderSize
-        root.screenName = mon.name
-        root.fx = w.at[0] - mon.x - b
-        root.fy = w.at[1] - mon.y - b
+        // Hyprland rounds the border to whole device pixels
+        var sc = Number(mon.scale) > 0 ? Number(mon.scale) : 1
+        var b = Math.round(root.borderSize * sc) / sc
+        root.mons = list
+        root.tube = Math.max(1 / sc, b)
+        root.gx = w.at[0] - b
+        root.gy = w.at[1] - b
         root.fw = w.size[0] + 2 * b
         root.fh = w.size[1] + 2 * b
         if (root.fw < 40 || root.fh < 40) return
+        root.address = w.address
+        root.geometryKey = root.key(w)
         root.running = true
         anim.restart()
+        watch.restart()
       }
     }
   }
 
-  // one turn from the top edge's left end, slowing towards the end; the glint
-  // fades over the last part instead of stopping dead
+  // while it runs: the window must stay where it is (a drag or resize has no
+  // event of its own)
+  Timer {
+    id: watch
+    interval: 150
+    repeat: true
+    onTriggered: if (!watchProc.running) { watchProc.gen = root.generation; watchProc.running = true }
+  }
+  Process {
+    id: watchProc
+    property int gen: -1
+    command: ["hyprctl", "-j", "activewindow"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        if (watchProc.gen !== root.generation || !root.running) return
+        var w
+        try { w = JSON.parse(text) } catch (e) { return }
+        if (root.key(w) !== root.geometryKey) root.stop()
+      }
+    }
+  }
+
+  // one turn from the top edge's left end and a little past it, slowing towards
+  // the end (OutQuad: OutCubic crept for half a second at the start corner).
+  // The glint fades in over the first 0.2 s and is gone at 80 % of the turn,
+  // while it still moves (at 0.4× its mean pace): it slows, it never crawls.
   ParallelAnimation {
     id: anim
-    NumberAnimation { target: root; property: "sweep"; from: 0; to: 1; duration: root.durationMs; easing.type: Easing.OutCubic }
-    NumberAnimation { target: root; property: "amount"; from: 1; to: 0; duration: root.durationMs; easing.type: Easing.InQuart }
-    onFinished: root.running = false
+    NumberAnimation { target: root; property: "sweep"; from: 0; to: 1.06; duration: root.durationMs; easing.type: Easing.OutQuad }
+    SequentialAnimation {
+      NumberAnimation { target: root; property: "amount"; from: 0; to: 1; duration: 200; easing.type: Easing.OutQuad }
+      NumberAnimation { target: root; property: "amount"; from: 1; to: 0; duration: Math.max(0, Math.round(root.durationMs * 0.8) - 200); easing.type: Easing.InCubic }
+      // nothing left to draw: drop the surface and the watch (the turn runs out unseen)
+      ScriptAction { script: { root.running = false; watch.stop() } }
+    }
+    onFinished: { root.running = false; root.amount = 0; watch.stop() }
   }
 
   Variants {
@@ -132,14 +201,26 @@ Scope {
         required property var modelData
         screen: modelData
         readonly property real pad: 4
-        visible: root.running && root.screenName === modelData.name
+        // this monitor's place in the layout
+        readonly property var mon: {
+          for (var i = 0; i < root.mons.length; i++) if (root.mons[i].name === modelData.name) return root.mons[i]
+          return null
+        }
+        // the frame in this monitor's coordinates, the surface on whole pixels around it
+        readonly property real lx: mon ? root.gx - mon.x - pad : 0
+        readonly property real ly: mon ? root.gy - mon.y - pad : 0
+        readonly property int ox: Math.floor(lx)
+        readonly property int oy: Math.floor(ly)
+        readonly property bool reaches: !!mon && root.gx < mon.x + mon.w && root.gx + root.fw > mon.x
+                                        && root.gy < mon.y + mon.h && root.gy + root.fh > mon.y
+        visible: root.running && reaches
         color: "transparent"
         surfaceFormat.opaque: false
         anchors { top: true; left: true }
-        margins.left: Math.round(root.fx - pad)
-        margins.top: Math.round(root.fy - pad)
-        implicitWidth: Math.round(root.fw + 2 * pad)
-        implicitHeight: Math.round(root.fh + 2 * pad)
+        margins.left: ox
+        margins.top: oy
+        implicitWidth: Math.ceil(root.fw + 2 * pad + (lx - ox))
+        implicitHeight: Math.ceil(root.fh + 2 * pad + (ly - oy))
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.namespace: "tusche-bar-window-glint"
         WlrLayershell.layer: WlrLayer.Overlay
@@ -147,12 +228,15 @@ Scope {
         mask: Region {}
 
         MetalShape {
-          anchors.fill: parent
+          x: win.lx - win.ox
+          y: win.ly - win.oy
+          width: root.fw + 2 * win.pad
+          height: root.fh + 2 * win.pad
           spec: root.metal
           kind: "frame"
           pad: win.pad
-          radius: root.rounding > 0 ? root.rounding + root.borderSize : 0
-          tube: Math.max(1, root.borderSize)
+          radius: root.rounding > 0 ? root.rounding + root.tube : 0
+          tube: root.tube
           arc: root.leadPx / Math.max(1, 2 * (root.fw + root.fh))
           sweep: root.sweep
           sweepAmt: root.amount

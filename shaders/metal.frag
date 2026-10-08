@@ -2,9 +2,10 @@
 // Liquid metal for the Chrom & Platin themes (design round 07.10.2026,
 // recommendation): a chrome tube along a rounded rect (mode 0, rims), along a
 // circle with a filled arc (mode 1, quota rings), a cylinder bar (mode 2,
-// meters) or only a glint running along a rounded rect (mode 3, window frames:
-// the tube shows only around the glint, placed by arc length, so it keeps an
-// even pace round the corners). The environment is a dark studio whose light
+// meters) or only a glint on a rounded rect's outline (mode 3, window frames:
+// the tube shows only where the glint is – a light band sweeping across it
+// diagonally like a card's glint (ringStyle 1), or a comet once round it,
+// placed by arc length so it keeps an even pace round the corners (0)). The environment is a dark studio whose light
 // stripes lie around the outline's normal; `t` turns them (still unless the
 // material flows), `sweep` runs one glint along the shape, and a small
 // per-channel offset gives the orange/blue fringes at the brightest stripe
@@ -21,7 +22,7 @@ layout(std140, binding = 0) uniform buf {
     float tube;     // tube width (mode 0, 1, 3), px
     float mode;     // 0 rim, 1 ring, 2 pill, 3 frame glint
     float arc;      // ring: filled fraction from the top, clockwise; pill: filled fraction from the left (1 = all);
-                    // frame glint: the glint's length ahead of its head, a fraction of the perimeter
+                    // frame glint: the comet's lead (a fraction of the perimeter) or the sweep's half width
     float dim;      // brightness of the unfilled part (ring)
     float boost;    // extra light (hover)
     float sweep;    // glint position along the shape (0–1)
@@ -36,7 +37,8 @@ layout(std140, binding = 0) uniform buf {
     vec4 tint;      // metal colour
     vec4 track;     // pill, and rings in style 1/2: the unfilled part's colour (with its alpha)
     float ringStyle; // rings: 0 chrome all round (the rest dimmed), 1 chrome arc on a flat track,
-                     // 2 a solid arc in `ink` with a chrome glint at its head, on a flat track
+                     // 2 a solid arc in `ink` with a chrome glint at its head, on a flat track;
+                     // frame glints: 0 a comet once round, 1 a diagonal sweep (as on the cards)
     vec4 ink;       // ring style 2: the arc's colour
 };
 
@@ -104,7 +106,7 @@ vec3 shade(vec3 N, float phi, float along, float sweepPos) {
     vec3 col = vec3(b + L * k);
     float sw = 0.0;
     if (sweepAmt > 0.0) {
-        bool wrap = (mode > 0.5 && mode < 1.5) || mode > 2.5;
+        bool wrap = (mode > 0.5 && mode < 1.5) || (mode > 2.5 && ringStyle < 0.5);
         float d = wrap ? abs(fract(sweepPos - sweep + 0.5) - 0.5) : abs(sweepPos - sweep);
         sw = sweepAmt * exp(-d * d / (wrap ? 0.0025 : 0.0016));
     }
@@ -126,12 +128,13 @@ void main() {
     vec2 c = rect.xy + rect.zw * 0.5;
     bool ringMode = mode > 0.5 && mode < 1.5;
     bool frameMode = mode > 2.5;
+    bool frameSweep = frameMode && ringStyle > 0.5;
     // frame glints draw nothing away from the glint
     if (frameMode && sweepAmt <= 0.0) { fragColor = vec4(0.0); return; }
     // rings: angle from the top, clockwise; rects: a continuous diagonal coordinate (no seam)
     float along = ringMode ? fract(atan(p.x - c.x, -(p.y - c.y)) / TAU + 1.0) : (p.x * 0.9 + p.y * 0.45) / 700.0;
     float sweepPos = ringMode ? along
-                   : frameMode ? perimeterPos(p)
+                   : frameMode && !frameSweep ? perimeterPos(p)
                    : ((p.x - rect.x) + 0.5 * (p.y - rect.y)) / max(1.0, rect.z + 0.5 * rect.w);
     vec3 col;
     float cov;
@@ -140,13 +143,14 @@ void main() {
         float hw = tube * 0.5;
         float dc = d + hw;
         cov = clamp(hw - abs(dc) + 0.5, 0.0, 1.0);
-        // frame glints: a comet along the outline (a short lead ahead of the head,
-        // a tail behind it 2.5× as long), dark steel shoulders round it so it
-        // reads over the border's own bright stripes too, and a soft light, 2–3 px
+        // frame glints: a diagonal band (sweep) or a comet along the outline (a
+        // short lead ahead of the head, a tail behind it 2.5× as long); dark steel
+        // shoulders round it so it reads over the border's own bright stripes
+        // too, and a soft light, 2–3 px
         float glintMask = 0.0, shoulder = 0.0, halo = 0.0;
         if (frameMode) {
-            float sd = fract(sweepPos - sweep + 0.5) - 0.5;
-            float len = max(0.002, sd > 0.0 ? arc : arc * 2.5);
+            float sd = frameSweep ? sweepPos - sweep : fract(sweepPos - sweep + 0.5) - 0.5;
+            float len = frameSweep ? max(0.002, arc) : max(0.002, sd > 0.0 ? arc : arc * 2.5);
             glintMask = sweepAmt * exp(-sd * sd / (len * len));
             shoulder = sweepAmt * exp(-sd * sd / (4.8 * len * len));
             float off = max(0.0, abs(dc) - hw);

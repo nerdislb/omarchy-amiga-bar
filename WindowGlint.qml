@@ -5,12 +5,16 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import qs.Commons
 
-// A chrome glint that runs once round the focused window's frame (bar option
-// `frames glint`, metal themes; 08.10.2026). Hyprland can only turn a linear
-// gradient on its border (borderangle): in 1° steps, racing along the edges and
-// lingering at the corners. So the glint is drawn here instead – MetalShape
-// kind "frame" over Hyprland's own border, placed by arc length, so it keeps an
-// even pace round the corners, slowing towards the end and fading out.
+// A chrome glint on the focused window's frame (bar option `frames`, metal
+// themes; 08.10.2026). Hyprland can only turn a linear gradient on its border
+// (borderangle): in 1° steps, racing along the edges and lingering at the
+// corners. So the glint is drawn here instead, MetalShape kind "frame" over
+// Hyprland's own border, in one of two styles:
+//   "sweep" (frames glint) – the cards' glint: a light band crosses the frame
+//            diagonally once and fades (material `sweepMs`, 900 ms, as a popup
+//            opening; the quietest, the owner's pick);
+//   "orbit" (frames orbit) – a comet once round the frame, placed by arc length
+//            so it keeps an even pace round the corners, slowing and fading.
 //
 // Only while it runs is there a surface: a click-through Overlay layer the
 // size of the frame, on every monitor the frame reaches. It starts once the
@@ -24,10 +28,14 @@ Scope {
   id: root
 
   property bool enabled: false
+  property string style: "sweep"
   // the theme's material.metal (independent of the bar's edge option)
   property var metal: null
-  // one turn; the glint's lead in px (its tail is 2.5× as long)
+  readonly property bool orbit: style === "orbit"
+  // orbit: one turn, the comet's lead in px (its tail is 2.5× as long);
+  // sweep: as a card's glint
   readonly property int durationMs: metal && Number(metal.frameGlintMs) > 0 ? Number(metal.frameGlintMs) : 2800
+  readonly property int sweepMs: metal && Number(metal.sweepMs) > 0 ? Number(metal.sweepMs) : 900
   readonly property real leadPx: 90
 
   // the frame being glinted, in global layout coordinates (logical px)
@@ -55,6 +63,7 @@ Scope {
     settle.stop()
     watch.stop()
     anim.stop()
+    cardSweep.stop()
     running = false
     amount = 0
   }
@@ -93,12 +102,19 @@ Scope {
     target: Style
     function onReduceMotionChanged() { if (Style.reduceMotion) root.stop() }
   }
-  onEnabledChanged: if (!enabled && !manual) stop()
+  onEnabledChanged: if (!enabled) stop()
+  onStyleChanged: stop()
+  onMetalChanged: stop()
 
   Timer {
     id: settle
     interval: 300
-    onTriggered: { query.gen = root.generation; query.running = true }
+    onTriggered: {
+      // Do not relabel a still-running query with the next generation.
+      if (query.running) { settle.restart(); return }
+      query.gen = root.generation
+      query.running = true
+    }
   }
 
   // border size and corner rounding, read again on config reloads
@@ -149,7 +165,7 @@ Scope {
         root.address = w.address
         root.geometryKey = root.key(w)
         root.running = true
-        anim.restart()
+        if (root.orbit) anim.restart(); else cardSweep.restart()
         watch.restart()
       }
     }
@@ -190,6 +206,14 @@ Scope {
       // nothing left to draw: drop the surface and the watch (the turn runs out unseen)
       ScriptAction { script: { root.running = false; watch.stop() } }
     }
+    onFinished: { root.running = false; root.amount = 0; watch.stop() }
+  }
+  // sweep: exactly a card's glint (MetalShape.play()): from just before the
+  // top-left corner to just past the bottom-right one, fading as it goes
+  ParallelAnimation {
+    id: cardSweep
+    NumberAnimation { target: root; property: "sweep"; from: -0.15; to: 1.15; duration: root.sweepMs; easing.type: Easing.InOutQuad }
+    NumberAnimation { target: root; property: "amount"; from: 0.95; to: 0; duration: root.sweepMs; easing.type: Easing.InQuad }
     onFinished: { root.running = false; root.amount = 0; watch.stop() }
   }
 
@@ -237,7 +261,9 @@ Scope {
           pad: win.pad
           radius: root.rounding > 0 ? root.rounding + root.tube : 0
           tube: root.tube
-          arc: root.leadPx / Math.max(1, 2 * (root.fw + root.fh))
+          // orbit: the comet's lead along the perimeter; sweep: the band's half width (a card's)
+          ringStyle: root.orbit ? 0 : 1
+          arc: root.orbit ? root.leadPx / Math.max(1, 2 * (root.fw + root.fh)) : 0.04
           sweep: root.sweep
           sweepAmt: root.amount
         }

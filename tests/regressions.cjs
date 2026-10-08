@@ -1216,9 +1216,9 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.match(mc, /onVisibleChanged: fp\.glint\(\)/, '… once its rim is visible (the card starts at opacity 0)');
   assert.match(frag, /g = gl > 1e-4 \? g \/ gl : vec2\(0\.0, -1\.0\);/, 'no atan(0, 0) on a bar\'s centre line');
   assert.match(frag, /col = mix\(track\.rgb, col, filled\);\n\s*alphaMul = mix\(track\.a, 1\.0, filled\);/, '0 % = the track only');
-  assert.match(frag, /bool wrap = \(mode > 0\.5 && mode < 1\.5\) \|\| mode > 2\.5;\n\s*float d = wrap \? abs\(fract\(sweepPos - sweep \+ 0\.5\) - 0\.5\) : abs\(sweepPos - sweep\);/, 'one glint across a rect, wrapping on rings and frame glints');
-  // window frames (option `frames glint`): a glint by arc length, only while it runs
-  assert.match(frag, /: frameMode \? perimeterPos\(p\)/, 'the frame glint is placed by arc length (an even pace round the corners)');
+  assert.match(frag, /bool wrap = \(mode > 0\.5 && mode < 1\.5\) \|\| \(mode > 2\.5 && ringStyle < 0\.5\);\n\s*float d = wrap \? abs\(fract\(sweepPos - sweep \+ 0\.5\) - 0\.5\) : abs\(sweepPos - sweep\);/, 'the popup sweep never wraps; only rings and the orbit do');
+  // window frames: the popup sweep, or an orbit by arc length, only while it runs
+  assert.match(frag, /: frameMode && !frameSweep \? perimeterPos\(p\)/, 'the orbit is placed by arc length (an even pace round the corners)');
   assert.match(frag, /if \(frameMode && sweepAmt <= 0\.0\) \{ fragColor = vec4\(0\.0\); return; \}/);
   assert.match(ms, /kind === "frame" \? 3 : 0/);
   const wg = read('WindowGlint.qml');
@@ -1233,8 +1233,13 @@ console.log('PASS: stationary/recreated hover ignored; physical pointer motion a
   assert.match(wg, /if \(!w \|\| !w\.address \|\| !w\.size \|\| w\.fullscreen > 0 \|\| w\.hidden\) return/);
   assert.match(wg, /property: "sweep"; from: 0; to: 1\.06; duration: root\.durationMs; easing\.type: Easing\.OutQuad/, 'one turn and a little past, slowing towards the end (OutCubic crept)');
   assert.match(wg, /property: "amount"; from: 0; to: 1; duration: 200/, 'the glint fades in');
-  assert.match(read('Engine.qml'), /metal: root\.material && root\.material\.metal \? root\.material\.metal : null\n\s*enabled: root\.options\.frames === "glint" && !!metal/, 'the frame glint follows the theme, not the edge option');
-  assert.deepEqual(plain(ctx.ELEMENTS.frames.variants.map(v => v.id)), ['hyprland', 'glint'], 'off by default');
+  assert.match(read('Engine.qml'), /metal: root\.material && root\.material\.metal \? root\.material\.metal : null\n\s*style: root\.options\.frames === "orbit" \? "orbit" : "sweep"\n\s*enabled: \(root\.options\.frames === "glint" \|\| root\.options\.frames === "orbit"\) && !!metal/, 'the frame glint follows the theme, not the edge option');
+  // glint = a card's glint (owner, 08.10.: the quietest); orbit = once round
+  assert.match(wg, /property: "sweep"; from: -0\.15; to: 1\.15; duration: root\.sweepMs; easing\.type: Easing\.InOutQuad/, 'the frame sweep is exactly a card\'s glint');
+  assert.match(ms, /property: "sweep"; from: -0\.15; to: 1\.15; duration: glint\.duration; easing\.type: Easing\.InOutQuad/, '… as MetalShape.play()');
+  assert.match(frag, /float sd = frameSweep \? sweepPos - sweep : fract\(sweepPos - sweep \+ 0\.5\) - 0\.5;/);
+  assert.match(frag, /: frameMode && !frameSweep \? perimeterPos\(p\)/, 'the sweep takes the cards\' diagonal coordinate');
+  assert.deepEqual(plain(ctx.ELEMENTS.frames.variants.map(v => v.id)), ['hyprland', 'glint', 'orbit'], 'off by default');
   const islandBar = path.join(islandDir, 'BarWidget.qml');
   if (fs.existsSync(islandBar) && /chipMetal/.test(fs.readFileSync(islandBar, 'utf8')))
     assert.match(fs.readFileSync(islandBar, 'utf8'), /onSegKeyChanged: if \(segKey !== ""\) chipMetal\.play\(\)/, 'the segment glints by kind, not on every timer tick');

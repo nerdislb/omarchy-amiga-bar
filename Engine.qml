@@ -92,12 +92,13 @@ Item {
       }
     }
   }
-  // option `frames glint` (metal themes): a chrome glint once round the focused window's frame;
-  // the theme's metal, whatever the edge option says
+  // option `frames` (metal themes): a chrome glint on the focused window's frame – as a card's
+  // (glint) or once round it (orbit); the theme's metal, whatever the edge option says
   WindowGlint {
     id: windowGlint
     metal: root.material && root.material.metal ? root.material.metal : null
-    enabled: root.options.frames === "glint" && !!metal
+    style: root.options.frames === "orbit" ? "orbit" : "sweep"
+    enabled: (root.options.frames === "glint" || root.options.frames === "orbit") && !!metal
   }
 
   // ---------------------------------------------------------------- base layout
@@ -608,7 +609,7 @@ Item {
     function apps(): void { root.toggleMenu("apps") }
     function preset(id: string): string { return root.applyPreset(id) }
     function set(element: string, variant: string): string { return root.setVariant(element, variant) }
-    // a glint once round the focused window's frame now (metal themes), for other events to use
+    // the selected glint once on the focused window's frame now (metal themes), for other events
     function glintWindow(): string { return windowGlint.trigger() ? "ok" : "needs a metal theme (Chrom, Platin) and motion" }
     // After choosing Today: fresh snapshot of your own layout. Without any
     // baseline (base.json lost) it rebuilds one from our modules instead.
@@ -621,7 +622,7 @@ Item {
                               open: root.isOpen, dropMenuOpen: root.dropMenuOpen, saved: root.savedPresets.map(function(p) { return p.name }), lastResult: root.lastResult, moduleDir: root.moduleDir,
                               keys: { option: root.keysOption, bindings: root.keysState },
                               edge: { option: root.options.edge, material: root.material ? (root.material.edge ? root.material.edge.kind : "no edge") : null, themeEdge: root.themeEdgeVisible, barReady: root.barReady },
-                              frames: { option: root.options.frames, glint: windowGlint.enabled, running: windowGlint.running, frame: [windowGlint.gx, windowGlint.gy, windowGlint.fw, windowGlint.fh], tube: windowGlint.tube },
+                              frames: { option: root.options.frames, glint: windowGlint.enabled, style: windowGlint.style, running: windowGlint.running, durationMs: windowGlint.orbit ? windowGlint.durationMs : windowGlint.sweepMs, sweep: windowGlint.sweep, amount: windowGlint.amount, frame: [windowGlint.gx, windowGlint.gy, windowGlint.fw, windowGlint.fh], tube: windowGlint.tube },
                               usage: { folded: root.usageFolded, intervalSec: root.usageIntervalSec, running: usageUpdate.running, command: usageUpdate.command },
                               ask: root.askState(),
                               natives: (function() { var s = Bridge.ModuleBus.pick("status"); return s && s.nativeReport ? s.nativeReport() : null })(),

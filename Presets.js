@@ -49,12 +49,13 @@ var ELEMENTS = {
       { id: "calm", label: "Temperature at the weather" }
     ]
   },
-  // not a layout option: a chrome glint round the focused window (WindowGlint.qml)
+  // not a layout option: a chrome glint on the focused window (WindowGlint.qml)
   frames: {
     label: "Window frames",
     variants: [
       { id: "hyprland", label: "Hyprland's own" },
-      { id: "glint", label: "Chrome glint on focus (metal themes)" }
+      { id: "glint", label: "Chrome glint on focus, as the popups (metal themes)" },
+      { id: "orbit", label: "Chrome glint once round the window (metal themes)" }
     ]
   },
   // not a layout option: Super+Space opens the bar's menu (bin/keybinds.py)
